@@ -141,6 +141,7 @@ def assets():
     os.makedirs(D + '/assets', exist_ok=True)
     shutil.copy(O + '/assets/site.css', D + '/assets/site.css')
     shutil.copy(O + '/assets/consent.js', D + '/assets/consent.js')
+    shutil.copy(O + '/assets/fpl-data.js', D + '/assets/fpl-data.js')
     shutil.copytree(O + '/assets/fonts', D + '/assets/fonts', dirs_exist_ok=True)
     if os.path.isdir(O + '/assets/img'): shutil.copytree(O + '/assets/img', D + '/assets/img', dirs_exist_ok=True)
     # файлы подтверждения для Google Search Console / Яндекс Вебмастера — в корень сайта

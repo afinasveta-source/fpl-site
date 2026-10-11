@@ -27,6 +27,27 @@
   "<b>Контакты</b><a href=\"mailto:info@maskarad-grim.ru\">info@maskarad-grim.ru</a><a href=\"#\">Telegram</a><a href=\"#\">ВКонтакте</a><a href=\"#\">Instagram*</a>": "<b>Contacts</b><a href=\"mailto:info@maskarad-grim.ru\">info@maskarad-grim.ru</a><a href=\"#\">Telegram</a><a href=\"#\">VK</a><a href=\"#\">Instagram*</a>",
   "© 2026 MAGFACE · ИП Афиногенова С. О.": "© 2026 MAGFACE · Sole proprietor S. O. Afinogenova",
   "Дарья Семидетко · марафон MAG, «Восточная Азия»": "Darya Semidetko · MAG marathon, “East Asia”",
-  "@Аквагрим «Восточная Азия» — работа Дарьи Семидетко": "@“East Asia” face painting by Darya Semidetko"
+  "@Аквагрим «Восточная Азия» — работа Дарьи Семидетко": "@“East Asia” face painting by Darya Semidetko",
+  "Рейтинг после 1 тура": "Rating after round 1",
+  "Идёт Игра 01": "Game 01 is on",
+  "идёт": "on now",
+  "30 сентября — 10 ноября · участие бесплатное": "30 September — 10 November · free to enter",
+  "даты объявим после Игры 01": "dates announced after Game 01",
+  "идёт · финал 10 ноября": "on now · final on 10 November",
+  "Победители лиг Gold и Silver и итоговая таблица появятся здесь после финала.": "Gold and Silver league winners and the final table will appear here after the final.",
+  "Идёт сейчас": "On now",
+  "30 сентября — 10 ноября. Набор на Игру 02 откроем после финала — бот пришлёт даты.": "30 September — 10 November. Entries for Game 02 open after the final — the bot will send the dates.",
+  "Идёт": "On now",
+  "Первая Игра сезона, 30 сентября — 10 ноября. Участие бесплатное.": "The first Game of the season, 30 September — 10 November. Free to enter.",
+  "Рейтинг после 1 тура →": "Rating after round 1 →",
+  "После Игры 01": "After Game 01",
+  "Итоги Игры 01 — победители лиг, итоговая таблица и работы призёров — появятся здесь после финала 10 ноября.": "Game 01 results — league winners, the final table and the winning works — will appear here after the final on 10 November.",
+  "1 тур": "Round 1",
+  "Награды": "Awards",
+  "<a class=\"btnC\" data-en=\"Join the next Game →\" href=\"#how\">Участвовать в следующей Игре →</a>\n<a class=\"linkC\" href=\"rating.html\">Рейтинг после 1 тура</a>": "<a class=\"btnC\" data-en=\"Join the next Game →\" href=\"#how\">Join the next Game →</a>\n<a class=\"linkC\" href=\"rating.html\">Rating after round 1</a>",
+  "<b>Игра 01</b><span>идёт · финал 10 ноября</span>": "<b>Game 01</b><span>on now · final on 10 November</span>",
+  "<i></i>Идёт сейчас": "<i></i>On now",
+  "Поиск по имени": "Search by name",
+  "@Имя": "@Name"
  }
 }

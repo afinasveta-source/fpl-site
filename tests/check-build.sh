@@ -4,8 +4,12 @@
 set -e
 cd "$(dirname "$0")/.."
 PORT=${PORT:-8099}
-python3 -m http.server "$PORT" -d dist >/dev/null 2>&1 & SRV=$!
-trap 'kill $SRV' EXIT
+# как на сервере: сайт + пустые файлы данных /data/*.json (до переноса из бота)
+WEB=$(mktemp -d)
+cp -r dist/. "$WEB/" && mkdir -p "$WEB/data"
+for n in rating games certificates masters; do echo '{"schema":"fpl.public.'$n'.v1","seasons":[],"games":[],"certificates":{},"masters":[]}' > "$WEB/data/$n.json"; done
+python3 -m http.server "$PORT" -d "$WEB" >/dev/null 2>&1 & SRV=$!
+trap 'kill $SRV; rm -rf "$WEB"' EXIT
 sleep 1
 export NODE_PATH=${NODE_PATH:-$(npm root -g)}
 set +e

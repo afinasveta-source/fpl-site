@@ -105,15 +105,15 @@
         <p class="lead">Официальный рейтинг FPL. Обновляется после каждой Игры с учётом силы соперников.</p>
       </div>
       <dl class="rstats">
-        <div><dt>В рейтинге</dt><dd>[N]</dd><span>мастеров</span></div>
-        <div><dt>Стран</dt><dd>[N]</dd><span>в рейтинге</span></div>
-        <div><dt>Обновлён</dt><dd>Игра 01</dd><span>после финала</span></div>
+        <div><dt>В рейтинге</dt><dd id="rsCount">—</dd><span>мастеров</span></div>
+        <div data-stat="countries"><dt>Стран</dt><dd>—</dd><span>в рейтинге</span></div>
+        <div><dt>Обновлён</dt><dd>1 тур</dd><span>Игра 01</span></div>
       </dl>
     </div>
     <div class="rleagues" aria-label="Пороги лиг">
-      <div class="rl rl--gold"><span class="league-badge">Gold</span><b>от [Y]</b><span>[N] мастеров</span></div>
-      <div class="rl rl--silver"><span class="league-badge">Silver</span><b>[X]–[Y]</b><span>[N] мастеров</span></div>
-      <div class="rl rl--bronze"><span class="league-badge">Bronze</span><b>до [X]</b><span>[N] мастеров</span></div>
+      <div class="rl rl--gold"><span class="league-badge">Gold</span><b>—</b><span></span></div>
+      <div class="rl rl--silver"><span class="league-badge">Silver</span><b>—</b><span></span></div>
+      <div class="rl rl--bronze"><span class="league-badge">Bronze</span><b>—</b><span></span></div>
     </div>
   </section>
 
@@ -127,7 +127,7 @@
   <section aria-labelledby="tableTitle">
     <div class="rtable-head">
       <h2 class="h2" id="tableTitle">Все <span class="a-indigo">мастера</span></h2>
-      <p class="rnote">Данные на странице — пример для макета.</p>
+      <p class="rnote" id="rnote"></p>
     </div>
 
     <div class="rcontrols">
@@ -139,8 +139,8 @@
         <button role="tab" aria-selected="false" data-league="cal">В калибровке</button>
       </div>
       <div class="rfilters">
-        <label class="sr" for="rsearch">Поиск по имени или городу</label>
-        <input id="rsearch" type="search" placeholder="Имя или город" autocomplete="off">
+        <label class="sr" for="rsearch">Поиск по имени</label>
+        <input id="rsearch" type="search" placeholder="Имя" autocomplete="off">
         <label class="sr" for="rcountry">Страна</label>
         <select id="rcountry"><option value="all">Все страны</option></select>
       </div>
@@ -244,77 +244,7 @@
   }
 })();
 </script>
-<script>
-(function(){
-  // ПРИМЕР ДАННЫХ для макета. На реальном сайте строки приходят из базы рейтинга.
-  var DATA=[
-    ['Анна Петрова','Санкт-Петербург','Россия','Gold',684,24,3,{g:1,tw:3},2,'up'],
-    ['Мария Иванова','Москва','Россия','Gold',671,11,3,{s:1,tw:2},-1,'down'],
-    ['Lucía Martín','Valencia','Испания','Gold',662,38,3,{b:1,tw:2},3,'up'],
-    ['Ольга Смирнова','Казань','Россия','Gold',655,-6,3,{t10:1,tw:1},0,'same'],
-    ['Айгерим Сапарова','Алматы','Казахстан','Silver',641,19,3,{g:1,tw:1},4,'up'],
-    ['Елена Волкова','Новосибирск','Россия','Silver',612,-4,3,{t10:1},-2,'down'],
-    ['Дарья Ким','Екатеринбург','Россия','Silver',598,15,3,{s:1},1,'up'],
-    ['Nino Beridze','Тбилиси','Грузия','Silver',590,7,3,{tw:1},0,'same'],
-    ['Ксения Орлова','Минск','Беларусь','Silver',577,22,3,{b:1},5,'up'],
-    ['Виктория Лебедева','Краснодар','Россия','Silver',561,-12,3,{},-3,'down'],
-    ['Полина Зайцева','Самара','Россия','Bronze',512,26,3,{tw:1},2,'up'],
-    ['Татьяна Морозова','Пермь','Россия','Bronze',498,9,3,{},1,'up'],
-    ['Alina Kowalska','Warszawa','Польша','Bronze',486,-3,3,{},-1,'down'],
-    ['Юлия Соколова','Воронеж','Россия','Bronze',471,4,3,{},0,'same'],
-    // в калибровке (меньше 3 результатов)
-    ['Софья Белова','Ростов-на-Дону','Россия','cal',621,0,1,{tw:1},0,'same'],
-    ['Марина Ткаченко','Одесса','Украина','cal',540,0,2,{},0,'same'],
-    ['Ева Новак','Praha','Чехия','cal',503,0,1,{},0,'same']
-  ].map(function(r){return {name:r[0],city:r[1],country:r[2],league:r[3],rating:r[4],delta:r[5],games:r[6],aw:r[7],mv:r[8],mvDir:r[9]};});
-
-  var state={league:'all',q:'',country:'all'};
-  var ranked=DATA.filter(function(d){return d.league!=='cal'}).sort(function(a,b){return b.rating-a.rating});
-  ranked.forEach(function(d,i){d.place=i+1});
-
-  function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
-  function awards(a){var h='';
-    if(a.g) h+='<span class="aw aw--g" title="1 место в Игре">1</span>';
-    if(a.s) h+='<span class="aw aw--s" title="2 место в Игре">2</span>';
-    if(a.b) h+='<span class="aw aw--b" title="3 место в Игре">3</span>';
-    if(a.t10) h+='<span class="aw aw--t10" title="TOP-10 Игры">TOP-10</span>';
-    if(a.tw) h+='<span class="aw aw--tw" title="Лучшие работы тура">TOP WORK ×'+a.tw+'</span>';
-    return h||'<span class="none" style="color:#B9AEA2">—</span>';}
-
-  // подиум
-  var pod=document.getElementById('podium');
-  var order=[ranked[1],ranked[0],ranked[2]], cls=['pod--2','pod--1','pod--3'], pl=[2,1,3];
-  pod.innerHTML=order.map(function(d,i){return '<article class="pod '+cls[i]+'"><div class="pod-ph">[фото мастера]<span class="pod-place">'+pl[i]+'</span></div><div class="pod-body"><h3>'+esc(d.name)+'</h3><span class="meta">'+esc(d.city)+' · '+esc(d.country)+' · <span class="lgb lgb--'+d.league+'">'+d.league+'</span></span><div class="pod-row"><span class="rt">'+d.rating+'</span><a class="profile" href="master.html">Профиль</a></div></div></article>'}).join('');
-
-  // фильтр стран
-  var sel=document.getElementById('rcountry');
-  Array.from(new Set(DATA.map(function(d){return d.country}))).sort().forEach(function(c){var o=document.createElement('option'); o.value=c; o.textContent=c; sel.appendChild(o);});
-
-  function render(){
-    var cal=state.league==='cal';
-    document.getElementById('calNote').hidden=!cal;
-    var rows=(cal?DATA.filter(function(d){return d.league==='cal'}).sort(function(a,b){return b.rating-a.rating}):ranked)
-      .filter(function(d){return state.league==='all'||cal||d.league===state.league})
-      .filter(function(d){return state.country==='all'||d.country===state.country})
-      .filter(function(d){var q=state.q.trim().toLowerCase(); return !q||d.name.toLowerCase().indexOf(q)>-1||d.city.toLowerCase().indexOf(q)>-1});
-    document.getElementById('rbody').innerHTML=rows.map(function(d){
-      var mv=d.mvDir==='up'?'<span class="mv up">↑'+d.mv+'</span>':d.mvDir==='down'?'<span class="mv down">↓'+Math.abs(d.mv)+'</span>':'<span class="mv same">—</span>';
-      var place=cal?'<span class="place">—</span>':'<span class="place">'+d.place+' '+mv+'</span>';
-      var lg=cal?'<span class="lgb lgb--cal">калибровка '+d.games+'/3</span>':'<span class="lgb lgb--'+d.league+'">'+d.league+'</span>';
-      var rt='<span class="rt-val">'+d.rating+'</span>'+(cal?'<span class="prov">предварительный</span>':'');
-      var dl=cal||!d.delta?'<span class="dl">—</span>':'<span class="dl '+(d.delta>0?'up':'down')+'">'+(d.delta>0?'+':'−')+Math.abs(d.delta)+'</span>';
-      return '<tr><td class="c-pl">'+place+'</td><td class="c-who"><div class="who"><span class="ava"></span><div><b><a href="master.html">'+esc(d.name)+'</a></b><span>'+esc(d.city)+' · '+esc(d.country)+'</span></div></div></td><td class="c-lg">'+lg+'</td><td class="c-rt num">'+rt+'</td><td class="c-dl num">'+dl+'</td><td class="c-g num">'+d.games+'</td><td class="c-aw"><div class="awards">'+awards(d.aw)+'</div></td><td class="c-go"><a class="go" href="master.html" aria-label="Профиль: '+esc(d.name)+'">→</a></td></tr>';
-    }).join('');
-    document.getElementById('rempty').hidden=rows.length>0;
-  }
-  document.querySelectorAll('.tabs button').forEach(function(b){b.addEventListener('click',function(){
-    document.querySelectorAll('.tabs button').forEach(function(x){x.setAttribute('aria-selected',x===b)});
-    state.league=b.getAttribute('data-league'); render();});});
-  document.getElementById('rsearch').addEventListener('input',function(e){state.q=e.target.value; render();});
-  sel.addEventListener('change',function(e){state.country=e.target.value; render();});
-  render();
-})();
-</script>
+<script src="../assets/fpl-data.js?v=1" defer></script>
 
 <script>
 (function(){ var l=document.querySelector('.lang-list'); if(!l) return;
