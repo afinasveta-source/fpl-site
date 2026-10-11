@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Политика конфиденциальности · FPL</title>
+<link rel="stylesheet" href="assets/site.css">
+<style>
+/* =========================================================
+   ПОЛИТИКА КОНФИДЕНЦИАЛЬНОСТИ
+   ========================================================= */
+.pvhero{padding-top:120px; padding-bottom:48px}
+.pvhero .lead{margin:20px 0 0; font:400 18px/1.6 var(--f-body); color:#CFC7BE; max-width:620px}
+.pvmeta{margin:18px 0 0; font:500 13px/1.5 var(--f-body); color:#9C9188}
+.pvgrid{display:grid; grid-template-columns:260px minmax(0,1fr); gap:32px; align-items:start}
+.pvtoc{position:sticky; top:24px; display:grid; gap:2px; background:#fff; border-radius:12px; padding:20px}
+.pvtoc b{font:600 11px/1 var(--f-body); letter-spacing:.16em; text-transform:uppercase; color:var(--muted); margin-bottom:10px}
+.pvtoc a{font:500 14px/1.35 var(--f-body); color:#3A342F; text-decoration:none; padding:6px 8px; border-radius:6px}
+.pvtoc a:hover{background:#F3EEE8; color:var(--indigo)}
+.pvdoc{min-width:0; background:#fff; border-radius:12px; padding:40px 48px; max-width:860px; font:500 16px/1.65 var(--f-body); color:#3A342F}
+.pvdoc h2{margin:40px 0 14px; font:500 clamp(20px,2vw,26px)/1.2 var(--f-display); color:var(--ink,#15131A); scroll-margin-top:24px}
+.pvdoc h2:first-child{margin-top:0}
+.pvdoc p{margin:0 0 12px}
+.pvdoc ul,.pvdoc ol{margin:0 0 14px; padding-left:22px}
+.pvdoc li{margin:0 0 6px}
+.pvdoc a{color:var(--accent-text); overflow-wrap:anywhere}
+.pvdoc p{overflow-wrap:anywhere}
+.pvdoc table{border-collapse:collapse; width:100%; font-size:14px; line-height:1.5}
+.pvreq{margin:4px 0 16px}
+.pvreq th{text-align:left; font-weight:600; color:var(--muted); padding:8px 16px 8px 0; width:38%; vertical-align:top; border-bottom:1px solid #EDE6DE}
+.pvreq td{padding:8px 0; border-bottom:1px solid #EDE6DE}
+.pvscroll{overflow-x:auto; margin:4px 0 16px}
+.pvtab{min-width:560px}
+.pvtab th{text-align:left; font-weight:600; background:#F3EEE8; padding:10px 12px}
+.pvtab td{padding:10px 12px; border-bottom:1px solid #EDE6DE; vertical-align:top}
+.pvtab td:first-child{font-weight:600; width:22%}
+.pvfoot{margin-top:32px!important; padding-top:16px; border-top:1px solid #EDE6DE; font-size:13px; color:var(--muted)}
+@media (max-width:980px){ .pvgrid{grid-template-columns:minmax(0,1fr)} .pvtoc{position:static} }
+@media (max-width:640px){
+  .pvhero{padding-top:104px; padding-bottom:28px}
+  .pvhero h1{font-size:clamp(22px,6.4vw,32px)}
+  .pvhero .lead{font-size:15px; line-height:1.5; margin-top:12px; color:#B7AEA5}
+  .pvdoc{padding:24px 18px; font-size:15px}
+  .pvtoc{padding:16px}
+  .pvreq th,.pvreq td{display:block; width:auto; padding:6px 0}
+  .pvreq th{border-bottom:0; padding-bottom:0}
+  .pvtab{min-width:0} .pvtab thead{display:none}
+  .pvtab tr{display:block; padding:12px 0; border-bottom:1px solid #EDE6DE}
+  .pvtab td{display:block; width:auto!important; padding:3px 0; border:0}
+  .pvtab td:first-child{font:500 16px/1.3 var(--f-display); color:var(--ink,#15131A); padding-bottom:6px}
+  .pvtab td + td::before{display:block; font:600 11px/1.6 var(--f-body); letter-spacing:.12em; text-transform:uppercase; color:var(--muted)}
+}
+@media (max-width:640px){
+  .pvtab.t-data td:nth-child(2)::before{content:"Какие данные"} .pvtab.t-data td:nth-child(3)::before{content:"Зачем"}
+  .pvtab.t-store td:nth-child(2)::before{content:"Что хранится"} .pvtab.t-store td:nth-child(3)::before{content:"Страна"}
+  html[lang=en] .pvtab.t-data td:nth-child(2)::before{content:"What data"} html[lang=en] .pvtab.t-data td:nth-child(3)::before{content:"Why"}
+  html[lang=en] .pvtab.t-store td:nth-child(2)::before{content:"What is stored"} html[lang=en] .pvtab.t-store td:nth-child(3)::before{content:"Country"}
+}
+
+</style>
+</head>
+<body>
+<main class="wrap glow">
+  <nav class="nav">
+    <a class="logo" href="fpl-site-pro-ink.html" style="text-decoration:none">FPL<small>by MAGFACE</small></a>
+    <a href="fpl-games.html">Игры</a><a href="fpl-rating.html">Рейтинг</a><a href="fpl-gallery.html">Галерея</a><a href="fpl-find.html">Найти мастера</a><a href="fpl-about.html">О лиге</a><a href="fpl-rules.html">Правила</a>
+    <div class="lang-dd"><button type="button" class="lang-cur" aria-haspopup="true" aria-expanded="false" aria-label="Язык сайта"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.8 2.6 15.2 0 18M12 3c-2.6 2.8-2.6 15.2 0 18"/></g></svg><span data-lang-label>RU</span><svg viewBox="0 0 10 6" width="9" height="6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button><ul class="lang-list" hidden><li><button type="button" data-lang="ru" data-short="RU" class="on" aria-current="true">Русский</button></li><li><button type="button" data-lang="en" data-short="EN">English</button></li><li><button type="button" data-lang="de" data-short="DE">Deutsch</button></li><li><button type="button" data-lang="es" data-short="ES">Español</button></li><li><button type="button" data-lang="fr" data-short="FR">Français</button></li><li><button type="button" data-lang="zh" data-short="中文">中文</button></li><li><button type="button" data-lang="ja" data-short="日本語">日本語</button></li></ul></div>
+    <button class="btn-outline" style="border-color:var(--indigo); color:var(--indigo); letter-spacing:.08em">Участвовать</button>
+    <button class="burger" type="button" aria-label="Открыть меню" aria-controls="mmenu" aria-expanded="false" data-menu-open><span></span><span></span></button>
+  </nav>
+  <!-- ПОЛИТИКА -->
+  <section class="heroC pvhero" aria-labelledby="pvtitle">
+    <span class="eyebrow">Документы лиги</span>
+    <h1 id="pvtitle">Политика <span>конфиденциальности</span></h1>
+    <p class="lead">Как Face Painting League обрабатывает персональные данные участников и посетителей сайта.</p>
+    <p class="pvmeta">Редакция 1.0 · действует с 06.10.2026</p>
+  </section>
+
+  <div class="pvgrid">
+    <nav class="pvtoc" aria-label="Содержание">
+      <b>Содержание</b>
+      <a href="#p1">1. Общие положения</a>
+      <a href="#p2">2. Какие данные и зачем</a>
+      <a href="#p3">3. Основания и согласия</a>
+      <a href="#p4">4. Публикация работ</a>
+      <a href="#p5">5. Каталог «Найти мастера»</a>
+      <a href="#p6">6. Cookie и Яндекс Метрика</a>
+      <a href="#p7">7. Хранение и защита</a>
+      <a href="#p8">8. Передача данных</a>
+      <a href="#p9">9. Ваши права</a>
+      <a href="#p10">10. Участники до 18 лет</a>
+      <a href="#p11">11. Изменение политики</a>
+    </nav>
+
+    <article class="pvdoc">
+      <h2 id="p1">1. Общие положения</h2>
+      <p>1.1. Настоящая политика описывает, как обрабатываются персональные данные участников и посетителей онлайн-лиги аквагримёров Face Painting League (FPL by MAGFACE, далее — Лига). Она принята во исполнение Федерального закона от 27.07.2006 № 152-ФЗ «О персональных данных».</p>
+      <p>1.2. <b>Оператор персональных данных:</b></p>
+      <table class="pvreq">
+        <tr><th scope="row">Оператор</th><td>Индивидуальный предприниматель Афиногенова Светлана Олеговна</td></tr>
+        <tr><th scope="row">ИНН</th><td>784101042100</td></tr>
+        <tr><th scope="row">ОГРНИП</th><td>313784708500435</td></tr>
+        <tr><th scope="row">Адрес для корреспонденции</th><td>Санкт-Петербург</td></tr>
+        <tr><th scope="row">Электронная почта для обращений</th><td><a href="mailto:info@maskarad-grim.ru">info@maskarad-grim.ru</a></td></tr>
+      </table>
+      <p>1.3. Политика применяется к сайту https://facepaintingleague.com (включая русскую версию /ru/), чат-ботам Лиги в Telegram и ВКонтакте и к информационным ресурсам оператора, перечисленным в согласии на распространение.</p>
+      <p>1.4. Политика опубликована в свободном доступе на сайте. Она не заменяет согласия, которые участник даёт в боте, а объясняет их и описывает обработку данных посетителей сайта.</p>
+
+      <h2 id="p2">2. Какие данные мы обрабатываем и зачем</h2>
+      <p>Мы собираем только то, что нужно для проведения Игр, подсчёта рейтинга, выдачи дипломов и работы сайта. Специальные категории данных (здоровье, убеждения и т. п.) и биометрические данные не обрабатываем.</p>
+      <div class="pvscroll"><table class="pvtab t-data">
+        <thead><tr><th>Чьи данные</th><th>Какие данные</th><th>Зачем</th></tr></thead>
+        <tbody>
+        <tr><td>Участники Игр</td><td>ФИО; телефон или email; идентификатор и имя аккаунта в Telegram/ВКонтакте; город и страна; ссылка на свою страницу в соцсети; публичное имя; фото конкурсных работ и ссылки на посты с ними; фото для карточки участника; оценки, места, рейтинг, лига, награды, номера дипломов; переписка с менеджером; отметки о принятых документах (версия, дата и время)</td><td>Регистрация и участие в Играх; приём и судейство работ; рейтинг и лиги; выдача дипломов и призов; уведомления о сроках и итогах; ответы на вопросы; публикация результатов (раздел 4)</td></tr>
+        <tr><td>Судьи</td><td>ФИО, аккаунт в мессенджере, выставленные оценки; для страницы «Жюри» — фото и регалии по их согласию</td><td>Судейство; рассказ о составе жюри</td></tr>
+        <tr><td>Мастера в каталоге «Найти мастера»</td><td>Дополнительно: город работы и выезд, контакт для клиентов</td><td>Показ в каталоге по заявке мастера (раздел 5)</td></tr>
+        <tr><td>Посетители сайта</td><td>IP-адрес, данные браузера и устройства, страницы и время посещения; файлы cookie и данные Яндекс Метрики — только с согласия</td><td>Работа и защита сайта (журналы сервера); статистика посещений (раздел 6)</td></tr>
+        <tr><td>Родители / законные представители участников до 18 лет</td><td>ФИО, контакт, отметка о согласии</td><td>Оформление согласия за несовершеннолетнего (раздел 10)</td></tr>
+        </tbody>
+      </table></div>
+      <p>Перед тем как сдать работу, участник подтверждает, что у него есть согласие человека, изображённого на фото (модели), на передачу и публикацию снимка. Данные моделей, кроме самого изображения на фото, Лига не собирает.</p>
+
+      <h2 id="p3">3. Основания обработки и согласия</h2>
+      <p>3.1. Данные участников обрабатываются на основании их согласий, которые даются в боте при регистрации. Каждый документ показывается на отдельном экране и принимается отдельной кнопкой:</p>
+      <ol>
+        <li><b>Правила Игры</b> — кнопка «Принимаю Правила».</li>
+        <li><b>Согласие на обработку персональных данных</b> — кнопка «Даю согласие». Оформляется отдельно от других документов.</li>
+        <li><b>Согласие на обработку персональных данных, разрешённых для распространения</b> (ст. 10.1 152-ФЗ) — кнопка «Разрешаю публикацию». В нём перечислены данные, которые можно публиковать, и адреса ресурсов, где это возможно.</li>
+        <li><b>Подтверждение прав на изображение модели</b> — кнопка «Подтверждаю».</li>
+      </ol>
+      <p>3.2. Дата, время и версия принятого документа сохраняются. Текст принятой версии не изменяется; новая редакция выходит отдельной версией, и бот просит принять её заново.</p>
+      <p>3.3. Журналы сервера сайта ведутся для обеспечения работы и безопасности сайта. Аналитические cookie и Яндекс Метрика включаются только после согласия посетителя в плашке на сайте.</p>
+
+      <h2 id="p4">4. Публикация работ и публичный профиль</h2>
+      <p>4.1. На сайте и в информационных ресурсах Лиги публикуются только данные, на распространение которых участник дал согласие:</p>
+      <ul>
+        <li>публичное имя (его участник выбирает сам и может изменить в боте);</li>
+        <li>город и страна;</li>
+        <li>фото конкурсных работ с указанием автора и фото для карточки;</li>
+        <li>лига, рейтинг и его изменения, места, награды, отметки TOP WORK, очки FPL;</li>
+        <li>ссылка на страницу участника в соцсети, если он её указал.</li>
+      </ul>
+      <p>4.2. ФИО полностью, телефон, email, идентификаторы в мессенджерах и переписка на сайте не публикуются.</p>
+      <p>4.3. <b>Проверка диплома.</b> По номеру диплома (например, FPL-S1-01-0247) любой может увидеть: публичное имя владельца, Игру, сезон, лигу, вид диплома и дату выдачи. Страницы с результатом проверки не индексируются поисковиками.</p>
+      <p>4.4. Ресурсы, где возможна публикация, перечислены в согласии на распространение: сайт https://facepaintingleague.com, https://maskarad-grim.ru, https://t.me/maskarad_grim, https://vk.ru/publicmaskarad, https://www.instagram.com/akvagrim_maskarad*, https://www.instagram.com/facepaintingleague*.</p>
+      <p>4.5. Участник может отозвать согласие на распространение (раздел 9). После этого его данные убираются с сайта в течение 10 рабочих дней; в таблицах рейтинга и итогов он остаётся без имени и фото («Участник №…»), чтобы не искажать результаты других участников.</p>
+
+      <h2 id="p5">5. Каталог «Найти мастера»</h2>
+      <p>5.1. В каталог попадают только участники, которые сами включили в боте «Принимаю заказы» и дали отдельное согласие на показ контакта для клиентов.</p>
+      <p>5.2. В карточке каталога показываются: публичное имя, город работы и выезд, лига, рейтинг, награды, работы и контакт, который мастер указал для клиентов.</p>
+      <p>5.3. Мастер может в любой момент выключить «Принимаю заказы» — карточка исчезает из каталога при следующем обновлении сайта.</p>
+      <p>5.4. Лига не участвует в договорённостях между мастером и клиентом и не получает данные клиентов, которые пишут мастеру напрямую.</p>
+
+      <h2 id="p6">6. Cookie и Яндекс Метрика</h2>
+      <p>6.1. Сайт работает без регистрации и собственных аккаунтов. Шрифты и файлы оформления загружаются с нашего сервера, без сторонних сервисов. В браузере может сохраняться выбор языка и ответ на плашку cookie — это необходимые данные, без них сайт не запомнит выбор.</p>
+      <p>6.2. Для статистики посещений используется сервис Яндекс Метрика (ООО «Яндекс»). Он включается только после нажатия «Разрешить» в плашке cookie. Метрика получает обезличенные сведения о посещении: страницы, источник перехода, устройство, приблизительное местоположение. Вебвизор (запись действий на странице) не включён.</p>
+      <p>6.3. Согласие на аналитические cookie можно отозвать ссылкой «Настройки cookie» в подвале сайта или очистив cookie в браузере.</p>
+
+      <h2 id="p7">7. Хранение, сроки и защита</h2>
+      <p>7.1. Запись, систематизация, накопление и хранение данных граждан РФ ведутся в базах данных на территории России (ч. 5 ст. 18 152-ФЗ):</p>
+      <div class="pvscroll"><table class="pvtab t-store">
+        <thead><tr><th>Где</th><th>Что хранится</th><th>Страна</th></tr></thead>
+        <tbody>
+        <tr><td>Конструктор чат-ботов SaleBot</td><td>Анкеты, согласия, работы, оценки, рейтинг, переписка</td><td>Россия</td></tr>
+        <tr><td>Сервер и хранилище Selectel (Санкт-Петербург)</td><td>Сайт, публичные данные рейтинга и галереи, журналы сервера</td><td>Россия</td></tr>
+        <tr><td>Яндекс Метрика</td><td>Статистика посещений (с согласия)</td><td>Россия</td></tr>
+        </tbody>
+      </table></div>
+      <p>7.2. <b>Трансграничная передача.</b> Бот работает в Telegram, а работы с согласия участника могут публиковаться в Telegram-канале и в Instagram*. Это зарубежные площадки, поэтому такая передача ведётся по правилам ст. 12 152-ФЗ.</p>
+      <p>7.3. <b>Сроки хранения:</b></p>
+      <ul>
+        <li>анкета и контакты участника — пока действует согласие, но не дольше 3 лет после последнего участия в Игре;</li>
+        <li>результаты, рейтинг и номера дипломов — пока существует Лига (диплом должен проверяться); после отзыва согласия — без имени и фото;</li>
+        <li>отметки о принятых согласиях и их отзыве — 3 года после прекращения обработки (доказательство согласия);</li>
+        <li>журналы сервера сайта — до 30 дней.</li>
+      </ul>
+      <p>7.4. <b>Защита.</b> Доступ к данным имеют только оператор и назначенные им менеджеры и судьи (судьи видят работы без имён авторов). Сайт работает по HTTPS. Передача данных из бота на сайт защищена ключом, и на сайт передаются только публичные данные из раздела 4.</p>
+
+      <h2 id="p8">8. Передача данных другим лицам</h2>
+      <p>8.1. Мы не продаём данные и не передаём их для рекламы.</p>
+      <p>8.2. Данные обрабатывают по поручению оператора или получают в технических целях: SaleBot (конструктор бота), Selectel (сервер и хранилище), Яндекс (Метрика), а также мессенджеры Telegram и ВКонтакте, через которые работает бот.</p>
+      <p>8.3. Спонсорам и партнёрам, вручающим призы, передаются только данные, нужные для доставки приза, и только с согласия победителя.</p>
+      <p>8.4. По законному запросу государственных органов — в случаях, предусмотренных законом.</p>
+
+      <h2 id="p9">9. Ваши права и как с нами связаться</h2>
+      <p>9.1. Вы вправе: узнать, какие ваши данные мы обрабатываем; потребовать их уточнить, заблокировать или уничтожить; отозвать любое согласие; потребовать прекратить распространение данных; обжаловать наши действия в Роскомнадзоре или в суде.</p>
+      <p>9.2. <b>Как обратиться:</b> написать на <a href="mailto:info@maskarad-grim.ru">info@maskarad-grim.ru</a> или менеджеру в боте («Задать вопрос менеджеру»). Укажите ФИО, контакт из анкеты и суть требования.</p>
+      <p>9.3. <b>Сроки ответа:</b> на запрос о данных — в течение 10 рабочих дней; требование прекратить распространение — в течение 3 рабочих дней.</p>
+      <p>9.4. Отзыв согласия на обработку данных означает выход из текущей Игры: без данных участника нельзя принимать и судить его работы.</p>
+
+      <h2 id="p10">10. Участники до 18 лет</h2>
+      <p>10.1. Участие до 18 лет возможно только с согласия родителя или другого законного представителя. Согласия на обработку и распространение данных такого участника даёт законный представитель.</p>
+      <p>10.2. До начала участия законный представитель направляет согласие на <a href="mailto:info@maskarad-grim.ru">info@maskarad-grim.ru</a> или менеджеру в боте. Без такого согласия участник младше 18 лет к Игре не допускается.</p>
+
+      <h2 id="p11">11. Изменение политики</h2>
+      <p>11.1. Оператор может обновлять политику. Новая редакция публикуется на этой странице с датой вступления в силу; предыдущие редакции доступны по запросу.</p>
+      <p>11.2. Если изменения касаются объёма данных или целей, на которые дано согласие, бот попросит принять новую версию согласия.</p>
+      <p class="pvfoot">Редакция 1.0, действует с 06.10.2026.<br>* Instagram принадлежит компании Meta, признанной экстремистской и запрещённой в России.</p>
+    </article>
+  </div>
+
+  <footer class="site-footer">
+    <div class="f-brand"><span class="f-logo">FPL</span><p>Face Painting League by MAGFACE. Онлайн-лига аквагримёров.</p></div>
+    <div><b>Лига</b><a href="fpl-games.html">Игры и календарь</a><a href="fpl-rating.html">Рейтинг</a><a href="fpl-site-pro-ink.html#archive">Зал славы</a><a href="fpl-about.html#jury">Жюри</a><a href="fpl-find.html">Найти мастера</a></div>
+    <div><b>Участникам</b><a href="fpl-site-pro-ink.html#how">Как участвовать</a><a href="fpl-diploma.html">Проверка диплома</a><a href="fpl-rules.html#faq">Вопросы</a></div>
+    <div><b>Документы</b><a href="fpl-rules.html">Правила лиги</a><a href="fpl-privacy.html">Политика конфиденциальности</a><a href="fpl-rules.html#docs">Согласие на публикацию работ</a></div>
+    <div><b>Контакты</b><a href="mailto:info@maskarad-grim.ru">info@maskarad-grim.ru</a><a href="#">Telegram</a><a href="#">ВКонтакте</a><a href="#">Instagram*</a></div>
+    <p class="f-note">* Instagram принадлежит компании Meta, признанной экстремистской организацией и запрещённой в России.</p>
+    <p class="f-copy">© 2026 MAGFACE · ИП Афиногенова С. О.</p>
+  </footer>
+</main>
+<div class="mmenu" id="mmenu" hidden>
+  <div class="mmenu-head"><span class="logo">FPL</span><button class="burger is-open" type="button" aria-label="Закрыть меню" data-menu-close><span></span><span></span></button></div>
+  <nav class="mmenu-links" aria-label="Разделы сайта">
+    <a href="fpl-games.html">Игры и календарь <small>сезон 1 · Игры сезона</small></a>
+    <a href="fpl-rating.html">Рейтинг <small>лиги Bronze · Silver · Gold</small></a>
+    <a href="fpl-gallery.html">Галерея работ <small>лучшие работы сезона</small></a>
+    <a href="fpl-find.html">Найти мастера <small>мастера лиги, которые принимают заказы</small></a>
+    <a href="fpl-about.html">О лиге <small>как всё устроено, судьи, награды</small></a>
+    <a href="fpl-rules.html">Правила и вопросы</a>
+  </nav>
+  <div class="mmenu-foot">
+    <button class="btn-wide mm-primary" type="button">Участвовать</button>
+    <button class="btn-wide mm-secondary" type="button">Следить за лигой</button>
+    <p>Telegram-бот · ВКонтакте · Instagram*</p>
+  </div>
+</div>
+<div class="mbar"><button class="btn-wide">Участвовать</button><button class="btn-wide">Следить</button></div>
+<script>
+(function(){
+  var menu=document.getElementById('mmenu'); if(!menu) return;
+  function setOpen(o){ menu.hidden=!o; document.body.classList.toggle('menu-open',o);
+    document.querySelectorAll('[data-menu-open]').forEach(function(b){b.setAttribute('aria-expanded',o)}); }
+  document.querySelectorAll('[data-menu-open]').forEach(function(b){ b.addEventListener('click',function(){setOpen(true)}); });
+  menu.querySelectorAll('[data-menu-close], .mmenu-links a').forEach(function(el){ el.addEventListener('click',function(){setOpen(false)}); });
+  document.addEventListener('keydown',function(e){ if(e.key==='Escape') setOpen(false); });
+})();
+</script>
+<script>
+(function(){
+  // проверка диплома (в прототипе — один пример)
+  var f=document.getElementById('verifyForm'); if(f){
+    f.addEventListener('submit',function(e){ e.preventDefault();
+      var v=(document.getElementById('dipNo').value||'').trim().toUpperCase(), r=document.getElementById('verifyResult');
+      r.hidden=false;
+      if(v==='FPL-S1-01-0247'){ r.className='verify-result ok'; r.innerHTML='<b>✓ Диплом подтверждён</b><br>Анна Петрова · Игра 01, сезон 1 · лига Silver<br>Все работы сданы в срок · <a href="#players">профиль мастера</a> <span style="color:#6E6560">(пример)</span>'; }
+      else { r.className='verify-result'; r.textContent=v?'Диплом с номером '+v+' не найден. Проверьте номер на дипломе.':'Введите номер диплома.'; }
+    });
+  }
+  // переключатель языка (в прототипе переведены первый экран и полоса доверия)
+  var els=[].slice.call(document.querySelectorAll('[data-en]'));
+  els.forEach(function(el){ el.setAttribute('data-ru', el.innerHTML); });
+  var dd=document.querySelector('.lang-dd');
+  if(dd){ var cur=dd.querySelector('.lang-cur'), list=dd.querySelector('.lang-list');
+    function close(){ list.hidden=true; cur.setAttribute('aria-expanded','false'); }
+    cur.addEventListener('click',function(e){ e.stopPropagation(); list.hidden=!list.hidden; cur.setAttribute('aria-expanded', String(!list.hidden)); });
+    document.addEventListener('click',function(e){ if(!dd.contains(e.target)) close(); });
+    document.addEventListener('keydown',function(e){ if(e.key==='Escape') close(); });
+    list.querySelectorAll('button').forEach(function(btn){ btn.addEventListener('click',function(){
+      var lang=btn.getAttribute('data-lang');
+      list.querySelectorAll('button').forEach(function(b){ b.classList.toggle('on', b===btn); if(b===btn) b.setAttribute('aria-current','true'); else b.removeAttribute('aria-current'); });
+      dd.querySelector('[data-lang-label]').textContent=btn.getAttribute('data-short');
+      // в прототипе переведён только английский; для других языков временно показываем английский текст
+      els.forEach(function(el){ var t=el.getAttribute('data-'+lang)||(lang==='ru'?null:el.getAttribute('data-en')); el.innerHTML = t||el.getAttribute('data-ru'); });
+      document.documentElement.lang = lang; close();
+    }); });
+  }
+})();
+</script>
+</body>
+</html>

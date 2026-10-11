@@ -1,0 +1,30 @@
+{
+ "raw": {
+  "index": {
+   "Входишь в игру?": "Are you in?",
+   "Моя работа": "My work"
+  },
+  "master": {
+   ">Игра 01<": ">Game 01<",
+   ">Игра 02<": ">Game 02<"
+  },
+  "find": {
+   "row('ВКонтакте'": "row('VK'",
+   "var a=n%10,b=n%100; return a===1&&b!==11?": "var a=n,b=0; return a===1&&b!==11?"
+  },
+  "gallery": {
+   "var a=n%10,b=n%100; return a===1&&b!==11?": "var a=n,b=0; return a===1&&b!==11?"
+  },
+  "_all": {
+   ">30 000+<": ">30,000+<",
+   ">1400+<": ">1,400+<",
+   "30 000 ₽": "₽30,000",
+   ">30 000<": ">30,000<"
+  }
+ },
+ "html": {
+  "<b>Документы</b><a href=\"rules.html\">Правила лиги</a><a href=\"privacy.html\">Политика конфиденциальности</a><a href=\"rules.html#docs\">Согласие на публикацию работ</a>": "<b>Documents</b><a href=\"rules.html\">League Rules</a><a href=\"privacy.html\">Privacy Policy</a><a href=\"rules.html#docs\">Consent to publish works</a>",
+  "<b>Контакты</b><a href=\"mailto:info@maskarad-grim.ru\">info@maskarad-grim.ru</a><a href=\"#\">Telegram</a><a href=\"#\">ВКонтакте</a><a href=\"#\">Instagram*</a>": "<b>Contacts</b><a href=\"mailto:info@maskarad-grim.ru\">info@maskarad-grim.ru</a><a href=\"#\">Telegram</a><a href=\"#\">VK</a><a href=\"#\">Instagram*</a>",
+  "© 2026 MAGFACE · ИП Афиногенова С. О.": "© 2026 MAGFACE · Sole proprietor S. O. Afinogenova"
+ }
+}

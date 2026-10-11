@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Правила и вопросы · FPL</title>
+<link rel="stylesheet" href="assets/site.css">
+<style>
+/* =========================================================
+   ПРАВИЛА И ВОПРОСЫ
+   ========================================================= */
+.sec-head{display:flex; align-items:center; justify-content:space-between; gap:14px 24px; flex-wrap:wrap; margin-bottom:22px}
+.rlhero{padding-top:120px; padding-bottom:48px}
+.rlhero-body{display:grid; grid-template-columns:1.3fr 1fr; gap:48px; align-items:end}
+.rlhero h1{margin:20px 0 0; font:400 clamp(32px,3.9vw,56px)/1.08 var(--f-display); letter-spacing:-.03em; color:var(--cream)}
+.rlhero h1 span{color:var(--peach)}
+.rlhero .lead{margin:20px 0 0; font:400 18px/1.6 var(--f-body); color:#CFC7BE; max-width:540px}
+.rlver{background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.09); border-radius:12px; padding:24px; color:var(--cream)}
+.rlver-tag{display:inline-flex; align-items:center; gap:8px; font:600 13px var(--f-body); color:#CFE7A6}
+.rlver-tag i{width:8px; height:8px; border-radius:50%; background:#8BD05A}
+.rlver b{display:block; margin-top:12px; font:500 22px/1.2 var(--f-display)}
+.rlver p{margin:8px 0 0; font:500 14px/1.5 var(--f-body); color:#B7AEA5}
+.rlver-actions{display:flex; gap:20px; align-items:center; flex-wrap:wrap; margin-top:20px}
+.rlver-actions .btnC{text-decoration:none}
+.ghostC{background:none; border:0; padding:0 0 2px; color:var(--cream); font:600 15px var(--f-body); border-bottom:1px solid currentColor; text-decoration:none; cursor:pointer}
+
+/* содержание + текст */
+.rlwrap{display:grid; grid-template-columns:220px minmax(0,1fr); gap:48px; align-items:start}
+.rltoc{position:sticky; top:24px; display:flex; flex-direction:column; gap:2px; padding-top:0}
+.rltoc-h{font:600 11px/1 var(--f-body); letter-spacing:.16em; text-transform:uppercase; color:var(--muted); margin-bottom:12px}
+.rltoc a{padding:8px 0 8px 14px; border-left:2px solid #E2DBD2; color:#5B534B; text-decoration:none; font:600 14px/1.2 var(--f-body)}
+.rltoc a:hover,.rltoc a.on{border-color:var(--indigo); color:var(--ink)}
+.rlbody .h2{margin-bottom:22px}
+.rli{display:grid; grid-template-columns:56px minmax(0,1fr); gap:18px; background:#fff; border-radius:12px; padding:24px 26px; margin-bottom:10px; scroll-margin-top:20px}
+.rli-n{font:500 22px/1 var(--f-display); color:var(--indigo); padding-top:3px}
+.rli h3{margin:0; font:500 20px/1.2 var(--f-display); letter-spacing:-.01em}
+.rli ul{margin:12px 0 0; padding:0; list-style:none; display:grid; gap:8px}
+.rli li{position:relative; padding-left:18px; font:500 15px/1.6 var(--f-body); color:#3A342F}
+.rli li::before{content:""; position:absolute; left:0; top:.7em; width:6px; height:6px; border-radius:50%; background:var(--peach)}
+.rli-ref{display:inline-block; margin-top:14px; font:600 12px var(--f-body); letter-spacing:.04em; color:var(--muted)}
+.rli-ref a{color:var(--accent-text)}
+
+/* вопросы */
+#faq,#docs,#r-join{scroll-margin-top:20px}
+.faq details[hidden]{display:none}
+
+/* документы */
+.rldocs{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+.rldoc{display:flex; align-items:center; gap:16px; background:#fff; border-radius:12px; padding:18px 20px; text-decoration:none; color:var(--ink); border:1.5px solid transparent}
+.rldoc:hover{border-color:var(--indigo)}
+.rldoc-ic{flex:none; width:44px; height:52px; border-radius:6px; background:#F3EEE8; display:grid; place-items:end center; padding-bottom:8px; font:700 10px/1 var(--f-body); letter-spacing:.06em; color:var(--accent-text)}
+.rldoc b{display:block; font:600 15px/1.3 var(--f-body)}
+.rldoc div span{font:500 13px var(--f-body); color:var(--muted)}
+.rldoc i{margin-left:auto; font-style:normal; font:600 18px var(--f-body); color:var(--accent-text)}
+
+/* вопрос остался */
+.rlask{display:flex; align-items:center; justify-content:space-between; gap:20px; flex-wrap:wrap; background:#FCE9DD; border-radius:12px; padding:32px}
+.rlask p{margin:10px 0 0; font:500 16px/1.5 var(--f-body); color:#5E4A3E}
+.rlask .btnC{text-decoration:none}
+
+@media (max-width:980px){
+  .rlhero-body{grid-template-columns:1fr}
+  .rlwrap{grid-template-columns:1fr; gap:20px}
+  .rltoc{position:static; flex-direction:row; flex-wrap:nowrap; overflow-x:auto; gap:6px; padding:0 0 4px; scrollbar-width:none}
+  .rltoc::-webkit-scrollbar{display:none}
+  .rltoc-h{display:none}
+  .rltoc a{flex:none; border:1px solid rgba(21,19,26,.14); border-radius:999px; padding:9px 14px; background:#fff}
+  .rldocs{grid-template-columns:1fr}
+}
+@media (max-width:640px){
+  .rlhero{padding-top:104px; padding-bottom:28px}
+  .rlhero-body{gap:24px}
+  .rlhero .lead{font-size:15px; line-height:1.5; margin-top:12px; color:#B7AEA5}
+  .rlver{padding:20px}
+  .rlver-actions .btnC{width:auto!important; padding:11px 18px!important; font-size:14px!important}
+  .rli{grid-template-columns:1fr; gap:6px; padding:20px}
+  .rli-n{font-size:15px}
+  .rli h3{font-size:18px}
+  .rli li{font-size:14.5px}
+  .sec-head .tabs{width:100%}
+  .rlask{padding:22px 20px}
+  .rlask .btnC{width:auto!important; padding:12px 20px!important; font-size:14px!important}
+  .rldoc{padding:16px}
+}
+
+
+</style>
+</head>
+<body>
+<main class="wrap glow">
+  <nav class="nav">
+    <a class="logo" href="fpl-site-pro-ink.html" style="text-decoration:none">FPL<small>by MAGFACE</small></a>
+    <a href="fpl-games.html">Игры</a><a href="fpl-rating.html">Рейтинг</a><a href="fpl-gallery.html">Галерея</a><a href="fpl-find.html">Найти мастера</a><a href="fpl-about.html">О лиге</a><a href="fpl-rules.html" aria-current="page">Правила</a>
+    <div class="lang-dd"><button type="button" class="lang-cur" aria-haspopup="true" aria-expanded="false" aria-label="Язык сайта"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.8 2.6 15.2 0 18M12 3c-2.6 2.8-2.6 15.2 0 18"/></g></svg><span data-lang-label>RU</span><svg viewBox="0 0 10 6" width="9" height="6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button><ul class="lang-list" hidden><li><button type="button" data-lang="ru" data-short="RU" class="on" aria-current="true">Русский</button></li><li><button type="button" data-lang="en" data-short="EN">English</button></li><li><button type="button" data-lang="de" data-short="DE">Deutsch</button></li><li><button type="button" data-lang="es" data-short="ES">Español</button></li><li><button type="button" data-lang="fr" data-short="FR">Français</button></li><li><button type="button" data-lang="zh" data-short="中文">中文</button></li><li><button type="button" data-lang="ja" data-short="日本語">日本語</button></li></ul></div>
+    <button class="btn-outline" style="border-color:var(--indigo); color:var(--indigo); letter-spacing:.08em">Участвовать</button>
+    <button class="burger" type="button" aria-label="Открыть меню" aria-controls="mmenu" aria-expanded="false" data-menu-open><span></span><span></span></button>
+  </nav>
+  <!-- ПРАВИЛА: ШАПКА -->
+  <section class="heroC rlhero" aria-labelledby="rltitle">
+    <div class="rlhero-body">
+      <div>
+        <span class="eyebrow">Face Painting League</span>
+        <h1 id="rltitle">Правила <span>и вопросы</span></h1>
+        <p class="lead">Главное из Правил лиги — простыми словами. Полный текст юридически обязателен; если что-то расходится, действует он.</p>
+      </div>
+      <div class="rlver">
+        <span class="rlver-tag"><i></i>Действующая редакция</span>
+        <b>Правила лиги, ред. 1.7</b>
+        <p>Принимаются в боте перед регистрацией. Об изменениях сообщаем заранее.</p>
+        <div class="rlver-actions">
+          <a class="btnC" href="#">Скачать PDF</a>
+          <a class="ghostC" href="#">Читать в боте</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- КОРОТКО О ГЛАВНОМ -->
+  <section aria-labelledby="sumTitle">
+    <h2 class="h2" id="sumTitle" style="margin-bottom:22px">Коротко <span class="a-pink">о главном</span></h2>
+    <div class="rlwrap">
+      <nav class="rltoc" aria-label="Содержание">
+        <span class="rltoc-h">Содержание</span>
+        <a href="#r-join">Участие</a>
+        <a href="#r-task">Задание и работа</a>
+        <a href="#r-submit">Как сдать работу</a>
+        <a href="#r-fair">Честная игра</a>
+        <a href="#r-judge">Оценка и туры</a>
+        <a href="#r-rating">Рейтинг и лиги</a>
+        <a href="#r-points">Награды и очки</a>
+        <a href="#r-diploma">Диплом</a>
+        <a href="#r-final">Суперфинал</a>
+        <a href="#r-pub">Публикация работ</a>
+        <a href="#faq">Вопросы</a>
+        <a href="#docs">Документы</a>
+      </nav>
+
+      <div class="rlbody">
+        <article class="rli" id="r-join">
+          <div class="rli-n">01</div>
+          <div>
+            <h3>Участие</h3>
+            <ul>
+              <li>Лига проходит онлайн, участвовать можно из любой страны. Участники младше 18 лет — с согласия родителей.</li>
+              <li>Регистрация — в Telegram- или ВК-боте: принимаешь Правила, даёшь согласия и заполняешь анкету.</li>
+              <li>Первая Игра для каждого нового участника бесплатна. Размер взноса за следующие Игры публикуется до их начала.</li>
+            </ul>
+            <span class="rli-ref">Раздел 1 Правил</span>
+          </div>
+        </article>
+
+        <article class="rli" id="r-task">
+          <div class="rli-n">02</div>
+          <div>
+            <h3>Задание и работа</h3>
+            <ul>
+              <li>В каждом туре — новое задание. В нём указано, где выполняется работа: на лице модели или на планшете, и другие требования.</li>
+            </ul>
+            <span class="rli-ref">Задания туров</span>
+          </div>
+        </article>
+
+        <article class="rli" id="r-submit">
+          <div class="rli-n">03</div>
+          <div>
+            <h3>Как сдать работу</h3>
+            <ul>
+              <li>Пришли фото работы в бот.</li>
+              <li>Опубликуй работу на своей странице во ВКонтакте или Instagram* и пришли в бот ссылку на пост.</li>
+              <li>Работа считается сданной, только когда до срока есть и фото, и ссылка. После срока работы не принимаются.</li>
+            </ul>
+            <span class="rli-ref">Публикация конкурсных работ · п. 7.8</span>
+          </div>
+        </article>
+
+        <article class="rli" id="r-fair">
+          <div class="rli-n">04</div>
+          <div>
+            <h3>Честная игра</h3>
+            <ul>
+              <li>Работа должна быть твоей и выполненной по заданию тура.</li>
+              <li>Нельзя использовать изображения, созданные ИИ, и обработку, которая меняет саму работу.</li>
+              <li>Сохраняй фото или видео процесса: организатор может попросить исходники.</li>
+            </ul>
+            <span class="rli-ref">Оригинальность работ</span>
+          </div>
+        </article>
+
+        <article class="rli" id="r-judge">
+          <div class="rli-n">05</div>
+          <div>
+            <h3>Оценка и туры</h3>
+            <ul>
+              <li>Работы оценивает жюри анонимно — без имён авторов. Способ оценки зависит от тура: попарно или по критериям.</li>
+              <li>После каждого тура ты видишь, как изменился твой рейтинг, и узнаёшь, проходишь ли в следующий тур.</li>
+              <li>Лучшие работы тура получают отметку TOP WORK.</li>
+              <li>Если не прошёл в следующий тур, можно продолжать рисовать вне конкурса.</li>
+            </ul>
+            <span class="rli-ref">п. 7.3</span>
+          </div>
+        </article>
+
+        <article class="rli" id="r-rating">
+          <div class="rli-n">06</div>
+          <div>
+            <h3>Рейтинг и лиги</h3>
+            <ul>
+              <li>FPL Rating показывает уровень мастера. Он меняется после каждого тура и учитывает силу соперников.</li>
+              <li>По рейтингу определяется лига — Bronze, Silver или Gold — и то, с чьими работами сравнивается твоя.</li>
+              <li>Лига назначается перед Игрой и до её конца не меняется. Пороги лиг объявляются до сезона и в течение сезона не меняются.</li>
+            </ul>
+            <span class="rli-ref">п. 7.1, 7.2</span>
+          </div>
+        </article>
+
+        <article class="rli" id="r-points">
+          <div class="rli-n">07</div>
+          <div>
+            <h3>Награды и очки</h3>
+            <ul>
+              <li>Победители и призёры каждой лиги получают призы и медали. Все, кто дошёл до конца Игры, — скидку на материалы MAGFACE.</li>
+              <li>Очки FPL — твоя история в лиге. Они даются за лучший результат в Игре и ещё по очку за каждую работу TOP WORK. Очки не сгорают.</li>
+            </ul>
+            <span class="rli-ref">п. 7.5–7.7</span>
+          </div>
+        </article>
+
+        <article class="rli" id="r-diploma">
+          <div class="rli-n">08</div>
+          <div>
+            <h3>Диплом</h3>
+            <ul>
+              <li>Диплом выдаётся, если все работы Игры сданы в срок. Тогда же Игра засчитывается в сезон.</li>
+              <li>Пропущен срок хотя бы одной работы — диплома за эту Игру нет, и для Суперфинала она не считается.</li>
+              <li>Выбыл по итогам судейства, но сдавал всё вовремя — диплом твой.</li>
+            </ul>
+            <span class="rli-ref">п. 7.8 · <a href="fpl-diploma.html">проверить диплом</a></span>
+          </div>
+        </article>
+
+        <article class="rli" id="r-final">
+          <div class="rli-n">09</div>
+          <div>
+            <h3>Суперфинал</h3>
+            <ul>
+              <li>По итогам одной Игры: 1–3 место в Gold или 1 место в Silver.</li>
+              <li>Или по итогам сезона: 2 из 3 Игр в Gold либо все 3 Игры в Silver или Gold.</li>
+              <li>Призовой фонд формирует Организатор. Объявленная сумма не уменьшается, порядок распределения публикуется до Суперфинала.</li>
+            </ul>
+            <span class="rli-ref">п. 9.1</span>
+          </div>
+        </article>
+
+        <article class="rli" id="r-pub">
+          <div class="rli-n">10</div>
+          <div>
+            <h3>Публикация работ</h3>
+            <ul>
+              <li>Лига публикует работы участников на сайте и в своих соцсетях с указанием автора.</li>
+              <li>Условия — в Согласии на публикацию, которое принимается при регистрации.</li>
+            </ul>
+            <span class="rli-ref">Согласие на распространение</span>
+          </div>
+        </article>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ВОПРОСЫ -->
+  <section id="faq" aria-labelledby="faqTitle">
+    <div class="sec-head">
+      <h2 class="h2" id="faqTitle">Частые <span class="a-indigo">вопросы</span></h2>
+      <div class="tabs" role="tablist" aria-label="Тема">
+        <button role="tab" aria-selected="true" data-cat="all">Все</button>
+        <button role="tab" aria-selected="false" data-cat="join">Участие</button>
+        <button role="tab" aria-selected="false" data-cat="work">Работы</button>
+        <button role="tab" aria-selected="false" data-cat="rate">Рейтинг</button>
+      </div>
+    </div>
+    <div class="faq" id="faqList">
+      <details data-cat="join" open><summary>Можно участвовать новичку?</summary><p>Да. После первого тура ты соревнуешься в своей лиге, с мастерами близкого уровня.</p></details>
+      <details data-cat="join"><summary>Можно ли участвовать из другой страны?</summary><p>Да. Лига проходит онлайн, поэтому участвовать можно из любой страны.</p></details>
+      <details data-cat="join"><summary>Сколько стоит участие?</summary><p>Первая Игра для каждого нового участника бесплатна. Размер взноса за следующие Игры публикуется до их начала.</p></details>
+      <details data-cat="join"><summary>Обязательно играть все Игры сезона?</summary><p>Нет. В сезон можно войти с любой Игры. Но для Суперфинала по итогам сезона нужно сыграть несколько Игр.</p></details>
+      <details data-cat="join"><summary>Где проводится Лига?</summary><p>Онлайн. Задания и сдача работ — через Telegram- или ВК-бот.</p></details>
+      <details data-cat="work"><summary>Что будет, если не успеть сдать работу?</summary><p>Работы после срока не принимаются, а Игра не засчитывается в сезон и диплом не выдаётся. Рисовать дальше вне конкурса можно.</p></details>
+      <details data-cat="work"><summary>Рисовать на лице или на планшете?</summary><p>Это указано в задании каждого тура: бывает по-разному.</p></details>
+      <details data-cat="work"><summary>Нужна ли модель?</summary><p>Не всегда. Требования зависят от задания; детские модели разрешены.</p></details>
+      <details data-cat="work"><summary>Зачем публиковать работу у себя на странице?</summary><p>Это условие сдачи: работа считается сданной, когда в боте есть и фото, и ссылка на пост во ВКонтакте или Instagram*. Так работы участников видят больше людей.</p></details>
+      <details data-cat="work"><summary>Как проверяется запрет ИИ и сильной обработки?</summary><p>ИИ и искажающая обработка запрещены. При необходимости могут быть запрошены фото или видео этапов работы.</p></details>
+      <details data-cat="work"><summary>Кто видит моё имя при оценке?</summary><p>Никто из жюри: работы оцениваются анонимно. Имя появляется только в опубликованных итогах.</p></details>
+      <details data-cat="rate"><summary>Чем рейтинг отличается от очков FPL?</summary><p>Рейтинг растёт и падает и показывает текущий уровень. Очки FPL только копятся и показывают историю участия и достижений.</p></details>
+      <details data-cat="rate"><summary>Как попасть в Суперфинал?</summary><p>Занять 1–3 место в Gold или 1 место в Silver в одной из Игр. Или по итогам сезона: 2 из 3 Игр в Gold либо все 3 Игры в Silver или Gold.</p></details>
+      <details data-cat="rate"><summary>Может ли меня перевести в другую лигу посреди Игры?</summary><p>Нет. Лига определяется перед началом Игры и до её конца не меняется.</p></details>
+    </div>
+  </section>
+
+  <!-- ДОКУМЕНТЫ -->
+  <section id="docs" aria-labelledby="docsTitle">
+    <h2 class="h2" id="docsTitle" style="margin-bottom:22px">Документы</h2>
+    <div class="rldocs">
+      <a class="rldoc" href="#"><span class="rldoc-ic">PDF</span><div><b>Правила лиги</b><span>редакция 1.7 · действующая</span></div><i>↓</i></a>
+      <a class="rldoc" href="#"><span class="rldoc-ic">PDF</span><div><b>Согласие на публикацию работ</b><span>принимается при регистрации</span></div><i>↓</i></a>
+      <a class="rldoc" href="fpl-privacy.html"><span class="rldoc-ic">WEB</span><div><b>Политика конфиденциальности</b><span>как мы храним и используем данные</span></div><i>→</i></a>
+      <a class="rldoc" href="#"><span class="rldoc-ic">PDF</span><div><b>Согласие на обработку персональных данных</b><span>принимается при регистрации</span></div><i>↓</i></a>
+    </div>
+  </section>
+
+  <!-- ВОПРОС ОСТАЛСЯ -->
+  <section class="rlask" aria-label="Задать вопрос">
+    <div>
+      <h2 class="h2">Не нашли <span class="a-pink">ответ?</span></h2>
+      <p>Напишите в бота и нажмите «Помощь» — вопрос получит организатор лиги.</p>
+    </div>
+    <a class="btnC" href="#">Задать вопрос в боте</a>
+  </section>
+
+  <footer class="site-footer">
+    <div class="f-brand"><span class="f-logo">FPL</span><p>Face Painting League by MAGFACE. Онлайн-лига аквагримёров.</p></div>
+    <div><b>Лига</b><a href="fpl-games.html">Игры и календарь</a><a href="fpl-rating.html">Рейтинг</a><a href="fpl-site-pro-ink.html#archive">Зал славы</a><a href="fpl-about.html#jury">Жюри</a><a href="fpl-find.html">Найти мастера</a></div>
+    <div><b>Участникам</b><a href="fpl-site-pro-ink.html#how">Как участвовать</a><a href="fpl-diploma.html">Проверка диплома</a><a href="fpl-rules.html#faq">Вопросы</a></div>
+    <div><b>Документы</b><a href="fpl-rules.html">Правила лиги</a><a href="fpl-privacy.html">Политика конфиденциальности</a><a href="fpl-rules.html#docs">Согласие на публикацию работ</a></div>
+    <div><b>Контакты</b><a href="mailto:info@maskarad-grim.ru">info@maskarad-grim.ru</a><a href="#">Telegram</a><a href="#">ВКонтакте</a><a href="#">Instagram*</a></div>
+    <p class="f-note">* Instagram принадлежит компании Meta, признанной экстремистской организацией и запрещённой в России.</p>
+    <p class="f-copy">© 2026 MAGFACE · ИП Афиногенова С. О.</p>
+  </footer>
+</main>
+<div class="mmenu" id="mmenu" hidden>
+  <div class="mmenu-head"><span class="logo">FPL</span><button class="burger is-open" type="button" aria-label="Закрыть меню" data-menu-close><span></span><span></span></button></div>
+  <nav class="mmenu-links" aria-label="Разделы сайта">
+    <a href="fpl-games.html">Игры и календарь <small>сезон 1 · Игры сезона</small></a>
+    <a href="fpl-rating.html">Рейтинг <small>лиги Bronze · Silver · Gold</small></a>
+    <a href="fpl-gallery.html">Галерея работ <small>лучшие работы сезона</small></a>
+    <a href="fpl-find.html">Найти мастера <small>мастера лиги, которые принимают заказы</small></a>
+    <a href="fpl-about.html">О лиге <small>как всё устроено, судьи, награды</small></a>
+    <a href="fpl-rules.html" aria-current="page">Правила и вопросы</a>
+  </nav>
+  <div class="mmenu-foot">
+    <button class="btn-wide mm-primary" type="button">Участвовать</button>
+    <button class="btn-wide mm-secondary" type="button">Следить за лигой</button>
+    <p>Telegram-бот · ВКонтакте · Instagram*</p>
+  </div>
+</div>
+<div class="mbar"><button class="btn-wide">Участвовать</button><button class="btn-wide">Задать вопрос</button></div>
+<script>
+(function(){
+  var menu=document.getElementById('mmenu'); if(!menu) return;
+  function setOpen(o){ menu.hidden=!o; document.body.classList.toggle('menu-open',o);
+    document.querySelectorAll('[data-menu-open]').forEach(function(b){b.setAttribute('aria-expanded',o)}); }
+  document.querySelectorAll('[data-menu-open]').forEach(function(b){ b.addEventListener('click',function(){setOpen(true)}); });
+  menu.querySelectorAll('[data-menu-close], .mmenu-links a').forEach(function(el){ el.addEventListener('click',function(){setOpen(false)}); });
+  document.addEventListener('keydown',function(e){ if(e.key==='Escape') setOpen(false); });
+})();
+</script>
+<script>
+(function(){
+  // проверка диплома (в прототипе — один пример)
+  var f=document.getElementById('verifyForm'); if(f){
+    f.addEventListener('submit',function(e){ e.preventDefault();
+      var v=(document.getElementById('dipNo').value||'').trim().toUpperCase(), r=document.getElementById('verifyResult');
+      r.hidden=false;
+      if(v==='FPL-S1-01-0247'){ r.className='verify-result ok'; r.innerHTML='<b>✓ Диплом подтверждён</b><br>Анна Петрова · Игра 01, сезон 1 · лига Silver<br>Все работы сданы в срок · <a href="#players">профиль мастера</a> <span style="color:#6E6560">(пример)</span>'; }
+      else { r.className='verify-result'; r.textContent=v?'Диплом с номером '+v+' не найден. Проверьте номер на дипломе.':'Введите номер диплома.'; }
+    });
+  }
+  // переключатель языка (в прототипе переведены первый экран и полоса доверия)
+  var els=[].slice.call(document.querySelectorAll('[data-en]'));
+  els.forEach(function(el){ el.setAttribute('data-ru', el.innerHTML); });
+  var dd=document.querySelector('.lang-dd');
+  if(dd){ var cur=dd.querySelector('.lang-cur'), list=dd.querySelector('.lang-list');
+    function close(){ list.hidden=true; cur.setAttribute('aria-expanded','false'); }
+    cur.addEventListener('click',function(e){ e.stopPropagation(); list.hidden=!list.hidden; cur.setAttribute('aria-expanded', String(!list.hidden)); });
+    document.addEventListener('click',function(e){ if(!dd.contains(e.target)) close(); });
+    document.addEventListener('keydown',function(e){ if(e.key==='Escape') close(); });
+    list.querySelectorAll('button').forEach(function(btn){ btn.addEventListener('click',function(){
+      var lang=btn.getAttribute('data-lang');
+      list.querySelectorAll('button').forEach(function(b){ b.classList.toggle('on', b===btn); if(b===btn) b.setAttribute('aria-current','true'); else b.removeAttribute('aria-current'); });
+      dd.querySelector('[data-lang-label]').textContent=btn.getAttribute('data-short');
+      // в прототипе переведён только английский; для других языков временно показываем английский текст
+      els.forEach(function(el){ var t=el.getAttribute('data-'+lang)||(lang==='ru'?null:el.getAttribute('data-en')); el.innerHTML = t||el.getAttribute('data-ru'); });
+      document.documentElement.lang = lang; close();
+    }); });
+  }
+})();
+</script>
+<script>
+(function(){
+  // фильтр вопросов по теме
+  var tabs=document.querySelectorAll('#faq .tabs button'), items=document.querySelectorAll('#faqList details');
+  tabs.forEach(function(b){ b.addEventListener('click',function(){
+    tabs.forEach(function(x){ x.setAttribute('aria-selected', x===b); });
+    var c=b.getAttribute('data-cat');
+    items.forEach(function(d){ d.hidden = !(c==='all' || d.getAttribute('data-cat')===c); });
+  });});
+  // подсветка текущего раздела в содержании
+  var links=[].slice.call(document.querySelectorAll('.rltoc a'));
+  if('IntersectionObserver' in window){
+    var io=new IntersectionObserver(function(es){ es.forEach(function(e){ if(e.isIntersecting){
+      links.forEach(function(a){ a.classList.toggle('on', a.getAttribute('href')==='#'+e.target.id); });
+    }});},{rootMargin:'-30% 0px -60% 0px'});
+    links.forEach(function(a){ var t=document.querySelector(a.getAttribute('href')); if(t) io.observe(t); });
+  }
+})();
+</script>
+
+</body>
+</html>

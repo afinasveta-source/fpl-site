@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<!-- SEO -->
+<title>Face Painting League — онлайн-лига аквагримёров</title>
+<meta name="description" content="Онлайн-лига для мастеров аквагрима из любой страны: новое задание каждый тур, профессиональное жюри, лиги, публичный рейтинг и проверяемые дипломы.">
+<link rel="canonical" href="https://facepaintingleague.com/ru/">
+<link rel="alternate" hreflang="en" href="https://facepaintingleague.com/">
+<link rel="alternate" hreflang="ru" href="https://facepaintingleague.com/ru/">
+<link rel="alternate" hreflang="x-default" href="https://facepaintingleague.com/">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<meta name="theme-color" content="#1E1B18">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Face Painting League">
+<meta property="og:title" content="Face Painting League — онлайн-лига аквагримёров">
+<meta property="og:description" content="Онлайн-лига для мастеров аквагрима из любой страны: новое задание каждый тур, профессиональное жюри, лиги, публичный рейтинг и проверяемые дипломы.">
+<meta property="og:url" content="https://facepaintingleague.com/ru/">
+<meta property="og:image" content="https://facepaintingleague.com/assets/og-ru.png">
+<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta property="og:locale" content="ru_RU">
+<meta property="og:locale:alternate" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Face Painting League — онлайн-лига аквагримёров">
+<meta name="twitter:description" content="Онлайн-лига для мастеров аквагрима из любой страны: новое задание каждый тур, профессиональное жюри, лиги, публичный рейтинг и проверяемые дипломы.">
+<meta name="twitter:image" content="https://facepaintingleague.com/assets/og-ru.png">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@graph": [
+  {
+   "@type": "Organization",
+   "@id": "https://facepaintingleague.com/#org",
+   "name": "Face Painting League",
+   "alternateName": "FPL",
+   "url": "https://facepaintingleague.com/",
+   "logo": "https://facepaintingleague.com/assets/logo-fpl.png",
+   "brand": {
+    "@type": "Brand",
+    "name": "MAGFACE"
+   },
+   "description": "Online league for face painters by MAGFACE: Games with judged rounds, leagues, an FPL Rating and verifiable certificates."
+  },
+  {
+   "@type": "WebSite",
+   "@id": "https://facepaintingleague.com/#site",
+   "url": "https://facepaintingleague.com/",
+   "name": "Face Painting League",
+   "inLanguage": [
+    "en",
+    "ru"
+   ],
+   "publisher": {
+    "@id": "https://facepaintingleague.com/#org"
+   }
+  },
+  {
+   "@type": "WebPage",
+   "@id": "https://facepaintingleague.com/ru/#page",
+   "url": "https://facepaintingleague.com/ru/",
+   "name": "Face Painting League — онлайн-лига аквагримёров",
+   "description": "Онлайн-лига для мастеров аквагрима из любой страны: новое задание каждый тур, профессиональное жюри, лиги, публичный рейтинг и проверяемые дипломы.",
+   "inLanguage": "ru",
+   "isPartOf": {
+    "@id": "https://facepaintingleague.com/#site"
+   },
+   "publisher": {
+    "@id": "https://facepaintingleague.com/#org"
+   }
+  }
+ ]
+}
+</script>
+<!-- /SEO -->
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+
+<!-- SVG-определения голографических градиентов и фигур -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="holo" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#E0105A"/><stop offset=".6" stop-color="#F2601F"/><stop offset="1" stop-color="#F79A3A"/>
+    </linearGradient>
+    <linearGradient id="holo2" x1="1" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F2601F"/><stop offset="1" stop-color="#E0105A"/>
+    </linearGradient>
+    <!-- звёздочка-астериск (6 лучей) -->
+    <symbol id="asterisk" viewBox="0 0 100 100"><g fill="url(#holo2)"><rect x="42" y="2" width="16" height="96" rx="8"/><rect x="42" y="2" width="16" height="96" rx="8" transform="rotate(60 50 50)"/><rect x="42" y="2" width="16" height="96" rx="8" transform="rotate(120 50 50)"/></g></symbol>
+    <!-- цветок-клякса (8 лепестков) -->
+    <symbol id="flower" viewBox="0 0 100 100"><g fill="url(#holo)"><circle cx="50" cy="50" r="18"/><g id="p"><ellipse cx="50" cy="20" rx="12" ry="20"/></g><use href="#p" transform="rotate(45 50 50)"/><use href="#p" transform="rotate(90 50 50)"/><use href="#p" transform="rotate(135 50 50)"/><use href="#p" transform="rotate(180 50 50)"/><use href="#p" transform="rotate(225 50 50)"/><use href="#p" transform="rotate(270 50 50)"/><use href="#p" transform="rotate(315 50 50)"/></g></symbol>
+    <!-- искра (4 луча) -->
+    <symbol id="sparkle" viewBox="0 0 100 100"><path fill="url(#holo)" d="M50 0 C55 35 65 45 100 50 C65 55 55 65 50 100 C45 65 35 55 0 50 C35 45 45 35 50 0Z"/></symbol>
+    <!-- крестик-плюс с округлыми концами -->
+    <symbol id="plus" viewBox="0 0 100 100"><g fill="url(#holo)"><rect x="34" y="4" width="32" height="92" rx="16"/><rect x="4" y="34" width="92" height="32" rx="16"/></g></symbol>
+    <!-- две полукапли (как в первом экране) -->
+    <symbol id="drops" viewBox="0 0 140 100"><path fill="url(#holo)" d="M50 0a50 50 0 0 0 0 100z"/><path fill="url(#holo2)" d="M95 0a45 50 0 0 0 0 100h40V0z" opacity=".9"/></symbol>
+    <!-- кристалл, как в логотипе FPL -->
+    <symbol id="crystal" viewBox="0 0 60 100"><g fill="none" stroke="#F2601F" stroke-width="4" stroke-linejoin="round"><path d="M30 3 57 50 30 97 3 50Z"/><path d="M3 50h54M30 3v94M30 3 15 50 30 97 45 50Z"/></g></symbol>
+    <!-- мазок кисти -->
+    <symbol id="brush" viewBox="0 0 400 120"><path fill="url(#holo)" d="M8 70c40-30 120-52 210-55 70-2 130 6 176 18 8 2 7 14-1 15-60-8-120-10-176-6-70 5-140 22-198 50-12 6-22-13-11-22z" opacity=".95"/><path fill="#F2601F" opacity=".55" d="M30 92c70-30 160-44 250-42 40 1 80 5 112 12 6 1 5 10-1 10-52-5-104-6-152-3-70 5-140 20-200 38-10 3-17-11-9-15z"/></symbol>
+  </defs>
+</svg>
+
+<main class="wrap glow">
+  <nav class="nav">
+    <span class="logo">FPL<small>by MAGFACE</small></span>
+    <a href="games.html">Игры</a><a href="rating.html">Рейтинг</a><a href="gallery.html">Галерея</a><a href="find.html">Найти мастера</a><a href="about.html">О лиге</a><a href="rules.html">Правила</a>
+    <div class="lang-dd"><button type="button" class="lang-cur" aria-haspopup="true" aria-expanded="false" aria-label="Язык сайта"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.8 2.6 15.2 0 18M12 3c-2.6 2.8-2.6 15.2 0 18"/></g></svg><span data-lang-label>RU</span><svg viewBox="0 0 10 6" width="9" height="6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button><ul class="lang-list" hidden><li><button type="button" data-lang="ru" data-short="RU" data-href="index.html" class="on" aria-current="true">Русский</button></li><li><button type="button" data-lang="en" data-short="EN" data-href="../index.html">English</button></li><li><button type="button" data-lang="de" data-short="DE" disabled class="soon">Deutsch<small>скоро</small></button></li><li><button type="button" data-lang="es" data-short="ES" disabled class="soon">Español<small>скоро</small></button></li><li><button type="button" data-lang="fr" data-short="FR" disabled class="soon">Français<small>скоро</small></button></li><li><button type="button" data-lang="zh" data-short="中文" disabled class="soon">中文<small>скоро</small></button></li><li><button type="button" data-lang="ja" data-short="日本語" disabled class="soon">日本語<small>скоро</small></button></li></ul></div>
+    <a class="btn-outline" style="border-color:var(--indigo); color:var(--indigo); letter-spacing:.08em" href="https://t.me/facepaintingleaguebot" target="_blank" rel="noopener">Участвовать</a>
+    <button class="burger" type="button" aria-label="Открыть меню" aria-controls="mmenu" aria-expanded="false" data-menu-open><span></span><span></span></button>
+  </nav>
+
+  <!-- 1. ПЕРВЫЙ ЭКРАН: «тихий тёмный» -->
+  <section class="heroC" aria-label="Face Painting League">
+    <div class="heroC-body">
+      <div class="heroC-text">
+        <span class="eyebrow" data-en="Face Painting League · Season 1">Face Painting League · сезон 1</span>
+        <h1 data-en="Online league <span>of face painters</span>">Онлайн-лига <span>аквагримёров</span></h1>
+        <p class="lead" data-en="Online games for face painting artists: new briefs every round, a professional jury and a ranking that shows your real level.">Онлайн-игры для мастеров аквагрима: новые задания каждый тур, профессиональное жюри и рейтинг, который показывает реальный уровень.</p>
+        <div class="actions">
+          <a class="btnC" href="https://t.me/facepaintingleaguebot" target="_blank" rel="noopener" data-en="Join the next Game →">Участвовать в следующей Игре →</a>
+          <a class="linkC" href="#archive" data-en="Game 01 results">Итоги Игры 01</a>
+        </div>
+        <p class="noteC" data-en="Online · from any country · registration via bot">Онлайн · из любой страны · регистрация через бота</p>
+      </div>
+      <figure class="heroC-photo">
+        <span class="statusC" data-en="Registration for Game 02 is open">Открыт набор на Игру 02</span>
+        <div class="arch">[работа-победитель]</div>
+        <figcaption>[Имя автора] · [страна] · победитель Игры 01</figcaption>
+      </figure>
+    </div>
+    <div class="heroC-strip">
+      <div><b data-en="[N] countries">[N] стран</b><span data-en="jury and participants">в жюри и среди участников</span></div>
+      <div><b data-en="Jury">Жюри</b><span data-en="several judges, shared criteria">несколько судей, единые критерии</span></div>
+      <div><b data-en="Verifiable">Проверяемые</b><span data-en="diplomas with a unique number">дипломы с уникальным номером</span></div>
+      <div><b data-en="7 years">7 лет</b><span data-en="of MAGFACE marathons">марафонов MAGFACE</span></div>
+    </div>
+  </section>
+
+  <!-- 2. ИСТОРИЯ ПРОЕКТА -->
+  <section id="about">
+    <h2 class="h2" style="margin-bottom:12px">Лига выросла <span class="a-indigo">из марафонов MAGFACE</span></h2>
+    <p class="tile-text" style="font-size:17px; margin-bottom:24px">Семь лет мы проводили марафоны по аквагриму. Лига — следующий шаг: те же задания и сообщество, но с жюри, рейтингом и сезонами.</p>
+    <div class="bento" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+      <div class="tile tile--indigo"><div class="tile-col"><span class="stat-num a-indigo">7 лет</span><p class="stat-label">марафонов по аквагриму</p></div></div>
+      <div class="tile tile--indigo"><div class="tile-col"><span class="stat-num a-pink">1400+</span><p class="stat-label">мастеров прошли марафоны</p></div></div>
+      <div class="tile tile--indigo"><div class="tile-col"><span class="stat-num a-indigo">30 000+</span><p class="stat-label">работ создано участниками</p></div></div>
+    </div>
+  </section>
+
+  <!-- ФОТО-ПАУЗА 1: три работы, средняя выше -->
+  <section class="pbreak pbreak--three" aria-label="Работы участников">
+    <div class="ph">[фото работы]</div>
+    <div class="ph">[фото работы — крупно]</div>
+    <div class="ph">[фото работы]</div>
+  </section>
+
+  <!-- КАЛЕНДАРЬ СЕЗОНА -->
+  <section id="calendar">
+    <h2 class="h2" style="margin-bottom:12px">Сезон <span class="a-pink">1</span></h2>
+    <p class="tile-text" style="font-size:17px; margin-bottom:8px">Три Игры и Суперфинал. Между Играми — короткие челленджи.</p>
+    <div class="season">
+      <div class="stage now"><span class="dot"></span><div class="tile tile--indigo"><div class="tile-col"><span class="pill" style="align-self:flex-start; background:var(--lemon); color:var(--ink); border-color:var(--lemon)">завершена</span><p class="tile-title" style="font:700 17px var(--f-display); margin-top:12px">Игра 01</p><p class="tile-text">участие было бесплатным</p></div></div></div>
+      <div class="stage"><span class="dot"></span><div class="tile tile--soft"><div class="tile-col"><p class="tile-title" style="font:700 17px var(--f-display)">Игра 02</p><p class="tile-text">набор открыт · следующая в сезоне</p></div></div></div>
+      <div class="stage"><span class="dot"></span><div class="tile tile--soft"><div class="tile-col"><p class="tile-title" style="font:700 17px var(--f-display)">Игра 03</p><p class="tile-text">даты объявим после Игры 02</p></div></div></div>
+      <div class="stage"><span class="dot"></span><div class="tile tile--lemon"><div class="tile-col"><p class="tile-title" style="font:700 17px var(--f-display)">Суперфинал</p><p class="tile-text">денежный призовой фонд и кубок сезона</p></div></div></div>
+    </div>
+  </section>
+
+  <!-- 4. ПРИЗЫ: лестница наград -->
+  <section id="prizes">
+    <h2 class="h2" style="margin-bottom:12px">Призы <span class="a-indigo">и фонд Суперфинала</span></h2>
+    <p class="tile-text" style="font-size:17px; margin-bottom:28px; max-width:640px">Награды есть на каждом уровне: за то, что дошёл до конца, за место в Игре и за победу в сезоне.</p>
+    <div class="prize-ladder">
+      <article class="prize">
+        <span class="prize-who">Каждому, кто дошёл до конца Игры</span>
+        <div class="prize-ico prize-ico--tag"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.5"/></svg></div>
+        <h3>Скидка на материалы MAGFACE</h3>
+        <p>Для всех, кто сдал все работы Игры в срок. Вместе с ней — диплом и очки FPL.</p>
+      </article>
+      <span class="prize-arrow" aria-hidden="true">→</span>
+      <article class="prize">
+        <span class="prize-who">Призёрам каждой Игры</span>
+        <div class="medals"><span class="medal medal--gold">1</span><span class="medal medal--silver">2</span><span class="medal medal--bronze">3</span></div>
+        <h3>Медали и профессиональные материалы MAGFACE</h3>
+        <p>За 1–3 место в каждой лиге. В Игре 01 призовой фонд — 30 000 ₽ продукцией MAGFACE.</p>
+      </article>
+      <span class="prize-arrow" aria-hidden="true">→</span>
+      <article class="prize prize--top">
+        <span class="prize-who">Победителям сезона</span>
+        <div class="prize-ico prize-ico--cup"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M18 8h28v10c0 9-6 16-14 16S18 27 18 18z" fill="currentColor"/><path d="M18 12H9v4c0 7 5 11 11 11M46 12h9v4c0 7-5 11-11 11" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><rect x="28" y="33" width="8" height="11" fill="currentColor"/><rect x="20" y="44" width="24" height="6" rx="2" fill="currentColor"/><rect x="16" y="50" width="32" height="7" rx="2" fill="currentColor"/></svg></div>
+        <h3>Денежный фонд Суперфинала и кубок</h3>
+        <p>Фонд растёт в течение сезона. Сумму объявляем до старта Суперфинала, после объявления она не уменьшается.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- 5. КАК УЧАСТВОВАТЬ -->
+  <section id="how">
+    <h2 class="h2" style="margin-bottom:12px">Как проходит <span class="a-pink">Игра</span></h2>
+    <p class="tile-text" style="font-size:17px; margin-bottom:24px">Задания, сдача работ и результаты — в Telegram- или ВК-боте. Количество туров и формат финала у каждой Игры свои.</p>
+    <div class="how-grid">
+    <!-- телефон с ботом -->
+    <div class="phone" aria-label="Пример переписки с ботом лиги">
+      <div class="screen">
+        <div class="chat-head"><div class="avatar"></div><div>FPL · бот лиги<small>онлайн</small></div></div>
+        <div class="chat">
+          <div class="msg">Набор на новую Игру открыт! Впереди новые задания и неожиданные повороты.</div>
+          <div class="msg">Входишь в игру?
+            <div class="kb" style="margin-top:8px"><span>Правила Игры</span><span>Принимаю Правила</span></div></div>
+          <div class="msg me">Принимаю Правила</div>
+          <div class="msg"><b>ПЕРВЫЙ ТУР</b><br>Задание: [текст задания]<br>Сдать до: [срок тура]</div>
+          <div class="msg me"><div class="img"></div>Моя работа</div>
+          <div class="msg">Работа принята. До срока её можно заменить.</div>
+        </div>
+      </div>
+    </div>
+    <ol class="flow"><li><span class="flow-n">01</span><div><b>Регистрация</b><p>Анкета и принятие Правил в Telegram- или ВК-боте. Пара минут.</p></div></li><li><span class="flow-n">02</span><div><b>Первый тур</b><p>Общее задание для всех. По его итогам — твоя лига и стартовый рейтинг.</p></div></li><li><span class="flow-n">03</span><div><b>Туры в своей лиге</b><p>Задание приходит в бот. Фото работы сдаёшь туда же до срока и публикуешь в сообществе.</p></div></li><li><span class="flow-n">04</span><div><b>Оценка жюри</b><p>Несколько судей. После тура — результат, отметки TOP WORK и изменение рейтинга.</p></div></li><li><span class="flow-n">05</span><div><b>Итоги Игры</b><p>Медали и призы за 1–3 место в лиге, диплом и очки FPL всем, кто дошёл до конца.</p></div></li></ol>
+    </div>
+    </div>
+  </section>
+
+  <!-- ФОТО-ПАУЗА 2: одно широкое фото со стикером -->
+  <section class="pbreak pbreak--wide" aria-label="Процесс работы">
+    <div class="ph">[широкое фото: процесс, руки с кистью, палитра MAGFACE]</div>
+    <p class="photo-credit-line">[Имя автора] · [город, страна] · Игра 01</p>
+  </section>
+
+  <!-- 6. ЛИГИ (большая лимонная плитка) -->
+  <section class="tile tile--lemon" style="padding:32px">
+    <span class="shape" style="width:46px;height:78px;right:56px;top:36px; filter:none"><svg><use href="#crystal"/></svg></span>
+    <div class="split">
+      <div class="ph" style="min-height:280px">[фото участницы на фоне-кляксе]</div>
+      <div>
+        <h2 class="h2 a-indigo">Лиги для мастеров разного <span class="a-pink">уровня и опыта</span></h2>
+        <p class="tile-text" style="margin-top:20px; font-weight:600">После первого тура ты соревнуешься с равными.</p>
+      </div>
+    </div>
+    <div class="bento" style="grid-template-columns:repeat(3,minmax(0,1fr)); margin-top:28px">
+      <div class="program league league--bronze"><div class="league-top"><span class="league-badge">Bronze</span><span class="league-cup"><svg class="cup" viewBox="0 0 64 64" aria-hidden="true"><path d="M18 8h28v10c0 9-6 16-14 16S18 27 18 18z" fill="currentColor"/><path d="M18 12H9v4c0 7 5 11 11 11M46 12h9v4c0 7-5 11-11 11" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><rect x="28" y="33" width="8" height="11" fill="currentColor"/><rect x="20" y="44" width="24" height="6" rx="2" fill="currentColor"/><rect x="16" y="50" width="32" height="7" rx="2" fill="currentColor"/><path d="M26 13c0 6 2 10 5 12" fill="none" stroke="#fff" stroke-opacity=".45" stroke-width="3" stroke-linecap="round"/></svg></span></div><span class="league-tag">старт</span><div class="big">Первые шаги</div></div>
+      <div class="program league league--silver"><div class="league-top"><span class="league-badge">Silver</span><span class="league-cup"><svg class="cup" viewBox="0 0 64 64" aria-hidden="true"><path d="M18 8h28v10c0 9-6 16-14 16S18 27 18 18z" fill="currentColor"/><path d="M18 12H9v4c0 7 5 11 11 11M46 12h9v4c0 7-5 11-11 11" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><rect x="28" y="33" width="8" height="11" fill="currentColor"/><rect x="20" y="44" width="24" height="6" rx="2" fill="currentColor"/><rect x="16" y="50" width="32" height="7" rx="2" fill="currentColor"/><path d="M26 13c0 6 2 10 5 12" fill="none" stroke="#fff" stroke-opacity=".45" stroke-width="3" stroke-linecap="round"/></svg></span></div><span class="league-tag">уверенно</span><div class="big">Эксперименты</div></div>
+      <div class="program league league--gold"><div class="league-top"><span class="league-badge">Gold</span><span class="league-cup"><svg class="cup" viewBox="0 0 64 64" aria-hidden="true"><path d="M18 8h28v10c0 9-6 16-14 16S18 27 18 18z" fill="currentColor"/><path d="M18 12H9v4c0 7 5 11 11 11M46 12h9v4c0 7-5 11-11 11" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><rect x="28" y="33" width="8" height="11" fill="currentColor"/><rect x="20" y="44" width="24" height="6" rx="2" fill="currentColor"/><rect x="16" y="50" width="32" height="7" rx="2" fill="currentColor"/><path d="M26 13c0 6 2 10 5 12" fill="none" stroke="#fff" stroke-opacity=".45" stroke-width="3" stroke-linecap="round"/></svg></span></div><span class="league-tag">профи</span><div class="big">Борьба за кубок</div></div>
+    </div>
+  </section>
+
+  <!-- 7. ЧТО ТЫ ПОЛУЧАЕШЬ: карточка участника + стикеры достижений -->
+  <section id="players">
+    <h2 class="h2" style="margin-bottom:12px">Что ты получаешь <br><span class="a-indigo">в лиге</span></h2>
+    <p class="tile-text" style="font-size:17px; margin-bottom:36px; max-width:640px">У каждого участника — публичная карточка: рейтинг, лига, награды и работы. Каждая Игра что-то в неё добавляет, даже если ты не в тройке.</p>
+    <div style="display:grid; grid-template-columns:440px 1fr; gap:56px; align-items:center; position:relative">
+
+      <!-- карточка участника (образец) -->
+      <div>
+        <div class="pcard-wrap">
+          <div class="pcard">
+            <div class="pcard-photo">
+              <div class="pcard-photo-ph">[фото участника из анкеты]</div>
+              <span class="league-pill" style="position:absolute; top:14px; right:14px">SILVER</span>
+              <span class="pcard-no">№ 0247</span>
+              <div class="pcard-photo-cap"><div class="pcard-name">Анна Петрова</div><div class="pcard-sub">Санкт-Петербург · в лиге с сезона 1</div></div>
+              <div class="pcard-sticker">TOP<br>WORK<small>×3</small></div>
+            </div>
+            <div class="rating-box">
+              <div class="rating-row">
+                <div><div style="font:600 12px var(--f-body); opacity:.85; text-transform:uppercase; letter-spacing:.08em">Рейтинг FPL</div><div class="rating-num">647</div></div>
+                <span class="rating-delta">↑ +38 за Игру</span>
+              </div>
+              <div class="track"><i></i></div>
+              <div class="track-labels"><span>Silver 430</span><span style="color:var(--lemon)">до GOLD +33</span><span>680</span></div>
+            </div>
+            <div class="pstats">
+              <div class="pstat"><b>#21</b><span>место ↑7</span></div>
+              <div class="pstat"><b>31</b><span>очки FPL</span></div>
+              <div class="pstat"><b>2</b><span>Игры сыграно</span></div>
+            </div>
+            <div class="crystals"><span class="c on"></span><span class="c on"></span><span class="c"></span><span>Сезон 1 · 2 из 3 Игр</span></div>
+            <div class="mini-stickers"><span class="mini mini--medal"><i>2</i>Серебро · Игра 02</span><span class="mini mini--top"><i>10</i>TOP-10 · Игра 01</span><span class="mini mini--work"><i>★</i>TOP WORK ×3</span><span class="mini mini--league"><i>S</i>Лига Silver</span></div>
+          </div>
+        </div>
+        <p class="tile-text" style="text-align:center; margin-top:18px; color:#6E6560">Образец карточки участника</p>
+      </div>
+
+      <!-- стикеры достижений -->
+      <div class="stickers">
+        <div class="stk"><div class="stk-shape" style="transform:rotate(-8deg)"><div class="stk-in s-circle bg-lemon">TOP<br>WORK<small>+1 очко</small></div></div><div class="stk-cap">Лучшая работа тура<span>около 20% работ</span></div></div>
+        <div class="stk"><div class="stk-shape" style="transform:rotate(6deg)"><div class="stk-in s-star bg-pink" style="width:150px;height:150px">1<br>место</div></div><div class="stk-cap">Медаль Игры<span>за 1–3 место в лиге</span></div></div>
+        <div class="stk"><div class="stk-shape" style="transform:rotate(-4deg)"><div class="stk-in s-ticket bg-indigo" style="width:160px; height:100px">Диплом<small>Игра 01</small></div></div><div class="stk-cap">Диплом<span>все работы сданы в срок</span></div></div>
+        <div class="stk"><div class="stk-shape" style="transform:rotate(8deg)"><div class="stk-in s-hex bg-holo">TOP<br>10</div></div><div class="stk-cap">TOP-10 / TOP-25<span>по итогам Игры</span></div></div>
+        <div class="stk"><div class="stk-shape" style="transform:rotate(5deg)"><div class="stk-in s-pill bg-indigo"><span style="color:var(--lemon)">+20</span> FPL</div></div><div class="stk-cap">Очки FPL<span>копятся и не сгорают</span></div></div>
+        <div class="stk"><div class="stk-shape" style="transform:rotate(-6deg)"><div class="stk-in s-circle bg-pink">82<small>из 100</small></div></div><div class="stk-cap">Оценка работы<span>результат тура</span></div></div>
+        <div class="stk"><div class="stk-shape" style="transform:rotate(4deg)"><div class="stk-in s-shield bg-lemon" style="padding-bottom:22px">↑ +38<small>рейтинг</small></div></div><div class="stk-cap">Рост рейтинга<span>после каждой Игры</span></div></div>
+        <div class="stk"><div class="stk-shape" style="transform:rotate(-5deg)"><div class="stk-in s-star bg-holo" style="width:150px;height:150px; font-size:15px">Кубок<br>сезона</div></div><div class="stk-cap">Кубок<span>победа в Суперфинале</span></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ФОТО-ПАУЗА 3: лента из четырёх работ -->
+  <section class="pbreak pbreak--strip" aria-label="Работы участников">
+    <div class="ph">[фото]</div><div class="ph">[фото]</div><div class="ph">[фото]</div><div class="ph">[фото]</div>
+  </section>
+
+  <!-- КАК ОЦЕНИВАЮТ РАБОТЫ -->
+  <section id="judging">
+    <h2 class="h2" style="margin-bottom:12px">Как оценивают <span class="a-indigo">работы</span></h2>
+    <p class="tile-text" style="font-size:17px; margin-bottom:28px">Несколько судей, свой способ оценки для каждого типа тура. Как оценивается тур, указано в Правилах Игры.</p>
+    <ol class="method">
+      <li><b>Анонимно</b><span>Судьи оценивают работы без имён авторов.</span></li>
+      <li><b>Попарно и по критериям</b><span>В одних турах судьи сравнивают работы парами, в других — оценивают по критериям: оригинальность, композиция, техника.</span></li>
+      <li><b>С учётом соперников</b><span>Рейтинг FPL растёт сильнее за победу над сильной работой.</span></li>
+      <li><b>С проверкой</b><span>ИИ и искажающая обработка запрещены. При сомнении запрашиваются фото этапов работы.</span></li>
+    </ol>
+    <div class="criteria"><a class="text-link" href="rules.html#r-judge">Как оцениваются туры — в Правилах</a></div>
+  </section>
+
+  <!-- ЖЮРИ -->
+  <section>
+    <h2 class="h2" style="margin-bottom:12px" id="judges">Жюри <span class="a-pink">сезона</span></h2>
+    <p class="tile-text" style="font-size:17px; margin-bottom:24px">Практикующие мастера и преподаватели аквагрима и боди-арта. Судьи не участвуют в Играх.</p>
+    <div class="bento swipe jury" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+      <article class="judge"><div class="judge-ph">[фото]</div><div class="judge-body"><span class="country">[Страна]</span><h3>[Имя Фамилия]</h3><p>[Специализация] · [стаж] лет</p><p class="judge-cred">[Награды, школы, конкурсы]</p></div></article>
+      <article class="judge"><div class="judge-ph">[фото]</div><div class="judge-body"><span class="country">[Страна]</span><h3>[Имя Фамилия]</h3><p>[Специализация] · [стаж] лет</p><p class="judge-cred">[Награды, школы, конкурсы]</p></div></article>
+      <article class="judge"><div class="judge-ph">[фото]</div><div class="judge-body"><span class="country">[Страна]</span><h3>[Имя Фамилия]</h3><p>[Специализация] · [стаж] лет</p><p class="judge-cred">[Награды, школы, конкурсы]</p></div></article>
+    </div>
+  </section>
+
+  <!-- 10. РЕЙТИНГ -->
+  <section id="rating" class="tile tile--soft" style="padding:32px">
+    <h2 class="h2">Рейтинг <span class="a-pink">мастеров</span></h2>
+    <p class="tile-text" style="font-size:16px; margin:12px 0 14px">Официальный рейтинг FPL. Обновляется после каждой Игры, учитывает все сыгранные туры.</p>
+    <div class="filters" aria-label="Фильтры рейтинга"><span class="on">Все лиги</span><span>Gold</span><span>Silver</span><span>Bronze</span><span class="sep"></span><span class="on">Все страны</span><span>Россия</span><span>Испания</span><span>[ещё]</span></div>
+    <table class="table">
+      <thead><tr><th>#</th><th>Участник</th><th>Страна</th><th>Лига</th><th>Рейтинг</th><th>Изм.</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Анна Петрова</td><td><span class="cc">RU</span></td><td><span class="lg lg--gold">Gold</span></td><td>684</td><td class="up">+24</td></tr>
+        <tr><td>2</td><td>Мария Иванова</td><td><span class="cc">RU</span></td><td><span class="lg lg--gold">Gold</span></td><td>671</td><td class="up">+11</td></tr>
+        <tr><td>3</td><td>София Мартин</td><td><span class="cc">ES</span></td><td><span class="lg lg--silver">Silver</span></td><td>638</td><td class="up">+38</td></tr>
+        <tr><td>4</td><td>Елена Волкова</td><td><span class="cc">RU</span></td><td><span class="lg lg--silver">Silver</span></td><td>612</td><td class="down">−4</td></tr>
+      </tbody>
+    </table>
+    <a class="btn-outline" href="rating.html" style="margin-top:16px; display:inline-block; text-decoration:none">Открыть полный рейтинг</a>
+  </section>
+
+  <!-- ЗАЛ СЛАВЫ / АРХИВ -->
+  <section id="archive">
+    <h2 class="h2" style="margin-bottom:12px">Зал славы <span class="a-indigo">и архив</span></h2>
+    <p class="tile-text" style="font-size:17px; margin-bottom:24px">Победители каждой Игры, итоговые таблицы и работы призёров остаются на сайте навсегда.</p>
+    <div class="archive">
+      <div class="archive-game">
+        <div class="archive-head"><b>Игра 01</b><span>завершена</span></div>
+        <div class="podium">
+          <div><span class="lg-label">Gold</span><ol><li>[победитель]</li><li>[2 место]</li><li>[3 место]</li></ol></div>
+          <div><span class="lg-label">Silver</span><ol><li>[победитель]</li><li>[2 место]</li><li>[3 место]</li></ol></div>
+        </div>
+        <a class="text-link" href="#archive">Итоговая таблица Игры 01</a>
+      </div>
+      <div class="archive-game muted"><div class="archive-head"><b>Игра 02</b><span>скоро</span></div></div>
+      <div class="archive-game muted"><div class="archive-head"><b>Игра 03</b><span>скоро</span></div></div>
+    </div>
+  </section>
+
+  <!-- 11. ГАЛЕРЕЯ -->
+  <section id="gallery">
+    <h2 class="h2" style="margin-bottom:12px">Работы <span class="a-indigo">призёров</span></h2>
+    <p class="tile-text" style="font-size:17px; margin-bottom:24px">Работы-победители и отметки TOP WORK из каждой Игры.</p>
+    <div class="gallery">
+      <figure class="work" style="margin:0"><figcaption>Имя автора<small>Место · Игра</small></figcaption></figure>
+      <figure class="work" style="margin:0; background:linear-gradient(160deg,#F7A9BF,#E0105A)"><figcaption>Имя автора<small>Место · Игра</small></figcaption></figure>
+      <figure class="work" style="margin:0; background:linear-gradient(160deg,#FBD9C4,#F2601F)"><figcaption>Имя автора<small>Место · Игра</small></figcaption></figure>
+      <figure class="work" style="margin:0; background:linear-gradient(160deg,#F7D3DC,#F25A8E)"><figcaption>Имя автора<small>Место · Игра</small></figcaption></figure>
+      <figure class="work" style="margin:0; background:linear-gradient(160deg,#EEF4B8,#D5EB3D)"><figcaption>Имя автора<small>Место · Игра</small></figcaption></figure>
+    </div>
+    <p style="margin-top:20px"><a class="text-link" href="gallery.html">Вся галерея работ</a></p>
+  </section>
+
+  <!-- ОТЗЫВЫ -->
+  <section>
+    <h2 class="h2" style="margin-bottom:24px">Что говорят <span class="a-indigo">участники</span></h2>
+    <div class="bento swipe" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+      <div class="tile tile--indigo quote"><span class="qm a-lemon">“</span><p>[Реальный отзыв участницы марафонов MAGFACE — 2–3 предложения: что дал марафон, как выросла.]</p><div class="who"><div class="avatar"></div><div><b>[Имя]</b><span>[город] · [сколько марафонов]</span></div></div></div>
+      <div class="tile tile--soft quote"><span class="qm a-pink">“</span><p>[Отзыв про задания и атмосферу: неожиданные темы, поддержка сообщества.]</p><div class="who"><div class="avatar"></div><div><b>[Имя]</b><span>[город] · [сколько марафонов]</span></div></div></div>
+      <div class="tile tile--soft quote"><span class="qm a-pink">“</span><p>[Отзыв про результат: призы, диплом, рост клиентов или уверенности.]</p><div class="who"><div class="avatar"></div><div><b>[Имя]</b><span>[город] · [сколько марафонов]</span></div></div></div>
+    </div>
+  </section>
+
+  <!-- 12. FAQ -->
+  <section id="rules">
+    <h2 class="h2" style="margin-bottom:24px">Частые <span class="a-pink">вопросы</span></h2>
+    <div class="faq">
+      <details open><summary>Можно участвовать новичку?</summary><p>Да. После первого тура ты соревнуешься в своей лиге, с мастерами близкого уровня.</p></details>
+      <details><summary>Обязательно играть все Игры сезона?</summary><p>Нет. В сезон можно войти с любой Игры. Но для Суперфинала по итогам сезона нужно сыграть несколько Игр.</p></details>
+      <details><summary>Как попасть в Суперфинал?</summary><p>Занять 1–3 место в Gold или 1 место в Silver в одной из Игр. Или по итогам сезона: 2 из 3 Игр в Gold либо все 3 Игры в Silver или Gold.</p></details>
+      <details><summary>Сколько стоит участие?</summary><p>Первая Игра для каждого нового участника бесплатна. Размер взноса за следующие Игры публикуется до их начала.</p></details>
+      <details><summary>Что будет, если не успеть сдать работу?</summary><p>Работы после срока не принимаются, а Игра не засчитывается в сезон и диплом не выдаётся. Рисовать дальше вне конкурса можно.</p></details>
+      <details><summary>Нужна ли модель?</summary><p>Не всегда. Требования зависят от задания; детские модели разрешены.</p></details>
+      <details><summary>Можно ли участвовать из другой страны?</summary><p>Да. Лига проходит онлайн, поэтому участвовать можно из любой страны.</p></details>
+      <details><summary>Как проверяется запрет ИИ и сильной обработки?</summary><p>ИИ и искажающая обработка запрещены. При необходимости могут быть запрошены фото или видео этапов работы.</p></details>
+      <details><summary>Где проводится Лига?</summary><p>Онлайн. Задания и сдача работ — через Telegram- или ВК-бот.</p></details>
+    </div>
+    <p style="margin-top:20px"><a class="text-link" href="rules.html">Все вопросы и Правила лиги</a></p>
+  </section>
+
+  <!-- ПРОВЕРКА ДИПЛОМА -->
+  <section id="verify" class="verify2">
+    <div class="verify2-text">
+      <h2 class="h2" style="margin-bottom:12px">Проверка <span class="a-pink">диплома</span></h2>
+      <p class="tile-text" style="font-size:17px">У каждого диплома FPL есть уникальный номер и QR-код. Заказчик или работодатель может убедиться, что диплом настоящий: ввести номер здесь или навести камеру телефона на QR-код.</p>
+      <form class="verify-form" id="verifyForm" novalidate>
+        <label for="dipNo">Номер диплома</label>
+        <div class="verify-row"><input id="dipNo" name="dipNo" placeholder="FPL-S1-01-0247" autocomplete="off" spellcheck="false"><button class="btn-wide" type="submit">Проверить</button></div>
+        <p class="verify-hint">Попробуйте пример: FPL-S1-01-0247</p>
+        <div class="verify-result" id="verifyResult" hidden></div>
+      </form>
+    </div>
+    <figure class="diploma" aria-label="Образец диплома FPL">
+      <div class="dip-top"><span class="dip-logo">FPL</span><span class="dip-kind">Диплом участника</span></div>
+      <p class="dip-name">Анна Петрова</p>
+      <p class="dip-line">завершила Игру 01 · сезон 1<br>Face Painting League by MAGFACE</p>
+      <div class="dip-bottom">
+        <div><span class="dip-label">Номер диплома</span><span class="dip-no">FPL-S1-01-0247</span></div>
+        <svg class="qr" viewBox="0 0 29 29" shape-rendering="crispEdges" aria-label="QR-код диплома"><path d="M0 0h1v1h-1zM1 0h1v1h-1zM2 0h1v1h-1zM3 0h1v1h-1zM4 0h1v1h-1zM5 0h1v1h-1zM6 0h1v1h-1zM8 0h1v1h-1zM11 0h1v1h-1zM12 0h1v1h-1zM13 0h1v1h-1zM15 0h1v1h-1zM22 0h1v1h-1zM23 0h1v1h-1zM24 0h1v1h-1zM25 0h1v1h-1zM26 0h1v1h-1zM27 0h1v1h-1zM28 0h1v1h-1zM0 1h1v1h-1zM6 1h1v1h-1zM9 1h1v1h-1zM11 1h1v1h-1zM13 1h1v1h-1zM17 1h1v1h-1zM18 1h1v1h-1zM19 1h1v1h-1zM22 1h1v1h-1zM28 1h1v1h-1zM0 2h1v1h-1zM2 2h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM6 2h1v1h-1zM9 2h1v1h-1zM10 2h1v1h-1zM11 2h1v1h-1zM16 2h1v1h-1zM17 2h1v1h-1zM20 2h1v1h-1zM22 2h1v1h-1zM24 2h1v1h-1zM25 2h1v1h-1zM26 2h1v1h-1zM28 2h1v1h-1zM0 3h1v1h-1zM2 3h1v1h-1zM3 3h1v1h-1zM4 3h1v1h-1zM6 3h1v1h-1zM8 3h1v1h-1zM10 3h1v1h-1zM11 3h1v1h-1zM13 3h1v1h-1zM15 3h1v1h-1zM18 3h1v1h-1zM22 3h1v1h-1zM24 3h1v1h-1zM25 3h1v1h-1zM26 3h1v1h-1zM28 3h1v1h-1zM0 4h1v1h-1zM2 4h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM6 4h1v1h-1zM8 4h1v1h-1zM9 4h1v1h-1zM12 4h1v1h-1zM13 4h1v1h-1zM15 4h1v1h-1zM17 4h1v1h-1zM18 4h1v1h-1zM22 4h1v1h-1zM24 4h1v1h-1zM25 4h1v1h-1zM26 4h1v1h-1zM28 4h1v1h-1zM0 5h1v1h-1zM6 5h1v1h-1zM8 5h1v1h-1zM9 5h1v1h-1zM12 5h1v1h-1zM18 5h1v1h-1zM19 5h1v1h-1zM20 5h1v1h-1zM22 5h1v1h-1zM28 5h1v1h-1zM0 6h1v1h-1zM1 6h1v1h-1zM2 6h1v1h-1zM3 6h1v1h-1zM4 6h1v1h-1zM5 6h1v1h-1zM6 6h1v1h-1zM8 6h1v1h-1zM10 6h1v1h-1zM12 6h1v1h-1zM14 6h1v1h-1zM16 6h1v1h-1zM18 6h1v1h-1zM20 6h1v1h-1zM22 6h1v1h-1zM23 6h1v1h-1zM24 6h1v1h-1zM25 6h1v1h-1zM26 6h1v1h-1zM27 6h1v1h-1zM28 6h1v1h-1zM8 7h1v1h-1zM10 7h1v1h-1zM14 7h1v1h-1zM15 7h1v1h-1zM16 7h1v1h-1zM17 7h1v1h-1zM18 7h1v1h-1zM19 7h1v1h-1zM20 7h1v1h-1zM0 8h1v1h-1zM4 8h1v1h-1zM6 8h1v1h-1zM7 8h1v1h-1zM8 8h1v1h-1zM10 8h1v1h-1zM11 8h1v1h-1zM13 8h1v1h-1zM14 8h1v1h-1zM16 8h1v1h-1zM17 8h1v1h-1zM19 8h1v1h-1zM21 8h1v1h-1zM22 8h1v1h-1zM23 8h1v1h-1zM24 8h1v1h-1zM25 8h1v1h-1zM28 8h1v1h-1zM1 9h1v1h-1zM3 9h1v1h-1zM5 9h1v1h-1zM7 9h1v1h-1zM9 9h1v1h-1zM10 9h1v1h-1zM12 9h1v1h-1zM14 9h1v1h-1zM15 9h1v1h-1zM18 9h1v1h-1zM22 9h1v1h-1zM23 9h1v1h-1zM24 9h1v1h-1zM25 9h1v1h-1zM26 9h1v1h-1zM27 9h1v1h-1zM28 9h1v1h-1zM0 10h1v1h-1zM4 10h1v1h-1zM5 10h1v1h-1zM6 10h1v1h-1zM8 10h1v1h-1zM10 10h1v1h-1zM13 10h1v1h-1zM14 10h1v1h-1zM15 10h1v1h-1zM18 10h1v1h-1zM20 10h1v1h-1zM22 10h1v1h-1zM23 10h1v1h-1zM24 10h1v1h-1zM28 10h1v1h-1zM0 11h1v1h-1zM1 11h1v1h-1zM3 11h1v1h-1zM4 11h1v1h-1zM5 11h1v1h-1zM7 11h1v1h-1zM8 11h1v1h-1zM13 11h1v1h-1zM15 11h1v1h-1zM17 11h1v1h-1zM19 11h1v1h-1zM20 11h1v1h-1zM22 11h1v1h-1zM24 11h1v1h-1zM25 11h1v1h-1zM27 11h1v1h-1zM28 11h1v1h-1zM0 12h1v1h-1zM1 12h1v1h-1zM2 12h1v1h-1zM6 12h1v1h-1zM8 12h1v1h-1zM9 12h1v1h-1zM10 12h1v1h-1zM11 12h1v1h-1zM13 12h1v1h-1zM15 12h1v1h-1zM17 12h1v1h-1zM20 12h1v1h-1zM21 12h1v1h-1zM27 12h1v1h-1zM1 13h1v1h-1zM3 13h1v1h-1zM7 13h1v1h-1zM12 13h1v1h-1zM13 13h1v1h-1zM14 13h1v1h-1zM15 13h1v1h-1zM17 13h1v1h-1zM20 13h1v1h-1zM21 13h1v1h-1zM22 13h1v1h-1zM24 13h1v1h-1zM25 13h1v1h-1zM26 13h1v1h-1zM27 13h1v1h-1zM28 13h1v1h-1zM1 14h1v1h-1zM4 14h1v1h-1zM5 14h1v1h-1zM6 14h1v1h-1zM7 14h1v1h-1zM8 14h1v1h-1zM11 14h1v1h-1zM15 14h1v1h-1zM17 14h1v1h-1zM20 14h1v1h-1zM21 14h1v1h-1zM23 14h1v1h-1zM25 14h1v1h-1zM26 14h1v1h-1zM28 14h1v1h-1zM0 15h1v1h-1zM11 15h1v1h-1zM14 15h1v1h-1zM15 15h1v1h-1zM16 15h1v1h-1zM17 15h1v1h-1zM18 15h1v1h-1zM20 15h1v1h-1zM21 15h1v1h-1zM22 15h1v1h-1zM24 15h1v1h-1zM27 15h1v1h-1zM28 15h1v1h-1zM0 16h1v1h-1zM3 16h1v1h-1zM6 16h1v1h-1zM10 16h1v1h-1zM11 16h1v1h-1zM13 16h1v1h-1zM14 16h1v1h-1zM16 16h1v1h-1zM17 16h1v1h-1zM18 16h1v1h-1zM19 16h1v1h-1zM20 16h1v1h-1zM21 16h1v1h-1zM27 16h1v1h-1zM0 17h1v1h-1zM1 17h1v1h-1zM2 17h1v1h-1zM3 17h1v1h-1zM4 17h1v1h-1zM11 17h1v1h-1zM12 17h1v1h-1zM15 17h1v1h-1zM17 17h1v1h-1zM18 17h1v1h-1zM22 17h1v1h-1zM23 17h1v1h-1zM24 17h1v1h-1zM25 17h1v1h-1zM27 17h1v1h-1zM28 17h1v1h-1zM5 18h1v1h-1zM6 18h1v1h-1zM8 18h1v1h-1zM9 18h1v1h-1zM10 18h1v1h-1zM12 18h1v1h-1zM13 18h1v1h-1zM14 18h1v1h-1zM15 18h1v1h-1zM16 18h1v1h-1zM18 18h1v1h-1zM21 18h1v1h-1zM22 18h1v1h-1zM23 18h1v1h-1zM26 18h1v1h-1zM28 18h1v1h-1zM4 19h1v1h-1zM7 19h1v1h-1zM9 19h1v1h-1zM10 19h1v1h-1zM11 19h1v1h-1zM13 19h1v1h-1zM15 19h1v1h-1zM16 19h1v1h-1zM17 19h1v1h-1zM18 19h1v1h-1zM20 19h1v1h-1zM22 19h1v1h-1zM23 19h1v1h-1zM27 19h1v1h-1zM28 19h1v1h-1zM0 20h1v1h-1zM1 20h1v1h-1zM2 20h1v1h-1zM3 20h1v1h-1zM6 20h1v1h-1zM7 20h1v1h-1zM8 20h1v1h-1zM9 20h1v1h-1zM11 20h1v1h-1zM12 20h1v1h-1zM13 20h1v1h-1zM16 20h1v1h-1zM20 20h1v1h-1zM21 20h1v1h-1zM22 20h1v1h-1zM23 20h1v1h-1zM24 20h1v1h-1zM25 20h1v1h-1zM28 20h1v1h-1zM8 21h1v1h-1zM12 21h1v1h-1zM13 21h1v1h-1zM14 21h1v1h-1zM15 21h1v1h-1zM18 21h1v1h-1zM19 21h1v1h-1zM20 21h1v1h-1zM24 21h1v1h-1zM28 21h1v1h-1zM0 22h1v1h-1zM1 22h1v1h-1zM2 22h1v1h-1zM3 22h1v1h-1zM4 22h1v1h-1zM5 22h1v1h-1zM6 22h1v1h-1zM8 22h1v1h-1zM10 22h1v1h-1zM11 22h1v1h-1zM15 22h1v1h-1zM18 22h1v1h-1zM19 22h1v1h-1zM20 22h1v1h-1zM22 22h1v1h-1zM24 22h1v1h-1zM25 22h1v1h-1zM26 22h1v1h-1zM28 22h1v1h-1zM0 23h1v1h-1zM6 23h1v1h-1zM11 23h1v1h-1zM12 23h1v1h-1zM14 23h1v1h-1zM15 23h1v1h-1zM17 23h1v1h-1zM19 23h1v1h-1zM20 23h1v1h-1zM24 23h1v1h-1zM27 23h1v1h-1zM0 24h1v1h-1zM2 24h1v1h-1zM3 24h1v1h-1zM4 24h1v1h-1zM6 24h1v1h-1zM8 24h1v1h-1zM10 24h1v1h-1zM11 24h1v1h-1zM13 24h1v1h-1zM14 24h1v1h-1zM15 24h1v1h-1zM19 24h1v1h-1zM20 24h1v1h-1zM21 24h1v1h-1zM22 24h1v1h-1zM23 24h1v1h-1zM24 24h1v1h-1zM25 24h1v1h-1zM27 24h1v1h-1zM0 25h1v1h-1zM2 25h1v1h-1zM3 25h1v1h-1zM4 25h1v1h-1zM6 25h1v1h-1zM9 25h1v1h-1zM11 25h1v1h-1zM12 25h1v1h-1zM15 25h1v1h-1zM19 25h1v1h-1zM20 25h1v1h-1zM21 25h1v1h-1zM23 25h1v1h-1zM28 25h1v1h-1zM0 26h1v1h-1zM2 26h1v1h-1zM3 26h1v1h-1zM4 26h1v1h-1zM6 26h1v1h-1zM9 26h1v1h-1zM10 26h1v1h-1zM11 26h1v1h-1zM12 26h1v1h-1zM15 26h1v1h-1zM16 26h1v1h-1zM17 26h1v1h-1zM21 26h1v1h-1zM25 26h1v1h-1zM26 26h1v1h-1zM27 26h1v1h-1zM28 26h1v1h-1zM0 27h1v1h-1zM6 27h1v1h-1zM9 27h1v1h-1zM11 27h1v1h-1zM13 27h1v1h-1zM15 27h1v1h-1zM17 27h1v1h-1zM19 27h1v1h-1zM20 27h1v1h-1zM23 27h1v1h-1zM24 27h1v1h-1zM25 27h1v1h-1zM27 27h1v1h-1zM28 27h1v1h-1zM0 28h1v1h-1zM1 28h1v1h-1zM2 28h1v1h-1zM3 28h1v1h-1zM4 28h1v1h-1zM5 28h1v1h-1zM6 28h1v1h-1zM8 28h1v1h-1zM10 28h1v1h-1zM11 28h1v1h-1zM14 28h1v1h-1zM15 28h1v1h-1zM20 28h1v1h-1zM21 28h1v1h-1zM23 28h1v1h-1zM24 28h1v1h-1zM25 28h1v1h-1zM27 28h1v1h-1z" fill="currentColor"/></svg>
+      </div>
+      <figcaption>Образец</figcaption>
+    </figure>
+  </section>
+
+  <!-- ПАРТНЁРЫ -->
+  <section class="partners" aria-label="Партнёры сезона">
+    <span class="track-label">Партнёры сезона</span>
+    <div class="logos"><span class="logo-main">MAGFACE</span><span>[логотип партнёра]</span><span>[логотип партнёра]</span><span>[медиа-партнёр]</span></div>
+  </section>
+
+  <!-- 13. ФИНАЛЬНЫЙ ПРИЗЫВ -->
+  <section class="tile tile--indigo cta-strong" style="padding:48px">
+    <h2 class="h1">Следующая Игра <span class="a-lemon">уже собирает участников</span></h2>
+    <p class="tile-text" style="font-size:17px; margin:16px 0 28px">Регистрация в боте занимает пару минут. Рейтинг и награды сохраняются из Игры в Игру.</p>
+    <div style="display:flex; gap:12px; flex-wrap:wrap; max-width:620px">
+      <a class="btn-wide" style="flex:1" href="https://t.me/facepaintingleaguebot" target="_blank" rel="noopener">Участвовать</a>
+      <a class="btn-wide btn-pink" style="flex:1" href="https://www.instagram.com/facepaintingleague/" target="_blank" rel="noopener">Следить в Instagram*</a>
+    </div>
+    <div class="cta-social">
+      <span>Мы в соцсетях</span>
+      <a href="https://www.instagram.com/facepaintingleague/" target="_blank" rel="noopener"><span>Instagram* <small>@facepaintingleague</small></span><i>→</i></a>
+      <a href="https://t.me/maskarad_grim" target="_blank" rel="noopener">Telegram<i>→</i></a>
+      <a href="https://vk.ru/publicmaskarad" target="_blank" rel="noopener">ВКонтакте<i>→</i></a>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="f-brand"><span class="f-logo">FPL</span><p>Face Painting League by MAGFACE. Онлайн-лига аквагримёров.</p></div>
+    <div><b>Лига</b><a href="games.html">Игры и календарь</a><a href="rating.html">Рейтинг</a><a href="#archive">Зал славы</a><a href="about.html#jury">Жюри</a><a href="find.html">Найти мастера</a></div>
+    <div><b>Участникам</b><a href="#how">Как участвовать</a><a href="diploma.html">Проверка диплома</a><a href="rules.html#faq">Вопросы</a></div>
+    <div><b>Документы</b><a href="rules.html">Правила лиги</a><a href="privacy.html">Политика конфиденциальности</a><a href="rules.html#docs">Согласие на публикацию работ</a></div>
+    <div><b>Контакты</b><a href="mailto:info@maskarad-grim.ru">info@maskarad-grim.ru</a><a href="https://t.me/maskarad_grim" target="_blank" rel="noopener">Telegram</a><a href="https://vk.ru/publicmaskarad" target="_blank" rel="noopener">ВКонтакте</a><a href="https://www.instagram.com/facepaintingleague/" target="_blank" rel="noopener">Instagram*</a></div>
+    <p class="f-note">* Instagram принадлежит компании Meta, признанной экстремистской организацией и запрещённой в России.</p>
+    <p class="f-copy">© 2026 MAGFACE · ИП Афиногенова С. О.</p>
+  </footer>
+</main>
+<div class="mmenu" id="mmenu" hidden>
+  <div class="mmenu-head"><span class="logo">FPL</span><button class="burger is-open" type="button" aria-label="Закрыть меню" data-menu-close><span></span><span></span></button></div>
+  <nav class="mmenu-links" aria-label="Разделы сайта">
+    <a href="games.html">Игры и календарь <small>сезон 1 · Игра 01 идёт</small></a>
+    <a href="rating.html">Рейтинг <small>лиги Bronze · Silver · Gold</small></a>
+    <a href="gallery.html">Галерея работ <small>лучшие работы сезона</small></a>
+    <a href="find.html">Найти мастера <small>мастера лиги, которые принимают заказы</small></a>
+    <a href="about.html">О лиге <small>как всё устроено, судьи, награды</small></a>
+    <a href="rules.html">Правила и вопросы</a>
+  </nav>
+  <div class="mmenu-foot">
+    <a class="btn-wide mm-primary" href="https://t.me/facepaintingleaguebot" target="_blank" rel="noopener">Участвовать</a>
+    <a class="btn-wide mm-secondary" href="https://www.instagram.com/facepaintingleague/" target="_blank" rel="noopener">Следить в Instagram*</a>
+    <p>Telegram-бот · ВКонтакте · Instagram*</p>
+  </div>
+</div>
+<div class="mbar"><a class="btn-wide" href="https://t.me/facepaintingleaguebot" target="_blank" rel="noopener">Участвовать</a><a class="btn-wide" href="https://www.instagram.com/facepaintingleague/" target="_blank" rel="noopener">Instagram*</a></div>
+<script>
+// обратный отсчёт до финала Игры 01 (3 ноября, Москва)
+(function(){
+  var el=document.getElementById('cd'); if(!el) return;
+  var end=new Date('2026-11-03T00:00:00+03:00');
+  function upd(){ var d=Math.ceil((end-new Date())/864e5); el.textContent = d>0 ? d+' дн' : 'финал!'; }
+  upd(); setInterval(upd, 36e5);
+})();
+</script>
+<script>
+(function(){
+  var menu=document.getElementById('mmenu'); if(!menu) return;
+  function setOpen(o){ menu.hidden=!o; document.body.classList.toggle('menu-open',o);
+    document.querySelectorAll('[data-menu-open]').forEach(function(b){b.setAttribute('aria-expanded',o)}); }
+  document.querySelectorAll('[data-menu-open]').forEach(function(b){ b.addEventListener('click',function(){setOpen(true)}); });
+  menu.querySelectorAll('[data-menu-close], .mmenu-links a').forEach(function(el){ el.addEventListener('click',function(){setOpen(false)}); });
+  document.addEventListener('keydown',function(e){ if(e.key==='Escape') setOpen(false); });
+})();
+</script>
+<script>
+(function(){
+  // проверка диплома (в прототипе — один пример)
+  var f=document.getElementById('verifyForm'); if(f){
+    f.addEventListener('submit',function(e){ e.preventDefault();
+      var v=(document.getElementById('dipNo').value||'').trim();
+      location.href='diploma.html'+(v?'?n='+encodeURIComponent(v):'');
+    });
+  }
+  // переключатель языка (в прототипе переведены первый экран и полоса доверия)
+  var els=[].slice.call(document.querySelectorAll('[data-en]'));
+  els.forEach(function(el){ el.setAttribute('data-ru', el.innerHTML); });
+  var dd=document.querySelector('.lang-dd');
+  if(dd){ var cur=dd.querySelector('.lang-cur'), list=dd.querySelector('.lang-list');
+    function close(){ list.hidden=true; cur.setAttribute('aria-expanded','false'); }
+    cur.addEventListener('click',function(e){ e.stopPropagation(); list.hidden=!list.hidden; cur.setAttribute('aria-expanded', String(!list.hidden)); });
+    document.addEventListener('click',function(e){ if(!dd.contains(e.target)) close(); });
+    document.addEventListener('keydown',function(e){ if(e.key==='Escape') close(); });
+    list.querySelectorAll('button').forEach(function(btn){ btn.addEventListener('click',function(){
+      var lang=btn.getAttribute('data-lang');
+      list.querySelectorAll('button').forEach(function(b){ b.classList.toggle('on', b===btn); if(b===btn) b.setAttribute('aria-current','true'); else b.removeAttribute('aria-current'); });
+      dd.querySelector('[data-lang-label]').textContent=btn.getAttribute('data-short');
+      // в прототипе переведён только английский; для других языков временно показываем английский текст
+      els.forEach(function(el){ var t=el.getAttribute('data-'+lang)||(lang==='ru'?null:el.getAttribute('data-en')); el.innerHTML = t||el.getAttribute('data-ru'); });
+      document.documentElement.lang = lang; close();
+    }); });
+  }
+})();
+</script>
+<script>
+(function(){ var l=document.querySelector('.lang-list'); if(!l) return;
+  l.addEventListener('click',function(e){ var b=e.target.closest('button'); if(!b) return; e.stopPropagation();
+    if(b.disabled) return; var h=b.getAttribute('data-href'); if(h && !b.classList.contains('on')) location.href=h; else l.hidden=true; },true);
+})();
+</script>
+<script src="../assets/consent.js?v=1" defer></script>
+</body>
+</html>

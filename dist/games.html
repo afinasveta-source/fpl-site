@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<!-- SEO -->
+<title>Games &amp; calendar — Face Painting League</title>
+<meta name="description" content="Season 1 of Face Painting League: three Games and a Super Final, with short challenges in between. See what is inside the next Game and how to join.">
+<link rel="canonical" href="https://facepaintingleague.com/games.html">
+<link rel="alternate" hreflang="en" href="https://facepaintingleague.com/games.html">
+<link rel="alternate" hreflang="ru" href="https://facepaintingleague.com/ru/games.html">
+<link rel="alternate" hreflang="x-default" href="https://facepaintingleague.com/games.html">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<meta name="theme-color" content="#1E1B18">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Face Painting League">
+<meta property="og:title" content="Games &amp; calendar — Face Painting League">
+<meta property="og:description" content="Season 1 of Face Painting League: three Games and a Super Final, with short challenges in between. See what is inside the next Game and how to join.">
+<meta property="og:url" content="https://facepaintingleague.com/games.html">
+<meta property="og:image" content="https://facepaintingleague.com/assets/og-en.png">
+<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta property="og:locale" content="en_US">
+<meta property="og:locale:alternate" content="ru_RU">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Games &amp; calendar — Face Painting League">
+<meta name="twitter:description" content="Season 1 of Face Painting League: three Games and a Super Final, with short challenges in between. See what is inside the next Game and how to join.">
+<meta name="twitter:image" content="https://facepaintingleague.com/assets/og-en.png">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@graph": [
+  {
+   "@type": "Organization",
+   "@id": "https://facepaintingleague.com/#org",
+   "name": "Face Painting League",
+   "alternateName": "FPL",
+   "url": "https://facepaintingleague.com/",
+   "logo": "https://facepaintingleague.com/assets/logo-fpl.png",
+   "brand": {
+    "@type": "Brand",
+    "name": "MAGFACE"
+   },
+   "description": "Online league for face painters by MAGFACE: Games with judged rounds, leagues, an FPL Rating and verifiable certificates."
+  },
+  {
+   "@type": "CollectionPage",
+   "@id": "https://facepaintingleague.com/games.html#page",
+   "url": "https://facepaintingleague.com/games.html",
+   "name": "Games & calendar — Face Painting League",
+   "description": "Season 1 of Face Painting League: three Games and a Super Final, with short challenges in between. See what is inside the next Game and how to join.",
+   "inLanguage": "en",
+   "isPartOf": {
+    "@id": "https://facepaintingleague.com/#site"
+   },
+   "publisher": {
+    "@id": "https://facepaintingleague.com/#org"
+   },
+   "breadcrumb": {
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+     {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Home",
+      "item": "https://facepaintingleague.com/"
+     },
+     {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Games",
+      "item": "https://facepaintingleague.com/games.html"
+     }
+    ]
+   }
+  }
+ ]
+}
+</script>
+<!-- /SEO -->
+
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<link href="assets/site.css" rel="stylesheet"/>
+<style>
+/* =========================================================
+   СТРАНИЦА ИГР
+   ========================================================= */
+.sec-head{display:flex; align-items:baseline; justify-content:space-between; gap:10px 24px; flex-wrap:wrap; margin-bottom:22px}
+.sec-note{margin:0; font:500 14px/1.5 var(--f-body); color:var(--muted); max-width:460px}
+.ghero{padding-top:120px; padding-bottom:44px}
+.ghero-body{display:grid; grid-template-columns:1.4fr 1fr; gap:48px; align-items:end}
+.ghero h1{margin:20px 0 0; font:400 clamp(32px,3.9vw,56px)/1.08 var(--f-display); letter-spacing:-.03em; color:var(--cream)}
+.ghero h1 span{color:var(--peach)}
+.ghero .lead{margin:20px 0 0; font:400 18px/1.6 var(--f-body); color:#CFC7BE; max-width:540px}
+.gnow{background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.09); border-radius:12px; padding:24px; color:var(--cream)}
+.gnow-status{display:inline-flex; align-items:center; gap:8px; font:600 13px var(--f-body); color:#CFE7A6}
+.gnow-status i{width:8px; height:8px; border-radius:50%; background:#8BD05A}
+.gnow b{display:block; margin-top:12px; font:500 30px/1.1 var(--f-display)}
+.gnow p{margin:8px 0 20px; font:500 15px/1.5 var(--f-body); color:#B7AEA5}
+.gnow .btnC{text-decoration:none}
+
+/* лента сезона */
+.season{list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:12px; position:relative}
+.season::before{content:""; position:absolute; left:0; right:0; top:9px; height:2px; background:#E2DBD2}
+.st{position:relative; padding-top:34px; min-width:0}
+.st-dot{position:absolute; top:0; left:0; width:20px; height:20px; border-radius:50%; background:var(--page); border:2px solid #CFC6BB}
+.st--done .st-dot{background:var(--graphite); border-color:var(--graphite)}
+.st--now .st-dot{background:var(--indigo); border-color:var(--indigo); box-shadow:0 0 0 6px rgba(242,96,31,.18)}
+.st--ch .st-dot{width:12px; height:12px; top:4px; left:4px}
+.st--final .st-dot{background:var(--gold); border-color:var(--gold)}
+.st-status{font:600 11px/1 var(--f-body); letter-spacing:.14em; text-transform:uppercase; color:var(--muted)}
+.st--now .st-status{color:var(--accent-text)}
+.st h3{margin:10px 0 0; font:500 19px/1.2 var(--f-display); letter-spacing:-.01em}
+.st--ch h3{font:600 15px/1.3 var(--f-body); color:#5B534B}
+.st p{margin:8px 0 0; font:500 14px/1.5 var(--f-body); color:#5B534B}
+.st-link{display:inline-block; margin-top:10px; font:600 14px var(--f-body); color:var(--accent-text); text-decoration:none}
+
+/* следующая игра */
+.gnext{display:grid; grid-template-columns:1.5fr 1fr; gap:14px}
+.gnext-main{background:#fff; border-radius:12px; padding:32px}
+.gnext-tag,.gcard-tag{font:600 11px/1 var(--f-body); letter-spacing:.16em; text-transform:uppercase; color:var(--accent-text)}
+.gnext-main .h2{margin-top:12px}
+.gnext-lead{margin:14px 0 0; font:500 16px/1.6 var(--f-body); color:#3A342F; max-width:560px}
+.gfacts{margin:26px 0 0; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px 20px; border-top:1px solid #EFE9E2; padding-top:22px}
+.gfacts dt{font:600 11px/1 var(--f-body); letter-spacing:.14em; text-transform:uppercase; color:var(--muted)}
+.gfacts dd{margin:8px 0 0; font:600 15px/1.4 var(--f-body)}
+.gprize{background:var(--graphite); color:var(--cream); border-radius:12px; padding:28px}
+.gprize h3{margin:0 0 18px; font:500 20px/1.2 var(--f-display)}
+.gprize ul{list-style:none; margin:0; padding:0; display:grid; gap:14px}
+.gprize li{display:flex; align-items:center; gap:14px}
+.gprize b{display:block; font:600 15px/1.3 var(--f-body)}
+.gprize li span:not(.gp-ic){font:500 13px var(--f-body); color:#9C9188}
+.gp-ic{flex:none; width:44px; height:44px; border-radius:50%; display:grid; place-items:center; text-align:center; font:600 16px/1 var(--f-display); color:#fff}
+.gp-ic--m{background:linear-gradient(135deg,#E8C760,#A8800F)}
+.gp-ic--tw{background:#FDE3D5; color:#8A2E07; font-size:8.5px; line-height:1.1}
+.gp-ic--d{background:#F3EEE8; color:var(--ink)}
+.gp-ic--s{background:var(--indigo); color:var(--ink)}
+
+/* шаги */
+.gsteps{list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px}
+.gsteps li{display:flex; gap:16px; background:#fff; border-radius:12px; padding:22px}
+.gsteps li > span{flex:none; width:40px; height:40px; border-radius:50%; background:var(--graphite); color:var(--cream); display:grid; place-items:center; font:500 16px/1 var(--f-display)}
+.gsteps b{font:500 17px/1.2 var(--f-display)}
+.gsteps p{margin:6px 0 0; font:500 14px/1.5 var(--f-body); color:#5B534B}
+
+/* челленджи и суперфинал */
+.gduo{display:grid; grid-template-columns:1fr 1fr; gap:14px}
+.gcard{background:#fff; border-radius:12px; padding:28px}
+.gcard h3{margin:12px 0 0; font:500 24px/1.15 var(--f-display); letter-spacing:-.01em}
+.gcard p{margin:12px 0 0; font:500 15px/1.6 var(--f-body); color:#3A342F}
+.gcard .gcard-note{font-size:13px; color:var(--muted)}
+.gcard--final{background:#F5EDCF}
+.gcard--final .gcard-tag{color:#7A5E0E}
+
+/* архив */
+.garch{background:#fff; border-radius:12px; padding:28px; display:grid; gap:22px}
+.garch-head{display:flex; justify-content:space-between; align-items:flex-end; gap:14px; flex-wrap:wrap}
+.garch-head h3{margin:10px 0 0; font:500 28px/1.1 var(--f-display)}
+.garch-head p{margin:8px 0 0; font:500 14px var(--f-body); color:var(--muted)}
+.gwin{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px}
+.gw{display:grid; grid-template-columns:64px 1fr; grid-template-rows:auto auto auto; column-gap:14px; align-items:center; border-radius:12px; padding:16px}
+.gw .lgb{grid-column:2; justify-self:start; margin-bottom:6px}
+.gw-ph{grid-row:1/4; grid-column:1; width:64px; height:64px; border-radius:50%; background:linear-gradient(160deg,#E9E3DB,#D2C7BB); display:grid; place-items:center; font:600 10px var(--f-body); color:#7A7069}
+.gw b{grid-column:2; font:500 16px/1.2 var(--f-display)}
+.gw > span:last-child{grid-column:2; font:500 13px var(--f-body); color:var(--muted)}
+.gw--gold{background:#F5EDCF} .gw--silver{background:#ECEEF0} .gw--bronze{background:#F3E6DA}
+.garch-works{display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:8px}
+.gaw{aspect-ratio:4/5; border-radius:10px; background:linear-gradient(160deg,#E9E3DB,#D8CFC4); display:grid; place-items:center; font:600 12px var(--f-body); color:#7A7069}
+.garch > .text-link{justify-self:start}
+
+@media (max-width:1180px){
+  .season{grid-template-columns:repeat(3,minmax(0,1fr)); row-gap:30px}
+  .season::before{display:none}
+}
+@media (max-width:980px){
+  .ghero-body,.gnext,.gduo{grid-template-columns:1fr}
+  .gsteps{grid-template-columns:1fr}
+  .gwin{grid-template-columns:1fr}
+  .gfacts{grid-template-columns:1fr 1fr}
+}
+@media (max-width:640px){
+  .ghero{padding-top:104px; padding-bottom:28px}
+  .ghero-body{gap:24px}
+  .ghero .lead{font-size:15px; line-height:1.5; margin-top:12px; color:#B7AEA5}
+  .gnow{padding:20px} .gnow b{font-size:24px}
+  .gnow .btnC{width:auto!important; padding:12px 20px!important; font-size:14px!important}
+  /* лента — вертикально */
+  .season{grid-template-columns:1fr; row-gap:0; padding-left:4px}
+  .season::before{display:block; left:13px; right:auto; top:10px; bottom:10px; width:2px; height:auto}
+  .st{padding:0 0 22px 40px}
+  .st:last-child{padding-bottom:0}
+  .st-dot{top:0; left:0}
+  .st--ch .st-dot{left:4px; top:4px}
+  .st h3{margin-top:8px; font-size:18px}
+  .st--ch h3{font-size:14px}
+  .st p{margin-top:4px}
+  .gnext-main,.gprize,.gcard,.garch{padding:22px 20px}
+  .gfacts{grid-template-columns:1fr; gap:14px}
+  .gsteps li{padding:18px}
+  .garch-works{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .garch-works .gaw:nth-child(n+4){display:none}
+  .gcard h3{font-size:21px}
+}
+
+
+.gp-ic--p{background:var(--peach); color:var(--ink)}
+.gwin-title{margin:0 0 -8px; font:600 11px/1 var(--f-body); letter-spacing:.16em; text-transform:uppercase; color:var(--muted)}
+.gw{display:flex!important; flex-direction:column; align-items:stretch!important; gap:14px; padding:18px!important}
+.gw .lgb{margin:0!important; align-self:flex-start}
+.gw-first{display:flex; align-items:center; gap:14px}
+.gw-first .gw-ph{width:64px; height:64px; flex:none}
+.gw-place{display:block; font:600 11px/1 var(--f-body); letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin-bottom:6px}
+.gw-first b{display:block; font:500 17px/1.2 var(--f-display)}
+.gw-city{font:500 13px var(--f-body); color:var(--muted)}
+.gw-rest{list-style:none; margin:0; padding:12px 0 0; border-top:1px solid rgba(21,19,26,.08); display:grid; gap:8px}
+.gw-rest li{display:flex; align-items:center; gap:10px; font:600 14px var(--f-body)}
+.gw-rest li span{width:22px; height:22px; border-radius:50%; display:grid; place-items:center; font:600 11px/1 var(--f-display); color:#fff; flex:none}
+.gw-rest li:first-child span{background:linear-gradient(135deg,#C9CED3,#7E858C)}
+.gw-rest li:last-child span{background:linear-gradient(135deg,#D09468,#8E5530)}
+.gwin--2{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media (max-width:980px){ .gwin--2{grid-template-columns:1fr} }
+
+.lang-list button.soon{opacity:.45; cursor:default; display:flex; justify-content:space-between; gap:10px} .lang-list button.soon small{font:500 11px var(--f-body)} .lang-list button.soon:hover{background:none}
+</style>
+</head>
+<body>
+<main class="wrap glow">
+<nav class="nav">
+<a class="logo" href="index.html" style="text-decoration:none">FPL<small>by MAGFACE</small></a>
+<a aria-current="page" href="games.html">Games</a><a href="rating.html">Rating</a><a href="gallery.html">Gallery</a><a href="find.html">Find an artist</a><a href="about.html">About</a><a href="rules.html">Rules</a>
+<div class="lang-dd"><button aria-expanded="false" aria-haspopup="true" aria-label="Site language" class="lang-cur" type="button"><svg aria-hidden="true" height="15" viewbox="0 0 24 24" width="15"><g fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18M12 3c2.6 2.8 2.6 15.2 0 18M12 3c-2.6 2.8-2.6 15.2 0 18"></path></g></svg><span data-lang-label>EN</span><svg aria-hidden="true" height="6" viewbox="0 0 10 6" width="9"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"></path></svg></button><ul class="lang-list" hidden><li><button type="button" data-lang="ru" data-short="RU" data-href="ru/games.html">Русский</button></li><li><button type="button" data-lang="en" data-short="EN" data-href="games.html" class="on" aria-current="true">English</button></li><li><button type="button" data-lang="de" data-short="DE" disabled class="soon">Deutsch<small>soon</small></button></li><li><button type="button" data-lang="es" data-short="ES" disabled class="soon">Español<small>soon</small></button></li><li><button type="button" data-lang="fr" data-short="FR" disabled class="soon">Français<small>soon</small></button></li><li><button type="button" data-lang="zh" data-short="中文" disabled class="soon">中文<small>soon</small></button></li><li><button type="button" data-lang="ja" data-short="日本語" disabled class="soon">日本語<small>soon</small></button></li></ul></div>
+<a class="btn-outline" style="border-color:var(--indigo); color:var(--indigo); letter-spacing:.08em" href="https://t.me/facepaintingleaguebot" target="_blank" rel="noopener">Join</a>
+<button aria-controls="mmenu" aria-expanded="false" aria-label="Open menu" class="burger" data-menu-open="" type="button"><span></span><span></span></button>
+</nav>
+<!-- ИГРЫ: ШАПКА -->
+<section aria-labelledby="gtitle" class="heroC ghero">
+<div class="ghero-body">
+<div>
+<span class="eyebrow">Face Painting League · Season 1</span>
+<h1 id="gtitle">Games <span>&amp; calendar</span></h1>
+<p class="lead">Three Games and a Super Final. Short challenges between Games. We announce the dates of each Game in the bot and the League channel.</p>
+</div>
+<div class="gnow">
+<span class="gnow-status"><i></i>Registration open</span>
+<b>Game 02</b>
+<p>Register through the bot. Artists from any country can join.</p>
+<a class="btnC" href="https://t.me/facepaintingleaguebot" target="_blank" rel="noopener">Join →</a>
+</div>
+</div>
+</section>
+<!-- ЛЕНТА СЕЗОНА -->
+<section aria-labelledby="seasonTitle">
+<div class="sec-head"><h2 class="h2" id="seasonTitle">Season <span class="a-pink">1</span></h2><span class="sec-note">Each Game is a separate competition. Your rating and awards carry over from Game to Game.</span></div>
+<ol class="season">
+<li class="st st--done">
+<span aria-hidden="true" class="st-dot"></span>
+<span class="st-status">Finished</span>
+<h3>Game 01</h3>
+<p>The first Game of the season. Entry was free.</p>
+<a class="st-link" href="#archive">Results and medalists →</a>
+</li>
+<li class="st st--ch">
+<span aria-hidden="true" class="st-dot"></span>
+<span class="st-status">Challenge</span>
+<h3>Between Games</h3>
+<p>A short brief to keep you in shape.</p>
+</li>
+<li class="st st--now">
+<span aria-hidden="true" class="st-dot"></span>
+<span class="st-status">Registration open</span>
+<h3>Game 02</h3>
+<p>Rounds in your league, judges and rating.</p>
+<a class="st-link" href="#next">What's inside →</a>
+</li>
+<li class="st st--ch">
+<span aria-hidden="true" class="st-dot"></span>
+<span class="st-status">Challenge</span>
+<h3>Between Games</h3>
+<p>Details will be announced in the bot.</p>
+</li>
+<li class="st">
+<span aria-hidden="true" class="st-dot"></span>
+<span class="st-status">After Game 02</span>
+<h3>Game 03</h3>
+<p>The last Game before the season final.</p>
+</li>
+<li class="st st--final">
+<span aria-hidden="true" class="st-dot"></span>
+<span class="st-status">Season final</span>
+<h3>Super Final</h3>
+<p>The best artists of the season compete for the cup and a cash prize pool.</p>
+</li>
+</ol>
+</section>
+<!-- СЛЕДУЮЩАЯ ИГРА -->
+<section aria-labelledby="nextTitle" id="next">
+<div class="gnext">
+<div class="gnext-main">
+<span class="gnext-tag">Next Game</span>
+<h2 class="h2" id="nextTitle">Game 02</h2>
+<p class="gnext-lead">An online competition in several rounds. Each round has a new brief, judges score the works, and the rating updates after the round.</p>
+<dl class="gfacts">
+<div><dt>Format</dt><dd>online, from any country</dd></div>
+<div><dt>Leagues</dt><dd>Bronze, Silver, Gold — based on rating</dd></div>
+<div><dt>Briefs</dt><dd>sent to the bot at the start of each round</dd></div>
+<div><dt>Scoring</dt><dd>judges; the method is set out in the Game Rules</dd></div>
+<div><dt>Entry fee</dt><dd>published before the Game starts</dd></div>
+<div><dt>Dates</dt><dd>announced in the bot and channel</dd></div>
+</dl>
+</div>
+<aside class="gprize">
+<h3>What you can win</h3>
+<ul>
+<li><span class="gp-ic gp-ic--p">★</span><div><b>Prizes for winners</b><span>art supplies and cash prizes — announced before the start</span></div></li>
+<li><span class="gp-ic gp-ic--m">1</span><div><b>Medals</b><span>for 1st–3rd place in each league</span></div></li>
+<li><span class="gp-ic gp-ic--tw">TOP<br/>WORK</span><div><b>TOP WORK</b><span>best works of each round</span></div></li>
+<li><span class="gp-ic gp-ic--d">✓</span><div><b>Numbered certificate</b><span>for everyone who submits all rounds</span></div></li>
+<li><span class="gp-ic gp-ic--s">%</span><div><b>MAGFACE discount</b><span>for everyone who makes it to the end</span></div></li>
+</ul>
+</aside>
+</div>
+</section>
+<!-- КАК ПОПАСТЬ -->
+<section aria-labelledby="joinTitle">
+<h2 class="h2" id="joinTitle" style="margin-bottom:22px">How to join <span class="a-indigo">a Game</span></h2>
+<ol class="gsteps">
+<li><span>1</span><div><b>Open the bot</b><p>Telegram or VK — whichever you prefer.</p></div></li>
+<li><span>2</span><div><b>Fill in the form</b><p>Name, city, photo. This becomes your artist profile.</p></div></li>
+<li><span>3</span><div><b>Wait for the start</b><p>The bot will send the first round's brief and remind you of deadlines.</p></div></li>
+</ol>
+</section>
+<!-- ЧЕЛЛЕНДЖИ И СУПЕРФИНАЛ -->
+<section aria-label="Challenges and Super Final">
+<div class="gduo">
+<article class="gcard">
+<span class="gcard-tag">Between Games</span>
+<h3>Challenges</h3>
+<p>Short briefs in the breaks between Games: one theme, one deadline. A good way to try a new technique or get back in shape before the next Game.</p>
+<p class="gcard-note">We announce the details of each challenge in the bot.</p>
+</article>
+<article class="gcard gcard--final">
+<span class="gcard-tag">Season final</span>
+<h3>Super Final</h3>
+<p>Closes the season. The best artists from the three Games meet here and compete for the season cup and a cash prize pool.</p>
+<p class="gcard-note">Qualification rules are in the League Rules.</p>
+</article>
+</div>
+</section>
+<!-- АРХИВ -->
+<section aria-labelledby="archTitle" id="archive">
+<div class="sec-head"><h2 class="h2" id="archTitle">Past <span class="a-pink">Games</span></h2><span class="sec-note">Sample results for the mockup</span></div>
+<article class="garch">
+<div class="garch-head">
+<div><span class="gcard-tag">Season 1</span><h3>Game 01</h3><p>[N] artists from [N] countries · entry was free</p></div>
+<a class="text-link" href="rating.html">Rating after Game 01</a>
+</div>
+<h4 class="gwin-title">League winners</h4>
+<div class="gwin gwin--2">
+<div class="gw gw--gold">
+<span class="lgb lgb--Gold">Gold League</span>
+<div class="gw-first"><div class="gw-ph">[photo]</div><div><span class="gw-place">1st place</span><b>[Winner]</b><span class="gw-city">[city]</span></div></div>
+<ol class="gw-rest" start="2"><li><span>2</span>[First Last]</li><li><span>3</span>[First Last]</li></ol>
+</div>
+<div class="gw gw--silver">
+<span class="lgb lgb--Silver">Silver League</span>
+<div class="gw-first"><div class="gw-ph">[photo]</div><div><span class="gw-place">1st place</span><b>[Winner]</b><span class="gw-city">[city]</span></div></div>
+<ol class="gw-rest" start="2"><li><span>2</span>[First Last]</li><li><span>3</span>[First Last]</li></ol>
+</div>
+</div>
+<div class="garch-works">
+<div class="gaw">[work]</div><div class="gaw">[work]</div><div class="gaw">[work]</div><div class="gaw">[work]</div><div class="gaw">[work]</div>
+</div>
+<a class="text-link" href="gallery.html">All works from Game 01</a>
+</article>
+</section>
+<!-- УЗНАТЬ О СТАРТЕ -->
+<section class="tile tile--indigo cta-strong" style="padding:48px">
+<h2 class="h1">Don't miss <span class="a-lemon">the Game start</span></h2>
+<p class="tile-text" style="font-size:17px; margin:16px 0 28px">The bot will remind you when registration opens and send the dates as soon as we announce them.</p>
+<div style="display:flex; gap:12px; flex-wrap:wrap; max-width:620px">
+<a class="btn-wide" style="flex:1" href="https://t.me/facepaintingleaguebot" target="_blank" rel="noopener">Join</a>
+<a class="btn-wide btn-pink" style="flex:1" href="https://www.instagram.com/facepaintingleague/" target="_blank" rel="noopener">Follow on Instagram*</a>
+</div>
+</section>
+<footer class="site-footer">
+<div class="f-brand"><span class="f-logo">FPL</span><p>Face Painting League by MAGFACE. The online league for face painters.</p></div>
+<div><b>League</b><a aria-current="page" href="games.html">Games &amp; calendar</a><a href="rating.html">Rating</a><a href="index.html#archive">Hall of Fame</a><a href="about.html#jury">Judges</a><a href="find.html">Find an artist</a></div>
+<div><b>For artists</b><a href="index.html#how">How to join</a><a href="diploma.html">Certificate check</a><a href="rules.html#faq">FAQ</a></div>
+<div><b>Documents</b><a href="rules.html">League Rules</a><a href="privacy.html">Privacy Policy</a><a href="rules.html#docs">Consent to publish works</a></div>
+<div><b>Contacts</b><a href="mailto:info@maskarad-grim.ru">info@maskarad-grim.ru</a><a href="https://t.me/maskarad_grim" target="_blank" rel="noopener">Telegram</a><a href="https://vk.ru/publicmaskarad" target="_blank" rel="noopener">VK</a><a href="https://www.instagram.com/facepaintingleague/" target="_blank" rel="noopener">Instagram*</a></div>
+<p class="f-note">* Instagram is owned by Meta, which is recognized as an extremist organization and banned in Russia.</p>
+<p class="f-copy">© 2026 MAGFACE · Sole proprietor S. O. Afinogenova</p>
+</footer>
+</main>
+<div class="mmenu" hidden="" id="mmenu">
+<div class="mmenu-head"><span class="logo">FPL</span><button aria-label="Close menu" class="burger is-open" data-menu-close="" type="button"><span></span><span></span></button></div>
+<nav aria-label="Site sections" class="mmenu-links"><a aria-current="page" href="games.html">Games &amp; calendar <small>Season 1 · Games of the season</small></a>
+<a href="rating.html">Rating <small>Bronze · Silver · Gold leagues</small></a>
+<a href="gallery.html">Gallery <small>best works of the season</small></a>
+<a href="find.html">Find an artist <small>League artists taking bookings</small></a>
+<a href="about.html">About <small>how it works, judges, awards</small></a>
+<a href="rules.html">Rules &amp; FAQ</a></nav>
+<div class="mmenu-foot">
+<a class="btn-wide mm-primary" href="https://t.me/facepaintingleaguebot" target="_blank" rel="noopener">Join</a>
+<a class="btn-wide mm-secondary" href="https://www.instagram.com/facepaintingleague/" target="_blank" rel="noopener">Follow on Instagram*</a>
+<p>Telegram bot · VK · Instagram*</p>
+</div>
+</div>
+<div class="mbar"><a class="btn-wide" href="https://t.me/facepaintingleaguebot" target="_blank" rel="noopener">Join</a><a class="btn-wide" href="https://www.instagram.com/facepaintingleague/" target="_blank" rel="noopener">Instagram*</a></div>
+<script>
+(function(){
+  var menu=document.getElementById('mmenu'); if(!menu) return;
+  function setOpen(o){ menu.hidden=!o; document.body.classList.toggle('menu-open',o);
+    document.querySelectorAll('[data-menu-open]').forEach(function(b){b.setAttribute('aria-expanded',o)}); }
+  document.querySelectorAll('[data-menu-open]').forEach(function(b){ b.addEventListener('click',function(){setOpen(true)}); });
+  menu.querySelectorAll('[data-menu-close], .mmenu-links a').forEach(function(el){ el.addEventListener('click',function(){setOpen(false)}); });
+  document.addEventListener('keydown',function(e){ if(e.key==='Escape') setOpen(false); });
+})();
+</script>
+<script>
+(function(){
+  // переключатель языка (в прототипе переведены первый экран и полоса доверия)
+  var els=[].slice.call(document.querySelectorAll('[data-en]'));
+  els.forEach(function(el){ el.setAttribute('data-ru', el.innerHTML); });
+  var dd=document.querySelector('.lang-dd');
+  if(dd){ var cur=dd.querySelector('.lang-cur'), list=dd.querySelector('.lang-list');
+    function close(){ list.hidden=true; cur.setAttribute('aria-expanded','false'); }
+    cur.addEventListener('click',function(e){ e.stopPropagation(); list.hidden=!list.hidden; cur.setAttribute('aria-expanded', String(!list.hidden)); });
+    document.addEventListener('click',function(e){ if(!dd.contains(e.target)) close(); });
+    document.addEventListener('keydown',function(e){ if(e.key==='Escape') close(); });
+    list.querySelectorAll('button').forEach(function(btn){ btn.addEventListener('click',function(){
+      var lang=btn.getAttribute('data-lang');
+      list.querySelectorAll('button').forEach(function(b){ b.classList.toggle('on', b===btn); if(b===btn) b.setAttribute('aria-current','true'); else b.removeAttribute('aria-current'); });
+      dd.querySelector('[data-lang-label]').textContent=btn.getAttribute('data-short');
+      // в прототипе переведён только английский; для других языков временно показываем английский текст
+      els.forEach(function(el){ var t=el.getAttribute('data-'+lang)||(lang==='ru'?null:el.getAttribute('data-en')); el.innerHTML = t||el.getAttribute('data-ru'); });
+      document.documentElement.lang = lang; close();
+    }); });
+  }
+})();
+</script>
+<script>
+(function(){ var l=document.querySelector('.lang-list'); if(!l) return;
+  l.addEventListener('click',function(e){ var b=e.target.closest('button'); if(!b) return; e.stopPropagation();
+    if(b.disabled) return; var h=b.getAttribute('data-href'); if(h && !b.classList.contains('on')) location.href=h; else l.hidden=true; },true);
+})();
+</script>
+<script src="assets/consent.js?v=1" defer></script>
+</body>
+</html>

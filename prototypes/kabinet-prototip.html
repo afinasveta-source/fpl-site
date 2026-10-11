@@ -1,0 +1,677 @@
+<title>Кабинет участника FPL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Unbounded:wght@400;500;600&display=swap">
+<style>
+/* Layout: prototype strip on top; app header with burger on the right; on wide screens a left section rail + one content column (max 720px). */
+:root{
+  --bg:#F3EEE8; --surface:#FFFFFF; --sunk:#EBE4DC; --ink:#1E1B18; --muted:#6B625B; --line:#E2D9CF;
+  --accent:#F2601F; --accent-ink:#B5420E; --accent-soft:#FCE6D9; --on-accent:#FFFFFF;
+  --head:#1E1B18; --head-fg:#F3EEE8; --head-muted:#A99E94;
+  --ok:#2E7A4E; --ok-soft:#DDF0E3; --warn:#9A6411; --warn-soft:#F8EBCF; --bad:#B3261E; --bad-soft:#F7DEDB; --info:#33598C; --info-soft:#DDE7F5;
+  --proto:#2B2622; --proto-fg:#E9E1D8;
+  --f-display:"Unbounded", "Arial Black", system-ui, sans-serif;
+  --f-body:"Manrope", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --r:12px;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#1A1714; --surface:#25201C; --sunk:#2E2823; --ink:#F3EEE8; --muted:#A99E94; --line:#3A332D;
+  --accent:#F2601F; --accent-ink:#FF9A66; --accent-soft:#3A2418; --on-accent:#FFFFFF;
+  --head:#110F0D; --head-fg:#F3EEE8; --head-muted:#A99E94;
+  --ok:#7BC897; --ok-soft:#1E3326; --warn:#E9B65E; --warn-soft:#3A2D14; --bad:#F08A80; --bad-soft:#3D1D1A; --info:#94B6E6; --info-soft:#1C2A3D;
+  --proto:#0B0A09; --proto-fg:#D8CFC6; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#1A1714; --surface:#25201C; --sunk:#2E2823; --ink:#F3EEE8; --muted:#A99E94; --line:#3A332D;
+  --accent:#F2601F; --accent-ink:#FF9A66; --accent-soft:#3A2418; --on-accent:#FFFFFF;
+  --head:#110F0D; --head-fg:#F3EEE8; --head-muted:#A99E94;
+  --ok:#7BC897; --ok-soft:#1E3326; --warn:#E9B65E; --warn-soft:#3A2D14; --bad:#F08A80; --bad-soft:#3D1D1A; --info:#94B6E6; --info-soft:#1C2A3D;
+  --proto:#0B0A09; --proto-fg:#D8CFC6; color-scheme:dark }
+
+*{box-sizing:border-box}
+body{background:var(--bg); color:var(--ink); font:500 15px/1.55 var(--f-body)}
+button,input,select,textarea{font:inherit; color:inherit}
+a{color:var(--accent-ink)}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+h1,h2,h3{font-family:var(--f-display); font-weight:500; letter-spacing:-.02em; text-wrap:balance; margin:0}
+h1{font-size:clamp(25px,5.4vw,32px); line-height:1.12}
+h2{font-size:18px; line-height:1.25}
+h3{font-size:15px; line-height:1.3}
+p{margin:0}
+.num{font-variant-numeric:tabular-nums}
+
+/* прототип */
+.proto{background:var(--proto); color:var(--proto-fg); font-size:13px; padding:8px 16px; display:flex; flex-wrap:wrap; gap:8px 14px; align-items:center}
+.proto b{font:600 11px/1 var(--f-body); letter-spacing:.14em; text-transform:uppercase; color:var(--accent)}
+.proto label{display:flex; gap:6px; align-items:center; min-width:0; max-width:100%}
+.proto select{min-width:0; flex:1 1 auto; width:auto; background:transparent; border:1px solid #5A514A; border-radius:8px; padding:4px 8px; color:var(--proto-fg); max-width:100%}
+.proto select option{color:#1E1B18}
+.proto .ex{margin-left:auto; color:#A99E94}
+
+/* шапка */
+.hdr{position:sticky; top:env(safe-area-inset-top,0px); z-index:20; background:var(--head); color:var(--head-fg); display:flex; align-items:center; gap:12px; padding:10px 16px; min-height:56px}
+.logo{font:600 18px/1 var(--f-display); color:var(--accent); letter-spacing:-.02em; text-decoration:none; background:none; border:0; padding:0; cursor:pointer}
+.logo small{display:block; font:600 9px/1.4 var(--f-body); letter-spacing:.18em; color:var(--head-muted)}
+.hdr .ctx{font-size:13px; color:var(--head-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; flex:1}
+.bell{position:relative; background:none; border:0; color:var(--head-fg); width:40px; height:40px; border-radius:10px; cursor:pointer; display:grid; place-items:center}
+.bell i{position:absolute; top:6px; right:6px; min-width:16px; height:16px; border-radius:8px; background:var(--accent); color:#fff; font:700 10px/16px var(--f-body); font-style:normal; padding:0 4px}
+.burger{width:40px; height:40px; border-radius:10px; border:1px solid #4A423C; background:none; cursor:pointer; display:grid; place-content:center; gap:4px}
+.burger span{display:block; width:18px; height:2px; background:var(--head-fg); border-radius:1px}
+
+/* каркас */
+.shell{display:grid; grid-template-columns:1fr; max-width:1120px; margin:0 auto}
+.rail{display:none}
+main{padding:18px 16px 64px; min-width:0; max-width:720px; width:100%; margin:0 auto; display:grid; gap:24px; align-content:start}
+@media (min-width:920px){
+  .shell{grid-template-columns:232px minmax(0,1fr); gap:24px; padding-inline:16px}
+  .rail{display:block; position:sticky; top:72px; align-self:start; padding-top:20px}
+  main{padding-inline:0}
+  .burger{display:none}
+}
+.nav{display:grid; gap:2px}
+.nav button{all:unset; box-sizing:border-box; cursor:pointer; display:flex; justify-content:space-between; align-items:center; gap:8px; padding:10px 12px; border-radius:10px; font-weight:600; font-size:14px; color:var(--ink)}
+.nav button:hover{background:var(--sunk)}
+.nav button[aria-current="page"]{background:var(--surface); box-shadow:inset 3px 0 0 var(--accent)}
+.nav button:focus-visible{outline:2px solid var(--accent)}
+.nav .cnt{font:700 11px/18px var(--f-body); min-width:20px; text-align:center; border-radius:9px; background:var(--accent); color:#fff; padding:0 6px}
+.nav .sep{height:1px; background:var(--line); margin:8px 4px}
+.nav .out{color:var(--muted); font-weight:500}
+
+/* выезжающее меню */
+.drawer{position:fixed; inset:0; z-index:40; background:rgba(0,0,0,.45); display:flex; justify-content:flex-end}
+.drawer .panel{width:min(320px,86vw); background:var(--bg); height:100%; overflow:auto; padding:calc(14px + env(safe-area-inset-top,0px)) 14px 24px; display:grid; gap:12px; align-content:start}
+.drawer .phead{display:flex; justify-content:space-between; align-items:center}
+.x{width:40px; height:40px; border-radius:10px; border:1px solid var(--line); background:var(--surface); cursor:pointer; font-size:20px; line-height:1}
+
+/* элементы */
+.crumb{display:flex; flex-wrap:wrap; gap:6px; align-items:center; font-size:13px; color:var(--muted)}
+.crumb button{all:unset; cursor:pointer; color:var(--muted); font-weight:600; text-decoration:underline; text-decoration-color:var(--line); text-underline-offset:3px}
+.crumb .up{text-decoration:none; color:var(--ink); font-size:18px; line-height:1; padding:2px 8px 4px; margin-left:-8px; border-radius:8px}
+.crumb button:focus-visible{outline:2px solid var(--accent)}
+.back{all:unset; cursor:pointer; font-weight:600; font-size:14px; color:var(--accent-ink); display:inline-flex; gap:6px; align-items:center}
+.back:focus-visible{outline:2px solid var(--accent)}
+.card{background:var(--surface); border:0; border-radius:var(--r); padding:18px; display:grid; gap:12px; min-width:0}
+.lead{font-size:17px; line-height:1.55}
+.focus{display:grid; gap:4px; padding:14px 16px; border-radius:var(--r); background:var(--accent-soft)}
+.focus .lbl{font:700 12px/1 var(--f-body); color:var(--accent-ink)}
+.focus .deadline .d{font-size:26px}
+.card.hero{border:0; background:var(--head); color:var(--head-fg)}
+.card.hero .muted{color:var(--head-muted)}
+.card.hero .eyebrow{color:var(--head-muted)}
+.card.hero h2{font-size:22px}
+.eyebrow{font:600 11px/1.3 var(--f-body); letter-spacing:.14em; text-transform:uppercase; color:var(--muted)}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.row{display:flex; flex-wrap:wrap; gap:8px; align-items:center}
+.between{display:flex; justify-content:space-between; gap:12px; align-items:flex-start; flex-wrap:wrap}
+.stack{display:grid; gap:10px}
+.grid2{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px}
+.btn{appearance:none; border:0; border-radius:10px; padding:11px 16px; min-height:44px; font-weight:700; font-size:14px; cursor:pointer; background:var(--accent); color:var(--on-accent); display:inline-flex; align-items:center; justify-content:center; gap:8px; text-align:center}
+.btn.sec{background:transparent; color:var(--ink); box-shadow:inset 0 0 0 1.5px var(--line)}
+.card.hero .btn.sec{color:var(--head-fg); box-shadow:inset 0 0 0 1.5px #4A423C}
+.btn.ghost{background:none; color:var(--ink); text-decoration:underline; text-underline-offset:3px; text-decoration-color:var(--line); padding-inline:4px; min-height:36px; font-weight:600}
+.btn[disabled]{opacity:.45; cursor:not-allowed}
+.btn.wide{width:100%}
+.pill{display:inline-flex; align-items:center; gap:6px; font:700 12px/1 var(--f-body); padding:6px 10px; border-radius:999px; background:var(--sunk); color:var(--ink); white-space:nowrap}
+.pill::before{content:""; width:7px; height:7px; border-radius:50%; background:currentColor; opacity:.8}
+.pill.ok{background:transparent; color:var(--ok); padding-inline:0} .pill.warn{background:var(--warn-soft); color:var(--warn)} .pill.bad{background:var(--bad-soft); color:var(--bad)} .pill.info{background:var(--info-soft); color:var(--info)} .pill.acc{background:var(--accent-soft); color:var(--accent-ink)}
+.pill.plain::before{display:none}
+.kv{align-content:start; display:grid; grid-template-columns:minmax(110px,38%) 1fr; gap:10px 14px; font-size:14px}
+.kv dt{color:var(--muted)} .kv dd{margin:0; min-width:0}
+.list{display:grid; border-top:1px solid var(--line)}
+.li{all:unset; box-sizing:border-box; cursor:pointer; display:grid; grid-template-columns:minmax(0,1fr) auto; gap:4px 12px; align-items:center; padding:14px 2px; border-bottom:1px solid var(--line)}
+.li:hover .t{color:var(--accent-ink)}
+.li:focus-visible{outline:2px solid var(--accent)}
+.li .t{font-weight:700} .li .s{font-size:13px; color:var(--muted); grid-column:1} .li .r{grid-row:1 / span 2; grid-column:2; display:flex; gap:8px; align-items:center}
+.li .r::after{content:"›"; font-size:20px; color:var(--muted)}
+.li.static{cursor:default} .li.static .r::after{content:none}
+.deadline{display:grid; gap:2px}
+.deadline .d{font:500 22px/1.15 var(--f-display); letter-spacing:-.02em}
+.deadline .tz{font-size:12px; color:var(--muted)}
+.card.hero .deadline .tz{color:var(--head-muted)}
+.note{border-radius:10px; padding:12px 14px; font-size:14px; background:var(--sunk)}
+.note.warn{background:var(--warn-soft)} .note.bad{background:var(--bad-soft)} .note.ok{background:var(--ok-soft)} .note.info{background:var(--info-soft)}
+.field{display:grid; gap:6px}
+.field label{font-weight:700; font-size:14px}
+.field .hint{font-size:12px; color:var(--muted)}
+.field .err{font-size:13px; color:var(--bad); font-weight:600}
+.input{width:100%; border:1.5px solid var(--line); background:var(--surface); border-radius:10px; padding:11px 12px; min-height:44px}
+.input:focus{border-color:var(--accent); outline:none}
+.input.bad{border-color:var(--bad)}
+textarea.input{min-height:110px; resize:vertical}
+.pw{position:relative} .pw .input{padding-right:84px}
+.pw button{position:absolute; right:6px; top:6px; height:32px; border:0; background:var(--sunk); border-radius:8px; padding:0 10px; font-size:12px; font-weight:700; cursor:pointer}
+.steps{list-style:none; margin:0; padding:0; display:grid; gap:0}
+.steps li{display:grid; grid-template-columns:28px 1fr; gap:10px; padding:8px 0; position:relative}
+.steps li .dot{width:22px; height:22px; border-radius:50%; border:2px solid var(--line); background:var(--surface); display:grid; place-items:center; font:700 11px var(--f-body); margin-top:1px}
+.steps li.done .dot{background:var(--ok); border-color:var(--ok); color:#fff}
+.steps li.now .dot{border-color:var(--accent); box-shadow:0 0 0 4px var(--accent-soft)}
+.steps li:not(:last-child)::after{content:""; position:absolute; left:10px; top:32px; bottom:-6px; width:2px; background:var(--line)}
+.tour{display:grid; grid-template-columns:44px minmax(0,1fr) auto; gap:12px; align-items:center}
+.tour > div{min-width:0}
+@media (max-width:520px){ .tour{grid-template-columns:44px minmax(0,1fr)} .tour .pill{grid-column:2; justify-self:start} }
+.tour .no{width:44px; height:44px; border-radius:10px; background:var(--sunk); display:grid; place-items:center; font:600 15px var(--f-display)}
+.tour.now .no{background:var(--accent); color:#fff}
+.photo{aspect-ratio:4/5; max-width:100%; border-radius:10px; background:linear-gradient(150deg,var(--sunk),var(--line)); display:grid; place-items:center; color:var(--muted); font-size:13px; overflow:hidden; position:relative}
+.photo img{width:100%; height:100%; object-fit:cover}
+.photo .tag{position:absolute; left:8px; top:8px}
+.thumbs{display:grid; grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:10px}
+.drop{border:2px dashed var(--line); border-radius:12px; padding:22px; text-align:center; display:grid; gap:8px; justify-items:center; cursor:pointer}
+.drop:hover{border-color:var(--accent)}
+.score{font:500 40px/1 var(--f-display); letter-spacing:-.03em}
+.score small{font:600 14px var(--f-body); color:var(--muted); letter-spacing:0}
+.stats{display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px}
+.stat{background:var(--sunk); border-radius:10px; padding:12px 14px; display:grid; gap:4px}
+.stat b{font:500 20px/1.1 var(--f-display)} .stat span{font-size:12px; color:var(--muted)}
+.bar{height:8px; border-radius:4px; background:var(--sunk); overflow:hidden} .bar i{display:block; height:100%; background:var(--accent)}
+.msg{display:grid; gap:4px; max-width:88%; padding:10px 12px; border-radius:12px; background:var(--sunk); font-size:14px}
+.msg.me{justify-self:end; background:var(--accent-soft)}
+.msg .who{font-size:12px; color:var(--muted); font-weight:700}
+.switch{display:flex; justify-content:space-between; gap:12px; align-items:center}
+.tg{appearance:none; width:46px; height:28px; border-radius:14px; background:var(--line); position:relative; cursor:pointer; flex:none; border:0}
+.tg::after{content:""; position:absolute; top:3px; left:3px; width:22px; height:22px; border-radius:50%; background:#fff; transition:left .15s}
+.tg:checked{background:var(--ok)} .tg:checked::after{left:21px}
+.toast{position:fixed; left:50%; bottom:calc(20px + env(safe-area-inset-bottom,0px)); transform:translateX(-50%); background:var(--ink); color:var(--bg); padding:12px 16px; border-radius:10px; font-weight:700; font-size:14px; z-index:60; max-width:calc(100% - 32px)}
+.skel{height:14px; border-radius:6px; background:linear-gradient(90deg,var(--sunk),var(--line),var(--sunk)); background-size:200% 100%; animation:sk 1.2s linear infinite}
+@keyframes sk{to{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){ .skel{animation:none} .tg::after{transition:none} }
+.auth{max-width:440px; margin:0 auto; width:100%}
+.modal{position:fixed; inset:0; z-index:50; background:rgba(0,0,0,.5); display:grid; place-items:center; padding:16px}
+.modal .card{max-width:440px; width:100%}
+/* нижняя панель (телефон) */
+.tabbar{position:fixed; left:0; right:0; bottom:0; z-index:30; background:var(--surface); border-top:1px solid var(--line); display:grid; grid-template-columns:repeat(5,1fr); padding:4px 4px calc(4px + env(safe-area-inset-bottom,0px))}
+.tabbar button{all:unset; box-sizing:border-box; cursor:pointer; display:grid; justify-items:center; gap:2px; padding:6px 2px; border-radius:10px; font:700 11px/1.2 var(--f-body); color:var(--muted); position:relative; min-height:52px; align-content:center}
+.tabbar button svg{width:22px; height:22px}
+.tabbar button[aria-current="page"]{color:var(--accent-ink)}
+.tabbar button:focus-visible{outline:2px solid var(--accent)}
+.tabbar .cnt{position:absolute; top:4px; left:calc(50% + 6px); font:700 10px/16px var(--f-body); min-width:16px; height:16px; border-radius:8px; background:var(--accent); color:#fff; padding:0 4px; text-align:center}
+.sheet{position:fixed; inset:0; z-index:40; background:rgba(0,0,0,.45); display:flex; align-items:flex-end}
+.sheet .panel{width:100%; background:var(--bg); border-radius:16px 16px 0 0; padding:14px 16px calc(18px + env(safe-area-inset-bottom,0px)); display:grid; gap:10px}
+.sheet .grip{width:40px; height:4px; border-radius:2px; background:var(--line); justify-self:center}
+/* закреплённое действие */
+.actbar{position:sticky; bottom:0; z-index:15; background:linear-gradient(transparent,var(--bg) 22%); padding-block:18px 12px; display:grid}
+@media (max-width:919px){ .toast{bottom:calc(140px + env(safe-area-inset-bottom,0px))} main{padding-bottom:150px} .actbar{position:fixed; left:0; right:0; bottom:calc(61px + env(safe-area-inset-bottom,0px)); padding:18px 16px 10px} .hdr{min-height:52px} }
+@media (min-width:920px){ .tabbar{display:none} }
+/* крошки и согласия */
+.crumb .up{font-weight:700}
+.chk{display:grid; grid-template-columns:24px 1fr; gap:10px; align-items:start; font-size:14px; cursor:pointer}
+.chk input{width:22px; height:22px; margin:1px 0 0; accent-color:var(--accent)}
+.lnk{all:unset; cursor:pointer; color:var(--accent-ink); font-weight:700; text-decoration:underline; text-underline-offset:2px}
+.lnk:focus-visible{outline:2px solid var(--accent)}
+.photo.big{aspect-ratio:4/5; max-width:340px; width:100%}
+details.more summary{cursor:pointer; font-weight:700; font-size:14px; color:var(--accent-ink); padding:6px 0}
+details.more .kv{margin-top:8px}
+.proto.min .opt{display:none}
+.sr{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0)}
+</style>
+
+<div class="proto" role="region" aria-label="Управление прототипом">
+  <b>Прототип</b>
+  <label class="opt" for="scn">Сценарий
+    <select id="scn">
+      <option value="new">Новый участник, Игр нет</option>
+      <option value="active" selected>Идёт тур, работу нужно сдать</option>
+      <option value="sent">Работа сдана, ждём итог</option>
+      <option value="out">Выбыл по оценке, идёт на зачёт и диплом</option>
+      <option value="done">Игра завершена, итоги опубликованы</option>
+    </select>
+  </label>
+  <label class="opt" for="net">Сеть
+    <select id="net"><option value="ok">работает</option><option value="slow">медленная</option><option value="off">нет связи</option></select>
+  </label>
+  <button class="btn ghost opt" id="toLogin" type="button" style="color:var(--accent); min-height:28px">Экран входа</button>
+  <span class="ex opt">Все данные — пример</span><button class="btn ghost" id="protoMin" type="button" style="color:var(--proto-fg); min-height:28px; padding:0 4px">Свернуть</button>
+</div>
+
+<div id="app"></div>
+
+<script>
+(function(){
+"use strict";
+var TZ = "МСК (UTC+3)";
+var S = { scn:"active", net:"ok", route:"home", params:{}, hist:[], authed:true, welcomed:true,
+  draft:[], drafts:{}, sentAt:null, applied:{}, tickets:null, readN:{}, site:false, mkt:false, name:"Анна Петрова", pname:"Анна П.", menu:false };
+try{ var sv=JSON.parse(localStorage.getItem("fplProto")||"{}"); if(sv.scn) S.scn=sv.scn; }catch(e){}
+
+/* ---------- данные-примеры ---------- */
+function fmt(d){ return d; }
+var GAME = { id:"g1", title:"Игра 01", season:"Сезон 1", type:"Рейтинговая Игра", period:"30 сентября — 26 октября 2026", rules:"Правила лиги, редакция 1.8" };
+var NEXT = { id:"g2", title:"Игра 02", type:"Рейтинговая Игра", period:"9 — 30 ноября 2026", reg:"Регистрация до 7 ноября, 23:59 МСК", price:"1 500 ₽", priceNote:"Первая Игра для новых участников бесплатна", status:"open" };
+var CH = { id:"c1", title:"Челлендж «Осенний лист»", type:"Открытый челлендж", period:"28 октября — 3 ноября 2026", reg:"Регистрация откроется 25 октября", price:"Бесплатно", status:"soon" };
+var FIN = { id:"f1", title:"Суперфинал Сезона 1", type:"Финал сезона", period:"Февраль 2027", reg:"Доступ по итогам трёх Игр", price:"—", status:"closed" };
+
+function tours(){
+  var base = [
+    {n:1, name:"Бабочка", kind:"Общее задание", open:"30 сентября", due:"4 октября, 02:00", judge:"5 октября, 14:00"},
+    {n:2, name:"Обмен темами", kind:"Тема от другого участника", open:"6 октября", due:"9 октября, 23:59", judge:"11 октября, 14:00"},
+    {n:3, name:"Портрет-персонаж", kind:"Задание по лигам", open:"12 октября", due:"15 октября, 23:59", judge:"17 октября, 14:00"},
+    {n:4, name:"Сюжет на лице", kind:"Задание по лигам", open:"18 октября", due:"21 октября, 23:59", judge:"23 октября, 14:00"},
+    {n:5, name:"Финал Игры", kind:"Пара: новичок + опытный", open:"23 октября", due:"25 октября, 23:59", judge:"26 октября, 20:00"}];
+  var st = {
+    active:["pub","pub","open","plan","plan"],
+    sent:["pub","pub","judging","plan","plan"],
+    out:["pub","pub","open","plan","plan"],
+    done:["pub","pub","pub","pub","pub"]}[S.scn] || [];
+  var res = {
+    active:[{score:"78,4", next:"Проход дальше", top:false},{score:"84,1", next:"Проход дальше", top:true}],
+    sent:[{score:"78,4", next:"Проход дальше", top:false},{score:"84,1", next:"Проход дальше", top:true}],
+    out:[{score:"71,2", next:"Проход дальше", top:false},{score:"52,6", next:"Конкурсный путь завершён", top:false}],
+    done:[{score:"78,4",next:"Проход дальше"},{score:"84,1",next:"Проход дальше",top:true},{score:"81,0",next:"Проход дальше"},{score:"88,7",next:"Проход дальше",top:true},{score:"86,3",next:"Итог Игры"}]}[S.scn]||[];
+  return base.map(function(t,i){ t.state=st[i]||"plan"; t.res=res[i]||null; return t; });
+}
+function curTour(){ var t=tours(); for(var i=0;i<t.length;i++) if(t[i].state==="open"||t[i].state==="judging") return t[i]; return null; }
+function hasGame(){ return S.scn!=="new"; }
+
+var NOTIFS = function(){
+  var n = [];
+  if(S.scn==="active") n.push({id:1, t:"Открыт тур 3 «Портрет-персонаж»", s:"Сдать работу до 15 октября, 23:59 МСК", d:"12 октября, 10:00", go:"task", unread:true});
+  if(S.scn==="sent") n.push({id:2, t:"Работа к туру 3 принята", s:"Версия от 14 октября, 21:12 МСК передана на оценку", d:"14 октября, 21:12", go:"sent", unread:true});
+  if(S.scn==="out") n.push({id:3, t:"Опубликован результат тура 2", s:"Конкурсный путь завершён. Можно продолжить ради зачёта Игры и диплома", d:"11 октября, 14:05", go:"outcome", p:{n:2}, unread:true});
+  if(S.scn==="done") n.push({id:4, t:"Итоги Игры 01 опубликованы", s:"Ваш диплом FPL-S1-01-0247 выдан", d:"26 октября, 20:30", go:"final", unread:true});
+  n.push({id:5, t:"Открыта регистрация на Игру 02", s:"До 7 ноября, 23:59 МСК", d:"5 октября, 12:00", go:"event", p:{id:"g2"}, unread:S.scn==="new"});
+  n.push({id:6, t:"Ответ организатора по обращению №214", s:"«Можно ли заменить фото после сдачи?»", d:"3 октября, 18:40", go:"ticket", p:{id:214}, unread:false});
+  return n.map(function(x){ if(S.readN[x.id]) x.unread=false; return x; });
+};
+function unread(){ return NOTIFS().filter(function(x){return x.unread}).length; }
+
+function tickets(){
+  if(!S.tickets) S.tickets=[
+    {id:214, t:"Можно ли заменить фото после сдачи?", ctx:"Игра 01 · Тур 1", st:"closed", d:"3 октября", msgs:[
+      {me:true, who:"Вы", at:"3 октября, 16:02", x:"Сдала работу, а потом заметила, что фото тёмное. Можно заменить?"},
+      {me:false, who:"Организатор", at:"3 октября, 18:40", x:"После сдачи версия фиксируется и уходит судьям. Заменить её нельзя. До сдачи фото можно менять сколько угодно."}]},
+    {id:221, t:"Не пришло уведомление о туре 2", ctx:"Игра 01 · Тур 2", st:"wait_org", d:"7 октября", msgs:[
+      {me:true, who:"Вы", at:"7 октября, 09:15", x:"Тур 2 открылся, но в Telegram ничего не пришло."}]}];
+  return S.tickets;
+}
+
+/* ---------- утилиты ---------- */
+function esc(s){ return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]}); }
+function pill(t,k){ return '<span class="pill '+(k||"")+'">'+esc(t)+'</span>'; }
+function dl(date,rel){ return '<div class="deadline"><span class="d num">'+esc(date)+'</span><span class="tz">'+TZ+(rel?' · '+esc(rel):'')+'</span></div>'; }
+function back(to,label,p){ return '<button class="back" type="button" data-go="'+to+'"'+(p?' data-p=\''+JSON.stringify(p)+'\'':'')+'>‹ '+esc(label)+'</button>'; }
+function crumb(items){ return '<nav class="crumb" aria-label="Путь">'+items.map(function(it,i){ return (i?'<span aria-hidden="true">/</span>':'')+(it[1]?'<button type="button" data-go="'+it[1]+'"'+(it[2]?' data-p=\''+JSON.stringify(it[2])+'\'':'')+'>'+esc(it[0])+'</button>':'<span>'+esc(it[0])+'</span>'); }).join("")+'</nav>'; }
+function li(t,s,right,go,p,cls){ return '<button class="li '+(cls||"")+'" type="button"'+(go?' data-go="'+go+'"':'')+(p?' data-p=\''+JSON.stringify(p)+'\'':'')+'><span class="t">'+t+'</span>'+(s?'<span class="s">'+s+'</span>':'')+'<span class="r">'+(right||"")+'</span></button>'; }
+function toast(t){ document.querySelectorAll(".toast").forEach(function(x){x.remove()}); var el=document.createElement("div"); el.className="toast"; el.setAttribute("role","status"); el.textContent=t; document.body.appendChild(el); setTimeout(function(){el.remove()},2600); }
+function tourState(t){ return {pub:pill("Итог опубликован","ok"), open:pill("Идёт сдача","acc"), judging:pill("Судейство","info"), plan:pill("Запланирован","plain")}[t.state]; }
+function netGuard(){ if(S.net==="off"){ toast("Нет связи. Действие не выполнено — повторите, когда сеть вернётся."); return false;} return true; }
+function withLoad(fn){ if(!netGuard()) return; if(S.net==="slow"){ var b=document.activeElement; if(b&&b.tagName==="BUTTON"){ b.disabled=true; b.textContent="Отправляем…"; } setTimeout(fn,1400);} else fn(); }
+
+function actbar(inner){ return '<div class="actbar">'+inner+'</div>'; }
+function crumbsFor(r,p){ p=p||{}; var G=[["Мои Игры","my"],["Игра 01","game"]], T=G.concat([["Тур 3","task",{n:3}]]);
+  var ev={g2:"Игра 02",c1:"Челлендж «Осенний лист»",f1:"Суперфинал"}[p.id]||"Игра 02";
+  var m={event:[["Игры лиги","catalog"],[ev]], doc:[["Игры лиги","catalog"],["Игра 02","event",{id:"g2"}],[p.d==="rules"?"Правила Игры":"Согласие на публикацию"]],
+   applied:[["Игры лиги","catalog"],["Игра 02","event",{id:"g2"}],["Заявка отправлена"]], admission:[["Мои Игры","my"],["Игра 02 · заявка"]], payment:[["Мои Игры","my"],["Игра 02","admission"],["Оплата"]],
+   game:[["Мои Игры","my"],["Игра 01"]], task:G.concat([["Тур "+(p.n||3)]]), draft:T.concat([["Фото работы"]]), review:T.concat([["Проверка"]]),
+   sent:G.concat([["Тур 3 · принятая работа"]]), outcome:G.concat([["Тур "+(p.n||1)+" · итог"]]), final:G.concat([["Итог Игры"]]),
+   rating:[["Мои достижения","ach"],["Рейтинг FPL"]], points:[["Мои достижения","ach"],["Баллы лиги"]], path:[["Мои достижения","ach"],["Путь к финалу"]], history:[["Мои достижения","ach"],["История результатов"]], diplomas:[["Мои достижения","ach"],["Дипломы"]],
+   ticket:[["Поддержка","support"],["Обращение №"+(p.id||"")]], newticket:[["Поддержка","support"],["Новое обращение"]],
+   name:[["Профиль","profile"],["Имя"]], security:[["Профиль","profile"],["Безопасность"]], notifset:[["Профиль","profile"],["Уведомления"]], consents:[["Профиль","profile"],["Согласия и документы"]]};
+  var it=m[r]; if(!it) return "";
+  var up=it[it.length-2];
+  return '<nav class="crumb" aria-label="Путь"><button type="button" class="up" data-go="'+up[1]+'"'+(up[2]?' data-p=\''+JSON.stringify(up[2])+'\'':'')+' aria-label="Назад: '+esc(up[0])+'">‹</button>'+it.map(function(x,i){ return (i?'<span aria-hidden="true">/</span>':'')+(x[1]&&i<it.length-1?'<button type="button" data-go="'+x[1]+'"'+(x[2]?' data-p=\''+JSON.stringify(x[2])+'\'':'')+'>'+esc(x[0])+'</button>':'<span>'+esc(x[0])+'</span>'); }).join("")+'</nav>'; }
+/* ---------- экраны ---------- */
+var V = {};
+
+/* До входа */
+V.login = function(){ return '<div class="auth stack" style="gap:18px; padding-top:12px">'+
+  '<div class="stack"><span class="eyebrow">Face Painting League</span><h1>Вход в кабинет</h1><p class="muted">Участвовали в Играх через бота? Ваш аккаунт уже создан — войдите по приглашению из письма или по email и паролю.</p></div>'+
+  '<form class="card" id="fLogin" novalidate>'+
+  '<div class="field"><label for="em">Email</label><input class="input" id="em" type="email" autocomplete="email" value="anna@example.com"></div>'+
+  '<div class="field"><label for="pw">Пароль</label><div class="pw"><input class="input" id="pw" type="password" autocomplete="current-password" value="example-pass"><button type="button" data-act="showpw">Показать</button></div><span class="err" id="loginErr" hidden></span></div>'+
+  '<button class="btn wide" type="submit">Войти</button>'+
+  '<div class="between small"><button class="btn ghost" type="button" data-go="reset">Не помню пароль</button><button class="btn ghost" type="button" data-go="activate">У меня приглашение</button></div>'+
+  '</form><p class="small muted">Попробуйте неверный пароль — например, «123», чтобы увидеть ошибку.</p></div>'; };
+
+V.activate = function(){ return '<div class="auth stack" style="gap:18px; padding-top:12px">'+back("login","Ко входу")+
+  '<div class="stack"><span class="eyebrow">Приглашение</span><h1>Активация аккаунта</h1><p class="muted">Это ваш аккаунт из бота лиги: история Игр и результаты уже в нём. Осталось задать пароль.</p></div>'+
+  '<div class="card"><dl class="kv"><dt>Участник</dt><dd>Анна П.</dd><dt>Email</dt><dd>an•••@example.com</dd><dt>Ссылка</dt><dd>'+pill("Действует до 10 октября","ok")+'</dd></dl>'+
+  '<div class="field"><label for="np1">Новый пароль</label><input class="input" id="np1" type="password" autocomplete="new-password"><span class="hint">Не короче 10 символов</span></div>'+
+  '<div class="field"><label for="np2">Повторите пароль</label><input class="input" id="np2" type="password" autocomplete="new-password"><span class="err" id="actErr" hidden></span></div>'+
+  '<button class="btn wide" type="button" data-act="activate">Сохранить пароль и войти</button></div>'+
+  '<div class="note small">Если ссылка устарела, напишите организатору в бот — пришлём новую. Второй аккаунт создавать не нужно.</div></div>'; };
+
+V.reset = function(p){ var done=p&&p.done; return '<div class="auth stack" style="gap:18px; padding-top:12px">'+back("login","Ко входу")+
+  '<div class="stack"><h1>Восстановление доступа</h1><p class="muted">Укажите email, который привязан к кабинету.</p></div>'+
+  (done ? '<div class="card"><div class="note info">Если такой email есть в лиге, на него придёт ссылка для нового пароля. Ссылка действует 1 час и работает один раз.</div><button class="btn sec" type="button" data-go="newpass">Открыть ссылку из письма (пример)</button></div>'
+  : '<div class="card"><div class="field"><label for="rem">Email</label><input class="input" id="rem" type="email" autocomplete="email"></div><button class="btn wide" type="button" data-act="reset">Получить ссылку</button></div>')+'</div>'; };
+
+V.newpass = function(){ return '<div class="auth stack" style="gap:18px; padding-top:12px">'+
+  '<div class="stack"><h1>Новый пароль</h1><p class="muted">После сохранения все прежние входы на других устройствах завершатся.</p></div>'+
+  '<div class="card"><div class="field"><label for="rp1">Новый пароль</label><input class="input" id="rp1" type="password" autocomplete="new-password"><span class="hint">Не короче 10 символов</span></div>'+
+  '<div class="field"><label for="rp2">Повторите пароль</label><input class="input" id="rp2" type="password" autocomplete="new-password"><span class="err" id="npErr" hidden></span></div>'+
+  '<button class="btn wide" type="button" data-act="newpass">Сохранить пароль</button></div></div>'; };
+
+/* Главная */
+V.home = function(){
+  var t=curTour(), h='';
+  h+='<div class="stack" style="gap:4px"><span class="muted small">Здравствуйте, '+esc(S.pname)+'</span><h1>'+({new:"Выберите первую Игру",active:"Сдайте работу к туру 3",sent:"Работа на оценке",out:"Можно получить зачёт Игры",done:"Итоги Игры 01 готовы"})[S.scn]+'</h1></div>';
+  if(S.scn==="new"){
+    h+='<div class="card hero"><span class="eyebrow">Следующий шаг</span><h2>Игра 02 — регистрация открыта</h2>'+dl("7 ноября, 23:59","ещё 31 день")+
+    '<p class="muted">Первая Игра для новых участников бесплатна. Заявка ни к чему не обязывает, пока организатор не подтвердит участие.</p><div class="row"><button class="btn" type="button" data-go="event" data-p=\'{"id":"g2"}\'>Открыть условия</button><button class="btn sec" type="button" data-go="catalog">Все Игры лиги</button></div></div>';
+  } else if(S.scn==="active"){
+    h+='<div class="card hero"><span class="eyebrow">Игра 01 · Тур 3 · сдать до</span>'+dl("15 октября, 23:59","осталось 2 дня 14 часов")+
+    '<div class="row">'+(S.draft.length?pill("Фото загружено, но не сдано","warn"):"")+'</div>'+
+    '<div class="row"><button class="btn" type="button" data-go="task" data-p=\'{"n":3}\'>Открыть задание</button>'+''+'</div></div>';
+  } else if(S.scn==="sent"){
+    h+='<div class="card hero"><span class="eyebrow">Игра 01 · Тур 3</span><h2>Ваша работа принята и передана жюри</h2><p class="muted">Итог тура опубликуют</p>'+dl("17 октября, 14:00")+'<div class="row"><button class="btn sec" type="button" data-go="sent">Посмотреть принятую работу</button></div></div>';
+  } else if(S.scn==="out"){
+    if(S.outSent) h+='<div class="card hero"><span class="eyebrow">Игра 01 · тур 3</span><h2>Работа для зачёта принята</h2><p class="muted">Следующее задание откроется 18 октября.</p><div class="row"><button class="btn sec" type="button" data-go="sent">Принятая работа</button></div></div>'; else
+    h+='<div class="card hero"><span class="eyebrow">Игра 01 · после тура 2</span><h2>Конкурсный путь завершён, зачёт Игры ещё доступен</h2><p class="muted">Сдайте оставшиеся задания в срок — получите зачёт Игры и диплом участника.</p>'+dl("15 октября, 23:59","задание тура 3")+'<div class="row"><button class="btn" type="button" data-go="task" data-p=\'{"n":3}\'>Открыть задание тура 3</button><button class="btn sec" type="button" data-go="outcome" data-p=\'{"n":2}\'>Результат тура 2</button></div></div>';
+  } else {
+    h+='<div class="card hero"><span class="eyebrow">Игра 01 · опубликовано 26 октября</span><h2>Лига Silver · место 4 из 23</h2><p class="muted">Игра зачтена, диплом выдан. Рейтинг FPL обновлён.</p><div class="row"><button class="btn" type="button" data-go="final">Мой итог Игры</button><button class="btn sec" type="button" data-go="diplomas">Диплом</button></div></div>';
+  }
+  if(hasGame() && S.scn!=="done"){
+    var tt=tours(), ct=curTour(), done=tt.filter(function(x){return x.state==="pub"}).length, k=ct?ct.n:done;
+    h+='<section class="card"><div class="between"><h2>Игра 01</h2>'+pill(S.scn==="out"?"Идёте на зачёт и диплом":"Участие подтверждено", S.scn==="out"?"warn":"ok")+'</div>'+
+      '<div class="between"><b>Тур '+k+' из 5'+(ct?' · '+esc(ct.name):'')+'</b><span class="small muted">итогов опубликовано: '+done+'</span></div>'+
+      '<div class="bar" role="img" aria-label="Тур '+k+' из 5"><i style="width:'+(k/5*100)+'%"></i></div>'+
+      '<button class="btn sec" type="button" data-go="game">Вся Игра</button></section>';
+  }
+  var n=NOTIFS().filter(function(x){return x.unread && x.id>4})[0];
+  if(n) h+='<section class="card"><div class="between"><h3>Важное уведомление</h3><span class="small muted">'+esc(n.d)+'</span></div><p><b>'+esc(n.t)+'</b><br><span class="muted small">'+esc(n.s)+'</span></p><div class="row"><button class="btn sec" type="button" data-act="openN" data-id="'+n.id+'">Открыть</button><button class="btn ghost" type="button" data-go="notif">Все уведомления</button></div></section>';
+  h+='<div class="grid2">';
+  h+='<section class="card"><span class="eyebrow">Рейтинг FPL</span>'+(S.scn==="new"?'<p class="muted">Появится после первого опубликованного тура.</p>':S.scn==="done"?'<div class="score num">612 <small>Silver · установлен</small></div><p class="small muted">+64 за Игру 01</p>':'<div class="score num">548 <small>калибровка 2 из 3</small></div><p class="small muted">Рейтинг станет постоянным после 3 рейтинговых туров</p>')+'<button class="btn ghost" type="button" data-go="rating">История рейтинга</button></section>';
+  h+='<section class="card"><span class="eyebrow">Другие события</span>'+li("Игра 02","Регистрация до 7 ноября",pill("Открыта","ok"),"event",{id:"g2"})+li("Челлендж «Осенний лист»","Регистрация с 25 октября",pill("Скоро","plain"),"event",{id:"c1"})+'</section>';
+  h+='</div>';
+  return h; };
+
+/* Игры лиги */
+V.catalog = function(){ var items=[NEXT,CH,FIN];
+  return '<h1>Игры лиги</h1><p class="muted">Здесь — все события сезона. Заявка подаётся на каждую Игру отдельно.</p>'+
+  '<div class="stack">'+items.map(function(e){ var st={open:pill("Регистрация открыта","ok"),soon:pill("Скоро","plain"),closed:pill("По итогам сезона","info")}[e.status];
+    return '<article class="card"><div class="between"><div><span class="eyebrow">'+esc(e.type)+'</span><h2 style="margin-top:6px">'+esc(e.title)+'</h2></div>'+st+'</div><dl class="kv"><dt>Период</dt><dd>'+esc(e.period)+'</dd><dt>Регистрация</dt><dd>'+esc(e.reg)+'</dd><dt>Стоимость</dt><dd>'+esc(e.price)+'</dd></dl>'+
+    '<div class="row"><button class="btn'+(e.status==="open"?'':' sec')+'" type="button" data-go="event" data-p=\'{"id":"'+e.id+'"}\'>'+(S.applied[e.id]?'Моя заявка':'Условия')+'</button></div></article>'; }).join("")+'</div>'+
+  (hasGame()?'<div class="note small">Игра 01 уже идёт — она в разделе «Мои Игры».</div>':''); };
+
+function applyBlock(e){ var need=S.scn==="new";
+  if(!need) return '<p class="small muted">Правила и согласие на публикацию вы уже приняли — повторно не нужно.</p>'+actbar('<button class="btn wide" type="button" data-act="apply" data-id="'+e.id+'">Оставить заявку</button>');
+  return '<section class="card" id="applyBox"><h2>Заявка</h2>'+
+   '<label class="chk"><input type="checkbox" id="c_rules" data-chk="1"><span>Принимаю <button type="button" class="lnk" data-go="doc" data-p=\'{"d":"rules"}\'>Правила Игры</button>, редакция 1.8</span></label>'+
+   '<label class="chk"><input type="checkbox" id="c_pub" data-chk="1"><span>Разрешаю публикацию работ, публичного имени и результатов на сайте и в соцсетях лиги (<button type="button" class="lnk" data-go="doc" data-p=\'{"d":"pub"}\'>текст согласия</button>)</span></label>'+
+   '<p class="small muted">Каждую отметку ставите вы сами. Заявка — ещё не участие: участие подтверждает организатор.</p></section>'+
+   actbar('<button class="btn wide" type="button" id="applyBtn" data-act="apply" data-id="'+e.id+'" disabled>Отметьте оба пункта</button>'); }
+V.event = function(p){ var e={g2:NEXT,c1:CH,f1:FIN}[p.id]||NEXT; var ap=S.applied[e.id];
+  return '<div class="stack"><span class="eyebrow">'+esc(e.type)+'</span><h1>'+esc(e.title)+'</h1></div>'+
+  (ap?'<div class="note ok"><b>Заявка отправлена '+esc(ap)+'.</b> Ждёт подтверждения организатора.</div>':'')+
+  '<section class="card"><h2>Сроки</h2><ol class="steps">'+
+  '<li class="'+(e.status==="open"?"done":"")+'"><span class="dot"></span><div><b>Регистрация</b><div class="small muted">'+esc(e.reg)+'</div></div></li>'+
+  '<li><span class="dot"></span><div><b>Подтверждение участия</b><div class="small muted">Организатор проверяет заявку в течение 2 рабочих дней</div></div></li>'+
+  '<li><span class="dot"></span><div><b>Старт и туры</b><div class="small muted">'+esc(e.period)+' · 5 туров, на каждый 3–4 дня</div></div></li>'+
+  '<li><span class="dot"></span><div><b>Итоги и дипломы</b><div class="small muted">В течение 2 дней после финала</div></div></li></ol><p class="small muted">Все сроки — '+TZ+'.</p></section>'+
+  '<section class="card"><h2>Условия</h2><dl class="kv"><dt>Стоимость</dt><dd>'+esc(e.price)+(e.priceNote?'<div class="small muted">'+esc(e.priceNote)+'</div>':'')+'</dd><dt>Кто может</dt><dd>Мастера аквагрима из любой страны, с 18 лет; младше — с согласия родителя</dd><dt>Рейтинг</dt><dd>'+(e.id==="c1"?'Не влияет на рейтинг FPL':'Каждый тур влияет на рейтинг FPL')+'</dd><dt>Зачёт и диплом</dt><dd>Все обязательные работы сданы в срок → зачёт Игры и диплом участника</dd><dt>Нельзя</dt><dd>Участвовать в двух рейтинговых Играх одновременно</dd></dl></section>'+
+  '<section class="card"><h2>Документы</h2>'+li("Правила Игры","Редакция 1.8 · обязательно",pill(S.scn==="new"?"Не принято":"Принято 22.09","plain"),"doc",{d:"rules"})+li("Согласие на публикацию работ","Сайт и соцсети лиги",pill(S.scn==="new"?"Не принято":"Принято 22.09","plain"),"doc",{d:"pub"})+'</section>'+
+  (e.status==="open" ? (ap?actbar('<button class="btn sec wide" type="button" data-go="my">Перейти в «Мои Игры»</button>'):applyBlock(e))
+   : actbar('<button class="btn wide" type="button" disabled>'+(e.status==="soon"?"Регистрация ещё не открыта":"Доступ по итогам сезона")+'</button>')); };
+
+V.doc = function(p){ var r=p.d==="rules"; var acc=S.scn!=="new"||S["doc_"+p.d];
+  return '<div class="stack"><span class="eyebrow">Документ</span><h1>'+(r?"Правила Игры":"Согласие на публикацию работ")+'</h1><div class="row">'+pill(r?"Редакция 1.8":"Версия 1.0","plain")+pill(r?"Обязательно":"Обязательно для участия","warn")+'</div></div>'+
+  '<article class="card"><div class="stack small" style="max-height:320px; overflow:auto">'+(r?
+  '<p><b>1. Игра</b> состоит из пяти туров. В каждом туре участник получает задание и сдаёт одну работу до срока.</p><p><b>2. Оценка.</b> Работы оценивает жюри, имена авторов скрыты. Результат тура — оценка от 40 до 100 с одной десятичной.</p><p><b>3. Сдача.</b> До окончательной сдачи фото можно менять. После сдачи версия фиксируется.</p><p><b>4. Опоздание.</b> Работа после срока в конкурс не идёт…</p><p class="muted">Полный текст — в прототипе сокращён.</p>'
+  :'<p>Я разрешаю публиковать на сайте facepaintingleague.com и в соцсетях лиги: публичное имя, фото конкурсных работ с указанием автора, результаты, лигу и награды.</p><p>ФИО, телефон и email не публикуются. Согласие можно отозвать в разделе «Профиль → Согласия».</p>')+'</div></article>'+
+  (acc?'<div class="note ok">Принято '+(S["doc_"+p.d]||"22 сентября 2026, 21:24 МСК")+' · '+(r?"редакция 1.8":"версия 1.0")+'</div>':'<button class="btn wide" type="button" data-act="acceptDoc" data-d="'+p.d+'">'+(r?"Принимаю Правила":"Разрешаю публикацию")+'</button><p class="small muted">Отмечаете только вы. За вас никто не ставит галочку.</p>'); };
+
+V.applied = function(p){ return '<div class="stack" style="gap:18px"><div class="card"><span class="eyebrow">Заявка</span><h1>Заявка на Игру 02 отправлена</h1><dl class="kv"><dt>Отправлена</dt><dd class="num">'+esc(S.applied.g2||"")+'</dd><dt>Допуск</dt><dd>'+pill("Ждёт решения организатора","warn")+'</dd><dt>Оплата</dt><dd>Не требуется — первая Игра бесплатна</dd><dt>Что дальше</dt><dd>Решение придёт в Telegram и в «Уведомления» в течение 2 рабочих дней</dd></dl></div>'+
+  '<div class="row"><button class="btn" type="button" data-go="my">Мои Игры</button><button class="btn sec" type="button" data-go="home">На главную</button></div><p class="small muted">Повторное нажатие не создаёт вторую заявку.</p></div>'; };
+
+/* Мои Игры */
+V.my = function(){ var h='<h1>Мои Игры</h1>';
+  var ap=S.applied.g2;
+  if(!hasGame() && !ap) return h+'<div class="card"><p>У вас пока нет Игр.</p><p class="muted small">Выберите событие в «Играх лиги» и оставьте заявку.</p><button class="btn" type="button" data-go="catalog">Игры лиги</button></div>';
+  if(ap) h+='<section class="stack"><h2>Заявки</h2><div class="list">'+li("Игра 02","Отправлена "+esc(ap),pill("Ждёт допуска","warn"),"admission")+'</div></section>';
+  if(hasGame()){
+    var cur=S.scn!=="done";
+    h+='<section class="stack"><h2>'+(cur?"Текущие":"Завершённые")+'</h2><div class="list">'+li("Игра 01 · Сезон 1",{active:"Тур 3: сдать до 15 октября, 23:59",sent:"Тур 3 на оценке · итог 17 октября",out:"Зачёт и диплом · тур 3 до 15 октября",done:"Итог опубликован 26 октября"}[S.scn],pill({active:"Нужно действие",sent:"Ждём итог",out:"Идёте на зачёт и диплом",done:"Завершена"}[S.scn],{active:"acc",sent:"info",out:"warn",done:"ok"}[S.scn]),"game")+'</div></section>';
+  }
+  return h; };
+
+V.game = function(){ var t=tours();
+  var rows=[["Регистрация",pill("Заявка принята 22.09","ok")],["Допуск",pill("Допущена","ok")],["Оплата",pill("Не требовалась","plain")],
+   ["Соревнование", S.scn==="out"?pill("Завершено после тура 2","warn"):S.scn==="done"?pill("Завершено","ok"):pill("Участвует","ok")],
+   ["Зачёт Игры", S.scn==="done"?pill("Зачтена","ok"):pill("Все работы пока в срок","info")],["Диплом", S.scn==="done"?pill("Выдан","ok"):pill("После итогов","plain")]];
+  var head=rows.slice(0,3), rest=rows.slice(3);
+  return '<div class="stack"><span class="eyebrow">Рейтинговая Игра · Сезон 1</span><h1>Игра 01</h1><p class="muted">30 сентября — 26 октября 2026 · Лига Игры: Silver</p></div>'+
+  '<section class="card"><h2>Статус участия</h2><dl class="kv">'+rest.map(function(r){return '<dt>'+r[0]+'</dt><dd>'+r[1]+'</dd>'}).join("")+'</dl><details class="more"><summary>Заявка, допуск и оплата — всё в порядке</summary><dl class="kv">'+head.map(function(r){return '<dt>'+r[0]+'</dt><dd>'+r[1]+'</dd>'}).join("")+'</dl></details></section>'+
+  (S.scn==="active"||S.scn==="out"?'<div class="note warn"><b>Следующий шаг:</b> сдать работу к туру 3 до 15 октября, 23:59 МСК. <button class="btn ghost" type="button" data-go="task" data-p=\'{"n":3}\'>Открыть задание</button></div>':'')+
+  '<section class="card"><h2>Туры</h2><div class="list">'+t.map(function(x){ var go=x.state==="pub"?"outcome":x.state==="open"?"task":x.state==="judging"?"sent":null;
+    return li("Тур "+x.n+" · "+esc(x.name), x.state==="plan"?"Откроется "+x.open:x.state==="pub"&&x.res?"Оценка "+x.res.score+(x.res.top?" · TOP WORK":""):"Сдача до "+x.due, tourState(x), go, {n:x.n}, go?"":"static"); }).join("")+'</div></section>'+
+  (S.scn==="done"?'<button class="btn wide" type="button" data-go="final">Итог Игры</button>':'')+
+  '<section class="card"><h3>Нужна помощь по этой Игре?</h3><button class="btn sec" type="button" data-go="newticket" data-p=\'{"ctx":"Игра 01"}\'>Написать организатору</button></section>'; };
+
+V.admission = function(){ return '<h1>Заявка и допуск</h1>'+
+  '<section class="card"><ol class="steps"><li class="done"><span class="dot">✓</span><div><b>Заявка отправлена</b><div class="small muted num">'+esc(S.applied.g2||"")+'</div></div></li><li class="now"><span class="dot"></span><div><b>Проверка организатором</b><div class="small muted">Обычно до 2 рабочих дней</div></div></li><li><span class="dot"></span><div><b>Оплата</b><div class="small muted">Не требуется — первая Игра бесплатна</div></div></li><li><span class="dot"></span><div><b>Участие подтверждено</b></div></li></ol></section>'+
+  '<div class="note small">Одновременно можно участвовать только в одной рейтинговой Игре. Игра 02 начинается после Игры 01, конфликта нет.</div>'+
+  '<button class="btn sec" type="button" data-go="payment">Как будет устроена оплата (пример)</button>'; };
+
+V.payment = function(){ return '<h1>Оплата участия</h1><section class="card"><dl class="kv"><dt>Игра</dt><dd>Игра 02</dd><dt>Цена</dt><dd class="num">1 500 ₽</dd><dt>Оплатить до</dt><dd>'+dl("8 ноября, 23:59")+'</dd><dt>Статус</dt><dd>'+pill("Ожидается","warn")+'</dd></dl>'+
+  '<div class="field"><label for="promo">Промокод</label><div class="row"><input class="input" id="promo" style="flex:1; min-width:0" placeholder="Например, FIRSTGAME"><button class="btn sec" type="button" data-act="promo">Применить</button></div><span class="hint" id="promoHint">Пересчитанная сумма появится здесь</span></div>'+
+  '<button class="btn wide" type="button" disabled>Перейти к оплате</button><div class="note warn small">Платёжный сервис ещё не подключён. Переход к оплате не означает оплату — статус меняется только после подтверждения банка.</div></section>'; };
+
+V.task = function(p){ var n=p.n||3; var out=S.scn==="out"; var d=S.draft[0];
+  if(S.scn==="sent"||S.scn==="done"||S.outSent) return V.sent();
+  return '<div class="stack" style="gap:6px"><span class="eyebrow">Тур '+n+' · Игра 01</span><h1>Портрет-персонаж</h1></div>'+
+  '<section class="focus"><span class="lbl">Сдать до</span>'+dl("15 октября, 23:59","осталось 2 дня 14 часов")+'</section>'+
+  (out?'<div class="note warn small">Эта работа идёт в зачёт Игры и диплом, в конкурсе тура вы уже не участвуете.</div>':'')+
+  '<section class="stack"><h2>Задание</h2><p class="lead">Превратите лицо модели в персонажа из сказки вашей страны. Персонаж должен узнаваться без подписи: характер, эпоха, одна ключевая деталь костюма или атрибута.</p>'+
+  '<p class="small muted">Нужно 1 фото анфас при дневном свете, лицо целиком, без фильтров и ретуши. Работа после срока в '+(out?'зачёт не идёт.':'конкурс не идёт, засчитывается только для диплома.')+'</p></section>'+
+  '<section class="card"><h2>Ваше фото</h2>'+(d?
+    '<div class="photo big">'+(d.src?'<img alt="Фото работы" src="'+d.src+'">':'ваше фото')+'</div><p class="small muted">Загружено '+esc(S.savedAt||"")+' МСК. Ещё не сдано — до сдачи его можно заменить.</p>'+
+    '<div class="row"><label class="btn sec" for="file">Заменить фото</label><button class="btn ghost" type="button" data-act="rm">Убрать</button></div>'
+   :'<label class="drop" for="file"><b>Добавить фото</b><span class="small muted">С камеры или из галереи. JPG или PNG, до 20 МБ.</span></label>'+
+    '<button class="btn ghost" type="button" data-act="fakeAdd">Добавить пример-фото без файла</button>')+
+  '<input class="sr" id="file" type="file" accept="image/*"></section>'+
+  '<details class="more"><summary>Референсы</summary><div class="thumbs" style="margin-top:10px"><div class="photo">референс 1</div><div class="photo">референс 2</div><div class="photo">референс 3</div></div></details>'+
+  '<button class="btn ghost" type="button" data-go="newticket" data-p=\'{"ctx":"Игра 01 · Тур 3"}\'>Вопрос по заданию</button>'+
+  actbar('<button class="btn wide" type="button" data-go="review"'+(d?'':' disabled')+'>'+(d?'Сдать работу':'Добавьте фото, чтобы сдать')+'</button>'); };
+
+V.draft = function(p){ return V.task(p||{n:3}); };
+V._olddraft = function(){ var d=S.draft[0];
+  return '<h1>Фото работы</h1>'+
+  '<div class="note small">Нужно одно фото. Пока вы не нажали «Сдать», его можно заменить сколько угодно. Черновик хранится на сервере лиги.</div>'+
+  '<section class="card">'+(d?
+    '<div class="photo big">'+(d.src?'<img alt="Фото работы" src="'+d.src+'">':'ваше фото')+'</div><span class="small muted">Сохранено '+esc(S.savedAt||"")+' МСК</span>'+
+    '<div class="row"><label class="btn sec" for="file">Заменить фото</label><button class="btn ghost" type="button" data-act="rm">Убрать</button></div>'
+   :'<label class="drop" for="file"><b>Добавить фото</b><span class="small muted">С камеры или из галереи. JPG или PNG, до 20 МБ. Оригинал сохраняется без сжатия.</span></label>'+
+    '<button class="btn ghost" type="button" data-act="fakeAdd">Добавить пример-фото без файла</button>')+
+  '<input class="sr" id="file" type="file" accept="image/*"></section>'+
+  actbar('<button class="btn wide" type="button" data-go="review"'+(d?'':' disabled')+'>'+(d?'Проверить перед сдачей':'Сначала добавьте фото')+'</button>'); };
+
+V.review = function(){ var d=S.draft[0];
+  return '<h1>Проверьте перед сдачей</h1>'+
+  '<section class="card"><div class="grid2"><div class="photo">'+(d&&d.src?'<img alt="Работа к туру 3" src="'+d.src+'">':'фото работы')+'</div><dl class="kv"><dt>Тур</dt><dd>3 · Портрет-персонаж</dd><dt>Срок</dt><dd>15 октября, 23:59 МСК</dd><dt>Режим</dt><dd>'+(S.scn==="out"?"Зачёт Игры и диплом":"Конкурс тура")+'</dd></dl></div>'+
+  '<div class="note warn"><b>После сдачи заменить фото будет нельзя.</b> Эта версия уйдёт жюри. Исправить можно только через организатора в исключительном случае.</div>'+
+  '<button class="btn sec" type="button" data-go="task" data-p=\'{"n":3}\'>Вернуться и заменить фото</button></section>'+
+  actbar('<button class="btn wide" type="button" data-act="submit">Сдать</button>'); };
+
+V.sent = function(){ var d=S.draft[0];
+  return '<div class="stack"><span class="eyebrow">Тур 3 · Портрет-персонаж</span><h1>Работа принята</h1></div>'+
+  '<section class="card"><div class="grid2"><div class="photo">'+(d&&d.src?'<img alt="Принятая работа" src="'+d.src+'">':'принятая работа')+'</div><dl class="kv"><dt>Принята</dt><dd class="num">'+esc(S.sentAt||"14 октября, 21:12")+' МСК</dd><dt>Статус</dt><dd>'+pill("Зафиксирована, у жюри","info")+'</dd><dt>Режим</dt><dd>'+(S.scn==="out"?"Зачёт Игры":"Конкурс тура")+'</dd><dt>Итог</dt><dd>Опубликуем 17 октября, 14:00 МСК</dd></dl></div>'+
+  '<p class="small muted">Это та версия, которую видит жюри. Кнопки замены здесь нет специально.</p></section>'+
+  '<div class="row"><button class="btn sec" type="button" data-go="game">К Игре</button><button class="btn ghost" type="button" data-go="newticket" data-p=\'{"ctx":"Игра 01 · Тур 3 · работа"}\'>Сообщить об ошибке</button></div>'; };
+
+V.outcome = function(p){ var t=tours()[ (p.n||1)-1 ]; var r=t.res||{}; var outNow=S.scn==="out"&&p.n===2;
+  return '<div class="stack"><span class="eyebrow">Тур '+t.n+' · '+esc(t.name)+'</span><h1>Результат тура</h1></div>'+
+  '<section class="card"><div class="between"><div><div class="score num">'+esc(r.score||"—")+' <small>из 100</small></div><p class="small muted">Оценка тура, опубликована '+esc(t.judge)+' МСК</p></div>'+(r.top?pill("TOP WORK","acc"):'')+'</div>'+
+  '<dl class="kv"><dt>Дальше</dt><dd>'+(outNow?pill("Конкурсный путь завершён","warn"):pill(r.next||"Проход дальше","ok"))+'</dd><dt>Лига Игры</dt><dd>Silver</dd><dt>Рейтинг FPL</dt><dd class="num">'+(outNow?'−12':'+18')+' <span class="small muted">— это отдельный показатель, не оценка тура</span></dd></dl></section>'+
+  (outNow?'<section class="card"><h2>Что теперь</h2><p>В туре 3 и дальше вы не соревнуетесь, но можете сдать оставшиеся задания. Все работы в срок → зачёт Игры и диплом участника.</p><button class="btn" type="button" data-go="task" data-p=\'{"n":3}\'>Задание тура 3</button></section>':'')+
+  '<div class="photo" style="max-width:280px">ваша работа тура '+t.n+'</div>'; };
+
+V.final = function(){ return '<div class="stack"><span class="eyebrow">Опубликовано 26 октября, 20:30 МСК</span><h1>Итог Игры 01</h1></div>'+
+  '<section class="card hero"><div class="score num" style="color:var(--head-fg)">86,3 <small style="color:var(--head-muted)">личный итог финала</small></div><p class="muted small">40% путь по турам 1–4 + 60% финальная работа</p><dl class="kv"><dt class="muted">Место</dt><dd>4 из 23 в лиге Silver</dd><dt class="muted">Парный финал</dt><dd>2 место из 11 пар <span class="muted small">(на рейтинг не влияет)</span></dd><dt class="muted">Рейтинг FPL</dt><dd class="num">548 → 612 · Silver</dd><dt class="muted">TOP WORK</dt><dd>2 раза (туры 2 и 4)</dd></dl></section>'+
+  '<section class="card"><h2>Зачёт и диплом</h2><dl class="kv"><dt>Зачёт Игры</dt><dd>'+pill("Зачтена","ok")+'</dd><dt>Диплом</dt><dd>'+pill("Выдан","ok")+' <span class="num">FPL-S1-01-0247</span></dd></dl><div class="row"><button class="btn" type="button" data-go="diplomas">Открыть диплом</button><button class="btn sec" type="button" data-go="catalog">Следующая Игра</button></div></section>'; };
+
+/* Достижения */
+V.ach = function(){ var none=S.scn==="new";
+  return '<h1>Мои достижения</h1>'+(none?'<div class="note">Результатов пока нет. Это не ноль — просто ещё нечего показать. Первые цифры появятся после опубликованного тура.</div>':'')+
+  '<div class="stats"><div class="stat"><span>Рейтинг FPL</span><b class="num">'+(none?"—":S.scn==="done"?"612":"548")+'</b><span>'+(none?"нет данных":S.scn==="done"?"установлен":"калибровка 2 из 3")+'</span></div><div class="stat"><span>Лига сезона</span><b>'+(none?"—":"Silver")+'</b><span>Сезон 1</span></div><div class="stat"><span>Баллы лиги</span><b class="num">'+(none?"—":S.scn==="done"?"340":"120")+'</b><span>доступно '+(none?"—":S.scn==="done"?"340":"120")+'</span></div><div class="stat"><span>Зачтено Игр</span><b class="num">'+(S.scn==="done"?"1 из 3":"0 из 3")+'</b><span>для финала сезона</span></div></div>'+
+  '<div class="list">'+li("Рейтинг и история лиги","Изменения с причиной и туром","","rating")+li("Баллы лиги","Начисления и коррекции","","points")+li("Путь к финалу сезона","Что выполнено и чего не хватает","","path")+li("История результатов","Все туры и работы","","history")+li("Дипломы и награды",S.scn==="done"?"1 диплом выдан":"Пока нет",S.scn==="done"?pill("1","ok"):"","diplomas")+'</div>'; };
+
+V.rating = function(){ var ev = S.scn==="new"?[]:[["Игра 01 · Тур 1","+24","500 → 524"],["Игра 01 · Тур 2",S.scn==="out"?"−12":"+24",S.scn==="out"?"524 → 512":"524 → 548"]].concat(S.scn==="done"?[["Игра 01 · Тур 3","+20","548 → 568"],["Игра 01 · Тур 4","+30","568 → 598"],["Игра 01 · Финал","+14","598 → 612"]]:[]);
+  return '<h1>Рейтинг FPL</h1>'+(ev.length?'<section class="card"><div class="score num">'+ev[ev.length-1][2].split("→ ")[1]+' <small>'+(S.scn==="done"?"установлен":"калибровка "+ev.length+" из 3")+'</small></div><p class="small muted">Рейтинг считается с учётом силы соперников. Он не равен оценке тура.</p></section>'+
+  '<section class="card"><h2>История изменений</h2><div class="list">'+ev.map(function(e){return li(e[0],e[2],'<b class="num">'+e[1]+'</b>',null,null,"static")}).join("")+'</div></section><section class="card"><h3>Лиги по сезонам</h3><dl class="kv"><dt>Сезон 1</dt><dd>Вход в Игру 01: Silver'+(S.scn==="done"?' · после Игры: Silver':'')+'</dd></dl></section>':'<div class="note">Рейтинга пока нет. Он появится после первого рейтингового тура.</div>'); };
+
+V.points = function(){ return '<h1>Баллы лиги</h1><div class="stats"><div class="stat"><span>Накоплено</span><b class="num">'+(S.scn==="done"?340:S.scn==="new"?0:120)+'</b></div><div class="stat"><span>Доступно</span><b class="num">'+(S.scn==="done"?340:S.scn==="new"?0:120)+'</b></div></div><p class="small muted">Баллы — не рейтинг. Обменивать их пока не на что: магазин наград появится позже.</p>'+
+  (S.scn==="new"?'<div class="note">Начислений ещё не было.</div>':'<div class="list">'+li("Тур 1 · работа сдана в срок","1 октября",'<b class="num">+40</b>',null,null,"static")+li("Тур 2 · TOP WORK","11 октября",'<b class="num">+80</b>',null,null,"static")+(S.scn==="done"?li("Игра 01 · зачёт","26 октября",'<b class="num">+220</b>',null,null,"static"):"")+'</div>'); };
+
+V.path = function(){ var g=S.scn==="done"?1:0; return '<h1>Путь к финалу сезона</h1><section class="card"><div class="between"><b>Зачтено Игр</b><span class="num">'+g+' из 3</span></div><div class="bar" role="img" aria-label="'+g+' из 3"><i style="width:'+(g/3*100)+'%"></i></div>'+
+  '<ol class="steps"><li class="'+(g?"done":"now")+'"><span class="dot">'+(g?"✓":"")+'</span><div><b>Игра 01</b><div class="small muted">'+(g?"Зачтена 26 октября":"Идёт")+'</div></div></li><li><span class="dot"></span><div><b>Игра 02</b><div class="small muted">Ноябрь</div></div></li><li><span class="dot"></span><div><b>Игра 03</b><div class="small muted">Декабрь</div></div></li></ol>'+
+  '<div class="note small">Пороги рейтинга для финала организатор ещё не утвердил. Как только утвердит — они появятся здесь. Выполнение условий не равно заявке на финал.</div></section>'; };
+
+V.history = function(){ return '<h1>История результатов</h1>'+(S.scn==="new"?'<div class="note">История пуста.</div>':'<section class="card"><h2>Сезон 1 · Игра 01</h2><div class="list">'+tours().filter(function(t){return t.res}).map(function(t){return li("Тур "+t.n+" · "+esc(t.name),"Оценка "+t.res.score+(t.res.top?" · TOP WORK":""),"","outcome",{n:t.n})}).join("")+'</div></section><section class="card"><h3>Архив марафонов MAGFACE</h3><div class="list">'+li("Марафон «Зима-2025»","Перенесено из старой базы · фото недоступно",pill("Без рейтинга","plain"),null,null,"static")+'</div><p class="small muted">Старые результаты не пересчитываются в рейтинг задним числом.</p></section>'); };
+
+V.diplomas = function(){ return '<h1>Дипломы и награды</h1>'+(S.scn==="done"?'<section class="card"><div class="between"><div><span class="eyebrow">Диплом участника</span><h2 style="margin-top:6px">Игра 01 · Сезон 1</h2></div>'+pill("Выдан","ok")+'</div><dl class="kv"><dt>Номер</dt><dd class="num">FPL-S1-01-0247</dd><dt>Лига</dt><dd>Silver</dd><dt>Дата</dt><dd>26 октября 2026</dd><dt>Проверка</dt><dd>facepaintingleague.com/diploma.html?n=FPL-S1-01-0247</dd></dl><div class="row"><button class="btn" type="button" data-act="dl">Скачать PDF</button></div></section>'
+  :'<div class="note">Диплом формируется после итогов Игры, если все обязательные работы сданы в срок.</div>'+(S.scn!=="new"?'<section class="card"><div class="between"><b>Игра 01</b>'+pill("Ожидается","plain")+'</div><p class="small muted">Итоги — 26 октября</p></section>':'')); };
+
+/* Уведомления */
+V.notif = function(){ var n=NOTIFS(); return '<div class="between"><h1>Уведомления</h1>'+(unread()?'<button class="btn ghost" type="button" data-act="readAll">Отметить все прочитанными</button>':'')+'</div>'+
+  '<div class="list">'+n.map(function(x){ return '<button class="li" type="button" data-act="openN" data-id="'+x.id+'"><span class="t">'+(x.unread?'<span class="pill acc" style="margin-right:8px">новое</span>':'')+esc(x.t)+'</span><span class="s">'+esc(x.s)+' · '+esc(x.d)+'</span><span class="r"></span></button>'; }).join("")+'</div>'+
+  '<p class="small muted">Дублируем важное в Telegram. Прочитанное в Telegram здесь не отмечается автоматически.</p>'; };
+
+/* Поддержка */
+V.support = function(){ var t=tickets(); var lab={closed:pill("Закрыто","plain"),wait_org:pill("Ждём организатора","info"),wait_me:pill("Нужен ваш ответ","acc")};
+  return '<div class="between"><h1>Поддержка</h1><button class="btn" type="button" data-go="newticket">Новое обращение</button></div>'+
+  (t.length?'<div class="list">'+t.map(function(x){return li("№"+x.id+" · "+esc(x.t),esc(x.ctx)+" · "+esc(x.d),lab[x.st],"ticket",{id:x.id})}).join("")+'</div>':'<div class="note">Обращений пока нет.</div>'); };
+
+V.newticket = function(p){ var ctx=(p&&p.ctx)||"";
+  return '<h1>Новое обращение</h1><form class="card" id="fTicket" novalidate>'+
+  (ctx?'<div class="note small">Привязано к: <b>'+esc(ctx)+'</b> — номер работы и Игры переписывать не нужно.</div>':'<div class="field"><label for="tctx">К чему относится</label><select class="input" id="tctx"><option>Общий вопрос</option><option>Игра 01</option><option>Игра 01 · Тур 3</option><option>Оплата</option><option>Вход и доступ</option></select></div>')+
+  '<div class="field"><label for="tt">Тема</label><input class="input" id="tt" maxlength="120"></div>'+
+  '<div class="field"><label for="tx">Сообщение</label><textarea class="input" id="tx"></textarea><span class="err" id="tErr" hidden></span></div>'+
+  '<button class="btn wide" type="submit">Отправить</button></form>'; };
+
+V.ticket = function(p){ var t=tickets().filter(function(x){return x.id==p.id})[0]; if(!t) return V.support();
+  var who={closed:"Обращение закрыто. Можно открыть новое.",wait_org:"Сейчас отвечает организатор. Обычно в течение рабочего дня.",wait_me:"Организатор ждёт вашего ответа."}[t.st];
+  return '<div class="stack"><span class="eyebrow">№'+t.id+' · '+esc(t.ctx)+'</span><h1>'+esc(t.t)+'</h1></div><div class="note small">'+who+'</div>'+
+  '<section class="card"><div class="stack">'+t.msgs.map(function(m){return '<div class="msg'+(m.me?' me':'')+'"><span class="who">'+esc(m.who)+' · '+esc(m.at)+'</span>'+esc(m.x)+(m.pending?'<span class="small muted">Отправляется…</span>':'')+'</div>'}).join("")+'</div>'+
+  (t.st!=="closed"?'<div class="field"><label for="rep">Ответ</label><textarea class="input" id="rep" style="min-height:80px"></textarea></div><button class="btn" type="button" data-act="reply" data-id="'+t.id+'">Отправить ответ</button>':'')+'</section>'; };
+
+/* Профиль */
+V.profile = function(){ return '<h1>Профиль и настройки</h1><section class="card"><div class="between"><div><h2>'+esc(S.name)+'</h2><p class="muted small">Публичное имя: '+esc(S.pname)+'</p></div>'+pill("Аккаунт активен","ok")+'</div><dl class="kv"><dt>Email</dt><dd>anna@example.com '+pill("подтверждён","ok")+'</dd><dt>Telegram</dt><dd>привязан · @anna_aqua</dd><dt>История</dt><dd>Перенесена из бота лиги</dd></dl></section>'+
+  '<div class="list">'+li("Имя и публичное имя","Как вас видят в рейтинге и галерее","","name")+li("Анкета на сайте лиги",S.site?"Показывается":"Скрыта",pill(S.site?"Вкл":"Выкл",S.site?"ok":"plain"),"consents")+li("Безопасность и доступ","Пароль, email","","security")+li("Уведомления","Telegram, email, кабинет","","notifset")+li("Согласия и документы","Что и когда вы приняли","","consents")+'</div>'+
+  '<button class="btn sec" type="button" data-act="logout">Выйти</button>'; };
+
+V.name = function(){ return '<h1>Имя и публичное имя</h1><form class="card" id="fName" novalidate>'+
+  '<div class="field"><label for="pn">Публичное имя</label><input class="input" id="pn" value="'+esc(S.pname)+'" maxlength="40"><span class="hint">Так вы подписаны в рейтинге, галерее и дипломе. От 2 до 40 символов.</span><span class="err" id="pnErr" hidden></span></div>'+
+  '<div class="field"><label for="fn">ФИО по документам</label><input class="input" id="fn" value="'+esc(S.name)+'" disabled><span class="hint">Указано в согласиях. Изменить — через обращение к организатору.</span></div>'+
+  '<button class="btn" type="submit">Сохранить</button></form><div class="note small">Город и контакты для клиентов появятся после финала Игры — по вашему желанию и с отдельным согласием.</div>'; };
+
+V.security = function(){ return '<h1>Безопасность и доступ</h1><section class="card"><dl class="kv"><dt>Email для входа</dt><dd>anna@example.com</dd><dt>Пароль</dt><dd>Изменён 22 сентября</dd><dt>Входы</dt><dd>2 устройства</dd></dl><div class="row"><button class="btn sec" type="button" data-go="reset">Сменить пароль по ссылке</button><button class="btn sec" type="button" data-act="soon">Сменить email</button></div><div class="note small">Смена email требует подтверждения нового адреса — экран в работе.</div><button class="btn ghost" type="button" data-act="endAll">Выйти на всех других устройствах</button></section>'; };
+
+V.notifset = function(){ var row=function(id,t,s,on,dis){return '<div class="switch"><div><b>'+t+'</b><div class="small muted">'+s+'</div></div><input class="tg" type="checkbox" id="'+id+'" aria-label="'+t+'"'+(on?' checked':'')+(dis?' disabled':'')+'></div>'};
+  return '<h1>Уведомления</h1><section class="card"><h3>По участию</h3>'+row("n1","Telegram","Сроки, открытие туров, итоги",true,true)+row("n2","Email","Дублирование важных сроков",true)+row("n3","Кабинет","Всегда включено",true,true)+'<p class="small muted">Сообщения о сроках и итогах обязательны, пока вы участвуете в Игре.</p></section>'+
+  '<section class="card"><h3>Новости лиги</h3>'+row("n4","Анонсы Игр и челленджей","Не чаще раза в неделю",S.mkt)+'<p class="small muted">Отказ от новостей не отключает сообщения по вашему участию.</p></section>'+
+  '<section class="card"><h3>Web push</h3><p class="small muted">Пока не подключено.</p></section>'; };
+
+V.consents = function(){ return '<h1>Согласия и документы</h1>'+
+  '<section class="card"><div class="switch"><div><b>Моя анкета на сайте лиги</b><div class="small muted">Личная страница мастера на facepaintingleague.com: работы, награды, история Игр. В рейтинге и итогах вы остаётесь под публичным именем в любом случае.</div></div><input class="tg" type="checkbox" id="siteTg" aria-label="Моя анкета на сайте лиги"'+(S.site?' checked':'')+'></div>'+
+  '<div class="note small" id="siteNote">'+(S.site?'Анкета показывается. Выключить можно в любой момент — страница исчезнет при ближайшем обновлении сайта.':'Анкета скрыта. Включите, если хотите личную страницу на сайте.')+'</div></section>'+
+  '<section class="card"><h3>Принятые документы</h3><div class="list">'+
+  li("Правила Игры","Редакция 1.8 · Игра 01 · 22 сентября 2026, 21:20 МСК",pill("Принято","ok"),"doc",{d:"rules"})+
+  li("Согласие на обработку персональных данных","Версия 1.0 · аккаунт · 22 сентября 2026, 21:22 МСК",pill("Принято","ok"),null,null,"static")+
+  li("Согласие на публикацию работ","Версия 1.0 · сайт и соцсети лиги · 22 сентября 2026, 21:24 МСК",pill("Принято","ok"),"doc",{d:"pub"})+
+  li("Подтверждение прав на фото модели","Версия 1.0 · 22 сентября 2026, 21:25 МСК",pill("Принято","ok"),null,null,"static")+'</div>'+
+  '<p class="small muted">Новая редакция документа не перезаписывает историю: здесь видно, какую версию вы приняли и когда.</p></section>'+
+  '<section class="card"><h3>Отозвать согласие на публикацию</h3><p class="small">Работы и имя уберём с сайта в течение 10 рабочих дней. В таблицах итогов останется «Участник №…», чтобы не исказить результаты других.</p><button class="btn sec" type="button" data-go="newticket" data-p=\'{"ctx":"Отзыв согласия на публикацию"}\'>Отозвать через организатора</button></section>'; };
+
+V.welcome = function(){ return '<div class="modal" role="dialog" aria-modal="true" aria-labelledby="wT"><div class="card"><span class="eyebrow">Кабинет активирован</span><h2 id="wT">Здесь всё про ваше участие в лиге</h2>'+
+  '<ol class="steps"><li><span class="dot">1</span><div><b>Выберите Игру</b><div class="small muted">На каждую Игру — отдельная заявка</div></div></li><li><span class="dot">2</span><div><b>Дождитесь допуска</b><div class="small muted">Заявка — ещё не участие</div></div></li><li><span class="dot">3</span><div><b>Сдавайте работы в срок</b><div class="small muted">Задание и срок — на главной</div></div></li></ol>'+
+  (hasGame()?'<p class="small muted">Ваша история из бота уже здесь: Игра 01 и результаты туров.</p>':'')+
+  '<div class="row"><button class="btn" type="button" data-act="welcomeOk">Понятно</button><button class="btn ghost" type="button" data-act="welcomeHelp">Нужна помощь</button></div></div></div>'; };
+
+/* ---------- навигация и каркас ---------- */
+var SECTIONS=[["home","Главная"],["catalog","Игры лиги"],["my","Мои Игры"],["ach","Мои достижения"],["notif","Уведомления"],["support","Поддержка"],["profile","Профиль и настройки"]];
+var OWNER={event:"catalog",doc:"catalog",applied:"catalog",game:"my",admission:"my",payment:"my",task:"my",draft:"my",review:"my",sent:"my",outcome:"my",final:"my",rating:"ach",points:"ach",path:"ach",history:"ach",diplomas:"ach",ticket:"support",newticket:"support",name:"profile",security:"profile",notifset:"profile",consents:"profile"};
+var AUTH=["login","activate","reset","newpass"];
+function navHTML(){ var cur=OWNER[S.route]||S.route; return '<nav class="nav" aria-label="Разделы кабинета">'+SECTIONS.map(function(s){ var c=s[0]==="notif"&&unread()?'<span class="cnt">'+unread()+'</span>':''; return '<button type="button" data-go="'+s[0]+'"'+(cur===s[0]?' aria-current="page"':'')+'><span>'+s[1]+'</span>'+c+'</button>'; }).join("")+'<div class="sep"></div><button type="button" class="out" data-act="logout"><span>Выйти</span></button></nav>'; }
+var ICON={home:'<path d="M4 11l8-6 8 6v8a1 1 0 0 1-1 1h-4v-6h-6v6H5a1 1 0 0 1-1-1z"/>',my:'<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>',notif:'<path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/>',profile:'<circle cx="12" cy="8" r="4"/><path d="M4 20c1.5-4 4.5-6 8-6s6.5 2 8 6"/>',more:'<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>'};
+function ico(k){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true">'+ICON[k]+'</svg>'; }
+function tabbarHTML(){ var cur=OWNER[S.route]||S.route; var moreSet=["catalog","ach","support"]; var tabs=[["home","Главная"],["my","Мои Игры"],["notif","Уведомления"],["profile","Профиль"]];
+  return '<nav class="tabbar" aria-label="Разделы кабинета">'+tabs.map(function(t){ return '<button type="button" data-go="'+t[0]+'"'+(cur===t[0]?' aria-current="page"':'')+'>'+ico(t[0])+(t[0]==="notif"&&unread()?'<span class="cnt">'+unread()+'</span>':'')+'<span>'+t[1]+'</span></button>'; }).join("")+
+  '<button type="button" data-act="more"'+(moreSet.indexOf(cur)>=0?' aria-current="page"':'')+' aria-haspopup="dialog">'+ico("more")+'<span>Ещё</span></button></nav>'; }
+function moreHTML(){ return '<div class="sheet" data-act="closeMore"><div class="panel" role="dialog" aria-label="Ещё разделы"><span class="grip"></span><div class="list">'+
+  li("Игры лиги","Каталог Игр и челленджей","","catalog")+li("Мои достижения","Рейтинг, баллы, дипломы","","ach")+li("Поддержка","Вопросы организатору","","support")+'</div><button class="btn sec" type="button" data-act="logout">Выйти</button></div></div>'; }
+function ctxLabel(){ var m={home:"",game:"Игра 01",task:"Игра 01 · Тур 3",draft:"Игра 01 · Тур 3",review:"Игра 01 · Тур 3",sent:"Игра 01 · Тур 3",outcome:"Игра 01",final:"Игра 01 · итог",event:"Игры лиги",applied:"Игра 02",admission:"Игра 02"}; return m[S.route]||""; }
+
+function render(){
+  var app=document.getElementById("app"); var auth=AUTH.indexOf(S.route)>=0;
+  var body;
+  if(S.net==="off" && !auth && ["home","my","game"].indexOf(S.route)>=0){
+    body='<div class="note bad"><b>Нет связи с сервером.</b> Показываем последние сохранённые данные. Действия временно недоступны.</div><button class="btn sec" type="button" data-act="retry">Повторить</button>'+(V[S.route]||V.home)(S.params||{});
+  } else body=(V[S.route]||V.home)(S.params||{});
+  var hdr='<header class="hdr"><button class="logo" type="button" data-go="'+(auth?"login":"home")+'">FPL<small>КАБИНЕТ</small></button><span class="ctx"></span>'+
+    (auth?'':'<button class="bell" type="button" data-go="notif" aria-label="Уведомления'+(unread()?', новых: '+unread():'')+'"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>'+(unread()?'<i>'+unread()+'</i>':'')+'</button>')+'</header>';
+  app.innerHTML = hdr + (auth? '<main>'+body+'</main>' : '<div class="shell"><aside class="rail">'+navHTML()+'</aside><main id="main" tabindex="-1">'+crumbsFor(S.route,S.params)+body+'</main></div>'+tabbarHTML()) +
+    (S.more&&!auth?moreHTML():'') +
+    (false?'<div class="drawer" data-act="closeMenu"><div class="panel" role="dialog" aria-label="Меню"><div class="phead"><b>Меню</b><button class="x" type="button" data-act="closeMenu" aria-label="Закрыть меню">×</button></div>'+navHTML()+'</div></div>':'')+
+    (!auth&&!S.welcomed?V.welcome():'');
+  if(S.net==="slow" && !auth && S._slowOnce!==S.route){ S._slowOnce=S.route; var m=document.getElementById("main"); if(m){ var keep=m.innerHTML; m.innerHTML='<div class="stack" aria-busy="true"><div class="skel" style="width:40%"></div><div class="skel" style="height:120px"></div><div class="skel"></div><div class="skel" style="width:70%"></div></div>'; setTimeout(function(){ if(document.getElementById("main")) document.getElementById("main").innerHTML=keep; },900);} }
+}
+function go(r,p){ if(r==="task"&&p&&p.n&&p.n!==3){ var t=tours()[p.n-1]; if(t&&t.state==="pub") r="outcome"; }
+  S.hist.push([S.route,S.params]); S.route=r; S.params=p||{}; S.menu=false; S.more=false; render(); var m=document.getElementById("main"); window.scrollTo(0,0); if(m) m.focus({preventScroll:true}); }
+
+/* ---------- действия ---------- */
+function nowStr(){ var d=new Date(); return "13 октября, "+String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"); }
+var A = {
+  showpw:function(b){ var i=b.parentNode.querySelector("input"); var s=i.type==="password"; i.type=s?"text":"password"; b.textContent=s?"Скрыть":"Показать"; },
+  activate:function(){ var a=document.getElementById("np1").value, b=document.getElementById("np2").value, e=document.getElementById("actErr");
+    if(a.length<10){ e.hidden=false; e.textContent="Пароль короче 10 символов."; return; } if(a!==b){ e.hidden=false; e.textContent="Пароли не совпадают."; return; }
+    withLoad(function(){ S.authed=true; S.welcomed=false; go("home"); }); },
+  reset:function(){ withLoad(function(){ go("reset",{done:1}); }); },
+  newpass:function(){ var a=document.getElementById("rp1").value, b=document.getElementById("rp2").value, e=document.getElementById("npErr");
+    if(a.length<10){ e.hidden=false; e.textContent="Пароль короче 10 символов."; return; } if(a!==b){ e.hidden=false; e.textContent="Пароли не совпадают."; return; }
+    withLoad(function(){ toast("Пароль сохранён. Войдите с новым паролем."); go("login"); }); },
+  apply:function(b){ var id=b.getAttribute("data-id"); if(S.scn==="new"){ S.doc_rules=S.doc_rules||nowStr()+" МСК"; S.doc_pub=S.doc_pub||nowStr()+" МСК"; }
+    withLoad(function(){ if(!S.applied[id]) S.applied[id]=nowStr()+" МСК"; go("applied",{id:id}); }); },
+  acceptDoc:function(b){ var d=b.getAttribute("data-d"); withLoad(function(){ S["doc_"+d]=nowStr()+" МСК"; toast("Принято"); go("doc",{d:d}); }); },
+  promo:function(){ var v=document.getElementById("promo").value.trim().toUpperCase(), h=document.getElementById("promoHint"); h.textContent = v==="FIRSTGAME" ? "Промокод применён: 0 ₽ вместо 1 500 ₽" : v ? "Такого промокода нет. Проверьте написание." : "Введите промокод."; h.style.color = v==="FIRSTGAME"?"var(--ok)":"var(--bad)"; },
+  fakeAdd:function(){ withLoad(function(){ S.draft=[{src:null}]; S.savedAt=nowStr(); render(); toast("Фото загружено"); }); },
+  rm:function(){ S.draft=[]; S.savedAt=nowStr(); render(); },
+  main:function(b){ var i=+b.getAttribute("data-i"); var x=S.draft.splice(i,1)[0]; S.draft.unshift(x); render(); },
+  submit:function(){ withLoad(function(){ S.sentAt=nowStr(); S.scn = S.scn==="out"?"out":"sent"; if(S.scn==="out"){ S.outSent=1; } document.getElementById("scn").value=S.scn; toast("Работа принята"); go("sent"); }); },
+  openN:function(b){ var id=+b.getAttribute("data-id"); var n=NOTIFS().filter(function(x){return x.id===id})[0]; S.readN[id]=1; go(n.go, n.p||{n:3}); },
+  readAll:function(){ NOTIFS().forEach(function(x){S.readN[x.id]=1}); render(); },
+  reply:function(b){ var id=+b.getAttribute("data-id"), v=document.getElementById("rep").value.trim(); if(!v){ toast("Напишите текст ответа."); return; } if(!netGuard()) return;
+    var t=tickets().filter(function(x){return x.id===id})[0]; var m={me:true,who:"Вы",at:nowStr(),x:v,pending:true}; t.msgs.push(m); render(); setTimeout(function(){ m.pending=false; t.st="wait_org"; render(); },S.net==="slow"?1500:500); },
+  menu:function(){ S.menu=true; render(); }, more:function(){ S.more=true; render(); }, closeMore:function(b,e){ if(e.target===b){ S.more=false; render(); } }, closeMenu:function(b,e){ if(e.target===b||b.classList.contains("x")){ S.menu=false; render(); } },
+  logout:function(){ S.authed=false; go("login"); },
+  welcomeOk:function(){ S.welcomed=true; render(); }, welcomeHelp:function(){ S.welcomed=true; go("newticket",{ctx:"Первый вход"}); },
+  retry:function(){ toast(S.net==="off"?"Связи всё ещё нет":"Обновлено"); },
+  dl:function(){ toast("В прототипе файл не скачивается. В кабинете здесь будет PDF именно вашего диплома."); },
+  soon:function(){ toast("Этот экран ещё проектируется."); },
+  endAll:function(){ withLoad(function(){ toast("Другие устройства отключены"); }); }
+};
+
+document.addEventListener("click",function(e){
+  var el=e.target.closest("[data-go],[data-act]"); if(!el) return;
+  if(el.hasAttribute("data-act")){ var a=el.getAttribute("data-act"); if(A[a]){ if(a!=="closeMenu") e.preventDefault(); A[a](el,e); } return; }
+  var p=null; try{ p=JSON.parse(el.getAttribute("data-p")||"null"); }catch(x){}
+  go(el.getAttribute("data-go"),p);
+});
+document.addEventListener("submit",function(e){ e.preventDefault(); var f=e.target;
+  if(f.id==="fLogin"){ var pw=document.getElementById("pw").value, er=document.getElementById("loginErr");
+    if(pw.length<6){ er.hidden=false; er.textContent="Неверный email или пароль. Проверьте раскладку или восстановите доступ."; document.getElementById("pw").classList.add("bad"); return; }
+    withLoad(function(){ S.authed=true; go("home"); }); }
+  if(f.id==="fTicket"){ var tx=document.getElementById("tx").value.trim(), tt=document.getElementById("tt").value.trim(), te=document.getElementById("tErr");
+    if(!tx){ te.hidden=false; te.textContent="Опишите вопрос — без текста обращение не отправить."; return; }
+    withLoad(function(){ var id=230+tickets().length; var ctx=(S.params&&S.params.ctx)||(document.getElementById("tctx")?document.getElementById("tctx").value:"Общий вопрос");
+      tickets().unshift({id:id,t:tt||tx.slice(0,60),ctx:ctx,st:"wait_org",d:nowStr().split(",")[0],msgs:[{me:true,who:"Вы",at:nowStr(),x:tx}]}); toast("Обращение №"+id+" создано"); go("ticket",{id:id}); }); }
+  if(f.id==="fName"){ var v=document.getElementById("pn").value.trim(), er2=document.getElementById("pnErr");
+    if(v.length<2){ er2.hidden=false; er2.textContent="Слишком коротко: нужно от 2 символов."; return; }
+    withLoad(function(){ S.pname=v; toast("Сохранено. Новое имя появится на сайте при ближайшем обновлении."); go("profile"); }); }
+});
+document.addEventListener("change",function(e){
+  var t=e.target;
+  if(t.id==="scn"){ S.scn=t.value; S.draft=[]; S.outSent=0; S.applied={}; S.readN={}; S.hist=[]; S.route="home"; S.params={}; try{localStorage.setItem("fplProto",JSON.stringify({scn:S.scn}))}catch(x){} render(); }
+  if(t.id==="net"){ S.net=t.value; S._slowOnce=null; render(); }
+  if(t.id==="file" && t.files && t.files[0]){ var f=t.files[0]; if(f.size>20*1024*1024){ toast("Файл больше 20 МБ. Выберите другой."); return; } if(!netGuard()) return;
+    var had=S.draft.length; var rd=new FileReader(); rd.onload=function(){ S.draft=[{src:rd.result}]; S.savedAt=nowStr(); render(); toast(had?"Фото заменено":"Фото загружено"); }; rd.readAsDataURL(f); }
+  if(t.id==="siteTg"){ S.site=t.checked; var n=document.getElementById("siteNote"); if(n) n.textContent=S.site?"Анкета показывается. Выключить можно в любой момент — страница исчезнет при ближайшем обновлении сайта.":"Анкета скрыта. В рейтинге и итогах вы остаётесь под публичным именем."; toast(S.site?"Анкета включена":"Анкета скрыта"); }
+  if(t.dataset && t.dataset.chk){ var a=document.getElementById("c_rules"), b2=document.getElementById("c_pub"), bt=document.getElementById("applyBtn"); var ok=a&&b2&&a.checked&&b2.checked; if(bt){ bt.disabled=!ok; bt.textContent=ok?"Оставить заявку":"Отметьте оба пункта"; } }
+  if(t.id==="n4"){ S.mkt=t.checked; toast(S.mkt?"Подписка на новости включена":"Подписка на новости выключена"); }
+  if(t.id==="n2"){ toast(t.checked?"Email-напоминания включены":"Email-напоминания выключены"); }
+});
+document.addEventListener("keydown",function(e){ if(e.key==="Escape"&&(S.menu||S.more)){ S.menu=false; S.more=false; render(); } });
+document.getElementById("scn").value=S.scn;
+document.getElementById("protoMin").addEventListener("click",function(){ var pr=document.querySelector(".proto"); var m=pr.classList.toggle("min"); this.textContent=m?"Показать настройки прототипа":"Свернуть"; });
+document.getElementById("toLogin").addEventListener("click",function(){ go("login"); });
+render();
+})();
+</script>

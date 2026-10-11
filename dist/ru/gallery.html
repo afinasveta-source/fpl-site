@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<!-- SEO -->
+<title>Галерея аквагрима — работы участников FPL</title>
+<meta name="description" content="Работы мастеров лиги из всех Игр и туров. Фильтры по Игре, туру, лиге и отметке TOP WORK — лучшим работам по выбору жюри.">
+<link rel="canonical" href="https://facepaintingleague.com/ru/gallery.html">
+<link rel="alternate" hreflang="en" href="https://facepaintingleague.com/gallery.html">
+<link rel="alternate" hreflang="ru" href="https://facepaintingleague.com/ru/gallery.html">
+<link rel="alternate" hreflang="x-default" href="https://facepaintingleague.com/gallery.html">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<meta name="theme-color" content="#1E1B18">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Face Painting League">
+<meta property="og:title" content="Галерея аквагрима — работы участников FPL">
+<meta property="og:description" content="Работы мастеров лиги из всех Игр и туров. Фильтры по Игре, туру, лиге и отметке TOP WORK — лучшим работам по выбору жюри.">
+<meta property="og:url" content="https://facepaintingleague.com/ru/gallery.html">
+<meta property="og:image" content="https://facepaintingleague.com/assets/og-ru.png">
+<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta property="og:locale" content="ru_RU">
+<meta property="og:locale:alternate" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Галерея аквагрима — работы участников FPL">
+<meta name="twitter:description" content="Работы мастеров лиги из всех Игр и туров. Фильтры по Игре, туру, лиге и отметке TOP WORK — лучшим работам по выбору жюри.">
+<meta name="twitter:image" content="https://facepaintingleague.com/assets/og-ru.png">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@graph": [
+  {
+   "@type": "Organization",
+   "@id": "https://facepaintingleague.com/#org",
+   "name": "Face Painting League",
+   "alternateName": "FPL",
+   "url": "https://facepaintingleague.com/",
+   "logo": "https://facepaintingleague.com/assets/logo-fpl.png",
+   "brand": {
+    "@type": "Brand",
+    "name": "MAGFACE"
+   },
+   "description": "Online league for face painters by MAGFACE: Games with judged rounds, leagues, an FPL Rating and verifiable certificates."
+  },
+  {
+   "@type": "CollectionPage",
+   "@id": "https://facepaintingleague.com/ru/gallery.html#page",
+   "url": "https://facepaintingleague.com/ru/gallery.html",
+   "name": "Галерея аквагрима — работы участников FPL",
+   "description": "Работы мастеров лиги из всех Игр и туров. Фильтры по Игре, туру, лиге и отметке TOP WORK — лучшим работам по выбору жюри.",
+   "inLanguage": "ru",
+   "isPartOf": {
+    "@id": "https://facepaintingleague.com/#site"
+   },
+   "publisher": {
+    "@id": "https://facepaintingleague.com/#org"
+   },
+   "breadcrumb": {
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+     {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Главная",
+      "item": "https://facepaintingleague.com/ru/"
+     },
+     {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Галерея",
+      "item": "https://facepaintingleague.com/ru/gallery.html"
+     }
+    ]
+   }
+  }
+ ]
+}
+</script>
+<!-- /SEO -->
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../assets/site.css">
+<style>
+/* =========================================================
+   ГАЛЕРЕЯ
+   ========================================================= */
+.sr{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap}
+.sec-note{margin:0; font:500 13px/1.5 var(--f-body); color:var(--muted)}
+.glhero{padding-top:120px; padding-bottom:40px}
+.glhero-body{display:grid; grid-template-columns:1fr 1fr; gap:48px; align-items:end}
+.glhero h1{margin:20px 0 0; font:400 clamp(32px,3.9vw,56px)/1.08 var(--f-display); letter-spacing:-.03em; color:var(--cream)}
+.glhero h1 span{color:var(--peach)}
+.glhero .lead{margin:0; font:400 16px/1.6 var(--f-body); color:#B7AEA5; max-width:500px}
+
+.glbar{display:grid; gap:12px; margin-bottom:16px}
+.glrow{display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap}
+.glsel{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+.glsel select{border:1px solid rgba(21,19,26,.15); background:#fff; border-radius:999px; padding:10px 16px; font:500 14px var(--f-body); color:var(--ink)}
+.gltw{display:inline-flex; align-items:center; gap:8px; font:600 14px var(--f-body); cursor:pointer; user-select:none}
+.gltw input{appearance:none; width:38px; height:22px; border-radius:999px; background:#DCD4CA; position:relative; cursor:pointer; transition:background .15s; margin:0}
+.gltw input::after{content:""; position:absolute; top:3px; left:3px; width:16px; height:16px; border-radius:50%; background:#fff; transition:transform .15s}
+.gltw input:checked{background:var(--gold)}
+.gltw input:checked::after{transform:translateX(16px)}
+.gltw input:focus-visible,.glsel select:focus-visible,.gltours button:focus-visible,.glw:focus-visible{outline:3px solid var(--peach); outline-offset:2px}
+.gltours{display:flex; gap:6px; overflow-x:auto; scrollbar-width:none; padding-bottom:2px}
+.gltours::-webkit-scrollbar{display:none}
+.gltours button{flex:none; border:1px solid rgba(21,19,26,.14); background:#fff; border-radius:999px; padding:9px 14px; font:600 13px/1 var(--f-body); color:#4A433D; cursor:pointer; white-space:nowrap}
+.gltours button span{font-weight:500; color:var(--muted); margin-left:4px}
+.gltours button[aria-pressed="true"]{background:var(--graphite); border-color:var(--graphite); color:var(--cream)}
+.gltours button[aria-pressed="true"] span{color:#B7AEA5}
+.glcount{margin:0 0 12px; font:600 13px var(--f-body); color:var(--muted)}
+
+/* коллаж вплотную */
+.glgrid{columns:4 220px; column-gap:4px}
+.glw{position:relative; display:block; width:100%; margin:0 0 4px; break-inside:avoid; border:0; padding:0; cursor:zoom-in; overflow:hidden; border-radius:4px; background:none}
+.glw-img{display:grid; place-items:center; width:100%; font:600 12px var(--f-body); color:rgba(60,50,44,.55); transition:transform .4s ease}
+.glw:hover .glw-img{transform:scale(1.03)}
+.glw-cap{position:absolute; left:0; right:0; bottom:0; padding:32px 12px 10px; background:linear-gradient(transparent,rgba(21,19,26,.72)); color:#fff; text-align:left}
+.glw-cap b{display:block; font:600 13px/1.25 var(--f-body)}
+.glw-cap span{font:500 11.5px var(--f-body); opacity:.8}
+.glw-tw{position:absolute; top:8px; right:8px; background:var(--gold); color:#fff; border-radius:999px; padding:5px 9px; font:700 10px/1 var(--f-body); letter-spacing:.04em}
+.glmore{display:block; margin:20px auto 0}
+.rempty{margin:0; padding:40px 0; text-align:center; font:500 15px var(--f-body); color:var(--muted)}
+
+/* просмотр */
+.lb{position:fixed; inset:0; z-index:200; background:rgba(21,19,26,.98); display:grid; grid-template-columns:64px minmax(0,1fr) 64px; align-items:center; padding:max(24px, env(safe-area-inset-top,0px)) 16px max(24px, env(safe-area-inset-bottom,0px))}
+.lb[hidden]{display:none}
+.lb-fig{margin:0; display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:28px; align-items:center; max-width:1100px; width:100%; justify-self:center; max-height:100%}
+.lb-img{width:100%; max-height:82vh; aspect-ratio:4/5; border-radius:6px; display:grid; place-items:center; font:600 14px var(--f-body); color:rgba(60,50,44,.55); justify-self:center; max-width:min(100%, 66vh)}
+.lb-cap{color:var(--cream)}
+.lb-tags{display:flex; gap:6px; flex-wrap:wrap}
+.lb-cap h2{margin:14px 0 0; font:500 24px/1.2 var(--f-display); letter-spacing:-.01em}
+.lb-cap p{margin:8px 0 0; font:500 14px/1.5 var(--f-body); color:#B7AEA5}
+.lb-author{display:inline-flex; gap:8px; align-items:center; margin-top:18px; color:var(--cream); text-decoration:none; font:600 15px var(--f-body); border-bottom:1px solid rgba(255,255,255,.4); padding-bottom:2px}
+.lb-author:hover{border-color:var(--peach)}
+.lb-x{position:absolute; top:max(14px, env(safe-area-inset-top,0px)); right:16px; width:44px; height:44px; border-radius:50%; border:0; background:rgba(255,255,255,.1); color:#fff; font:400 26px/1 var(--f-body); cursor:pointer}
+.lb-nav{width:48px; height:48px; border-radius:50%; border:0; background:rgba(255,255,255,.1); color:#fff; font:600 18px var(--f-body); cursor:pointer; justify-self:center}
+.lb-nav:hover,.lb-x:hover{background:rgba(255,255,255,.2)}
+.lb button:focus-visible,.lb-author:focus-visible{outline:3px solid var(--peach); outline-offset:2px}
+.lb-tw{background:var(--gold); color:#fff; border-radius:999px; padding:6px 10px; font:700 11px/1 var(--f-body)}
+
+@media (max-width:980px){
+  .glhero-body{grid-template-columns:1fr; gap:16px}
+  .lb-fig{grid-template-columns:1fr; gap:16px}
+  .lb-img{max-height:62vh; max-width:min(100%, 50vh)}
+}
+@media (max-width:640px){
+  .glhero{padding-top:104px; padding-bottom:26px}
+  .glhero .lead{font-size:15px; line-height:1.5}
+  .glrow{flex-direction:column; align-items:stretch}
+  .glrow .tabs{width:100%}
+  .glsel{justify-content:space-between}
+  .glgrid{columns:2; column-gap:3px}
+  .glw{margin-bottom:3px; border-radius:3px}
+  .glw-cap{padding:24px 8px 7px}
+  .glw-cap b{font-size:12px}
+  .glw-cap span{display:none}
+  .glw-tw{top:6px; right:6px; padding:4px 7px; font-size:9px}
+  .lb{grid-template-columns:1fr; padding-inline:16px; align-content:center}
+  .lb-nav{position:absolute; bottom:max(18px, env(safe-area-inset-bottom,0px))}
+  .lb-prev{left:16px} .lb-next{right:16px}
+  .lb-cap{padding-bottom:64px}
+  .lb-cap h2{font-size:20px}
+}
+@media (prefers-reduced-motion:reduce){ .glw-img,.gltw input,.gltw input::after{transition:none} .glw:hover .glw-img{transform:none} }
+
+
+.lang-list button.soon{opacity:.45; cursor:default; display:flex; justify-content:space-between; gap:10px} .lang-list button.soon small{font:500 11px var(--f-body)} .lang-list button.soon:hover{background:none}
+</style>
+</head>
+<body>
+<main class="wrap glow">
+  <nav class="nav">
+    <a class="logo" href="index.html" style="text-decoration:none">FPL<small>by MAGFACE</small></a>
+    <a href="games.html">Игры</a><a href="rating.html">Рейтинг</a><a href="gallery.html" aria-current="page">Галерея</a><a href="find.html">Найти мастера</a><a href="about.html">О лиге</a><a href="rules.html">Правила</a>
+    <div class="lang-dd"><button type="button" class="lang-cur" aria-haspopup="true" aria-expanded="false" aria-label="Язык сайта"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.8 2.6 15.2 0 18M12 3c-2.6 2.8-2.6 15.2 0 18"/></g></svg><span data-lang-label>RU</span><svg viewBox="0 0 10 6" width="9" height="6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button><ul class="lang-list" hidden><li><button type="button" data-lang="ru" data-short="RU" data-href="gallery.html" class="on" aria-current="true">Русский</button></li><li><button type="button" data-lang="en" data-short="EN" data-href="../gallery.html">English</button></li><li><button type="button" data-lang="de" data-short="DE" disabled class="soon">Deutsch<small>скоро</small></button></li><li><button type="button" data-lang="es" data-short="ES" disabled class="soon">Español<small>скоро</small></button></li><li><button type="button" data-lang="fr" data-short="FR" disabled class="soon">Français<small>скоро</small></button></li><li><button type="button" data-lang="zh" data-short="中文" disabled class="soon">中文<small>скоро</small></button></li><li><button type="button" data-lang="ja" data-short="日本語" disabled class="soon">日本語<small>скоро</small></button></li></ul></div>
+    <a class="btn-outline" style="border-color:var(--indigo); color:var(--indigo); letter-spacing:.08em" href="https://t.me/facepaintingleaguebot" target="_blank" rel="noopener">Участвовать</a>
+    <button class="burger" type="button" aria-label="Открыть меню" aria-controls="mmenu" aria-expanded="false" data-menu-open><span></span><span></span></button>
+  </nav>
+  <!-- ГАЛЕРЕЯ: ШАПКА -->
+  <section class="heroC glhero" aria-labelledby="gltitle">
+    <div class="glhero-body">
+      <div>
+        <span class="eyebrow">Face Painting League · сезон 1</span>
+        <h1 id="gltitle">Галерея <span>работ</span></h1>
+      </div>
+      <p class="lead">Работы участников из всех Игр и туров. Отмеченные TOP WORK жюри выбрало лучшими в своём туре. Все работы публикуются с согласия авторов.</p>
+    </div>
+  </section>
+
+  <!-- ФИЛЬТРЫ И СЕТКА -->
+  <section class="glsec" aria-label="Работы">
+    <div class="glbar">
+      <div class="glrow">
+        <div class="tabs" role="tablist" aria-label="Игра" id="fGame">
+          <button role="tab" aria-selected="true" data-v="all">Все Игры</button>
+          <button role="tab" aria-selected="false" data-v="02">Игра 02</button>
+          <button role="tab" aria-selected="false" data-v="01">Игра 01</button>
+        </div>
+        <div class="glsel">
+          <label class="sr" for="fLeague">Лига</label>
+          <select id="fLeague"><option value="all">Все лиги</option><option value="Gold">Gold</option><option value="Silver">Silver</option><option value="Bronze">Bronze</option></select>
+          <label class="gltw"><input type="checkbox" id="fTop"><span>Только TOP WORK</span></label>
+        </div>
+      </div>
+      <div class="gltours" id="fTour" aria-label="Тур"></div>
+    </div>
+    <p class="glcount" id="glCount" aria-live="polite"></p>
+    <div class="glgrid" id="glGrid"></div>
+    <p class="rempty" id="glEmpty" hidden>По этим фильтрам работ пока нет.</p>
+    <button class="btn-outline glmore" type="button" id="glMore">Показать ещё</button>
+    <p class="sec-note" style="margin-top:14px">Работы на странице — пример для макета.</p>
+  </section>
+
+  <!-- ПРИЗЫВ -->
+  <section class="tile tile--indigo cta-strong" style="padding:48px">
+    <h2 class="h1">Твоя работа <span class="a-lemon">может быть здесь</span></h2>
+    <p class="tile-text" style="font-size:17px; margin:16px 0 28px">Участвуй в следующей Игре — лучшие работы каждого тура попадают в галерею с твоим именем.</p>
+    <div style="display:flex; gap:12px; flex-wrap:wrap; max-width:620px">
+      <a class="btn-wide" style="flex:1" href="https://t.me/facepaintingleaguebot" target="_blank" rel="noopener">Участвовать</a>
+      <a class="btn-wide btn-pink" style="flex:1" href="https://www.instagram.com/facepaintingleague/" target="_blank" rel="noopener">Следить в Instagram*</a>
+    </div>
+  </section>
+
+  <!-- ПРОСМОТР РАБОТЫ -->
+  <div class="lb" id="lb" hidden role="dialog" aria-modal="true" aria-labelledby="lbTitle">
+    <button class="lb-x" type="button" id="lbClose" aria-label="Закрыть">×</button>
+    <button class="lb-nav lb-prev" type="button" id="lbPrev" aria-label="Предыдущая работа">←</button>
+    <figure class="lb-fig">
+      <div class="lb-img" id="lbImg"></div>
+      <figcaption class="lb-cap">
+        <div class="lb-tags" id="lbTags"></div>
+        <h2 id="lbTitle"></h2>
+        <p id="lbMeta"></p>
+        <a class="lb-author" id="lbAuthor" href="master.html"></a>
+      </figcaption>
+    </figure>
+    <button class="lb-nav lb-next" type="button" id="lbNext" aria-label="Следующая работа">→</button>
+  </div>
+
+  <footer class="site-footer">
+    <div class="f-brand"><span class="f-logo">FPL</span><p>Face Painting League by MAGFACE. Онлайн-лига аквагримёров.</p></div>
+    <div><b>Лига</b><a href="games.html">Игры и календарь</a><a href="rating.html">Рейтинг</a><a href="index.html#archive">Зал славы</a><a href="about.html#jury">Жюри</a><a href="find.html">Найти мастера</a></div>
+    <div><b>Участникам</b><a href="index.html#how">Как участвовать</a><a href="diploma.html">Проверка диплома</a><a href="rules.html#faq">Вопросы</a></div>
+    <div><b>Документы</b><a href="rules.html">Правила лиги</a><a href="privacy.html">Политика конфиденциальности</a><a href="rules.html#docs">Согласие на публикацию работ</a></div>
+    <div><b>Контакты</b><a href="mailto:info@maskarad-grim.ru">info@maskarad-grim.ru</a><a href="https://t.me/maskarad_grim" target="_blank" rel="noopener">Telegram</a><a href="https://vk.ru/publicmaskarad" target="_blank" rel="noopener">ВКонтакте</a><a href="https://www.instagram.com/facepaintingleague/" target="_blank" rel="noopener">Instagram*</a></div>
+    <p class="f-note">* Instagram принадлежит компании Meta, признанной экстремистской организацией и запрещённой в России.</p>
+    <p class="f-copy">© 2026 MAGFACE · ИП Афиногенова С. О.</p>
+  </footer>
+</main>
+<div class="mmenu" id="mmenu" hidden>
+  <div class="mmenu-head"><span class="logo">FPL</span><button class="burger is-open" type="button" aria-label="Закрыть меню" data-menu-close><span></span><span></span></button></div>
+  <nav class="mmenu-links" aria-label="Разделы сайта">
+    <a href="games.html">Игры и календарь <small>сезон 1 · Игры сезона</small></a>
+    <a href="rating.html">Рейтинг <small>лиги Bronze · Silver · Gold</small></a>
+    <a href="gallery.html" aria-current="page">Галерея работ <small>лучшие работы сезона</small></a>
+    <a href="find.html">Найти мастера <small>мастера лиги, которые принимают заказы</small></a>
+    <a href="about.html">О лиге <small>как всё устроено, судьи, награды</small></a>
+    <a href="rules.html">Правила и вопросы</a>
+  </nav>
+  <div class="mmenu-foot">
+    <a class="btn-wide mm-primary" href="https://t.me/facepaintingleaguebot" target="_blank" rel="noopener">Участвовать</a>
+    <a class="btn-wide mm-secondary" href="https://www.instagram.com/facepaintingleague/" target="_blank" rel="noopener">Следить в Instagram*</a>
+    <p>Telegram-бот · ВКонтакте · Instagram*</p>
+  </div>
+</div>
+<div class="mbar"><a class="btn-wide" href="https://t.me/facepaintingleaguebot" target="_blank" rel="noopener">Участвовать</a><a class="btn-wide" href="https://www.instagram.com/facepaintingleague/" target="_blank" rel="noopener">Instagram*</a></div>
+<script>
+(function(){
+  var menu=document.getElementById('mmenu'); if(!menu) return;
+  function setOpen(o){ menu.hidden=!o; document.body.classList.toggle('menu-open',o);
+    document.querySelectorAll('[data-menu-open]').forEach(function(b){b.setAttribute('aria-expanded',o)}); }
+  document.querySelectorAll('[data-menu-open]').forEach(function(b){ b.addEventListener('click',function(){setOpen(true)}); });
+  menu.querySelectorAll('[data-menu-close], .mmenu-links a').forEach(function(el){ el.addEventListener('click',function(){setOpen(false)}); });
+  document.addEventListener('keydown',function(e){ if(e.key==='Escape') setOpen(false); });
+})();
+</script>
+<script>
+(function(){
+  // переключатель языка (в прототипе переведены первый экран и полоса доверия)
+  var els=[].slice.call(document.querySelectorAll('[data-en]'));
+  els.forEach(function(el){ el.setAttribute('data-ru', el.innerHTML); });
+  var dd=document.querySelector('.lang-dd');
+  if(dd){ var cur=dd.querySelector('.lang-cur'), list=dd.querySelector('.lang-list');
+    function close(){ list.hidden=true; cur.setAttribute('aria-expanded','false'); }
+    cur.addEventListener('click',function(e){ e.stopPropagation(); list.hidden=!list.hidden; cur.setAttribute('aria-expanded', String(!list.hidden)); });
+    document.addEventListener('click',function(e){ if(!dd.contains(e.target)) close(); });
+    document.addEventListener('keydown',function(e){ if(e.key==='Escape') close(); });
+    list.querySelectorAll('button').forEach(function(btn){ btn.addEventListener('click',function(){
+      var lang=btn.getAttribute('data-lang');
+      list.querySelectorAll('button').forEach(function(b){ b.classList.toggle('on', b===btn); if(b===btn) b.setAttribute('aria-current','true'); else b.removeAttribute('aria-current'); });
+      dd.querySelector('[data-lang-label]').textContent=btn.getAttribute('data-short');
+      // в прототипе переведён только английский; для других языков временно показываем английский текст
+      els.forEach(function(el){ var t=el.getAttribute('data-'+lang)||(lang==='ru'?null:el.getAttribute('data-en')); el.innerHTML = t||el.getAttribute('data-ru'); });
+      document.documentElement.lang = lang; close();
+    }); });
+  }
+})();
+</script>
+<script>
+(function(){
+  // ПРИМЕР работ для макета. На сайте список приходит из базы бота (работы с согласием на публикацию).
+  var TOURS={'01':[['1','Свободная тема'],['2','Животные'],['3','Цветочный узор'],['4','Космос'],['5','Сказочный персонаж']],
+             '02':[['1','Свободная тема'],['2','Ночной город'],['3','Портрет в цвете'],['4','Морские обитатели']]};
+  var NAMES=['Анна Петрова','Мария Иванова','Lucía Martín','Ольга Смирнова','Айгерим Сапарова','Елена Волкова','Дарья Ким','Nino Beridze','Ксения Орлова','Виктория Лебедева','Полина Зайцева','Татьяна Морозова','Alina Kowalska','Юлия Соколова','Софья Белова'];
+  var CITY=['Санкт-Петербург','Москва','Valencia','Казань','Алматы','Новосибирск','Екатеринбург','Тбилиси','Минск','Краснодар','Самара','Пермь','Warszawa','Воронеж','Ростов-на-Дону'];
+  var LG=['Gold','Gold','Gold','Gold','Silver','Silver','Silver','Silver','Silver','Silver','Bronze','Bronze','Bronze','Bronze','Silver'];
+  var RAT=['4/5','3/4','1/1','4/5','2/3','4/5','3/4','4/5','1/1','3/4'];
+  // тёплые нейтральные заглушки разной тональности, чтобы коллаж читался как набор фото
+  var HUES=[[28,30,86],[18,28,84],[36,26,82],[12,24,85],[42,22,80],[24,18,78],[8,22,83],[32,30,88]];
+  var W=[], seed=7; function rnd(){ seed=(seed*9301+49297)%233280; return seed/233280; }
+  ['02','01'].forEach(function(g){ TOURS[g].slice().reverse().forEach(function(t){
+    var n=g==='01'?6:5;
+    for(var i=0;i<n;i++){
+      var p=Math.floor(rnd()*NAMES.length), h=HUES[Math.floor(rnd()*HUES.length)];
+      W.push({game:g, tour:t[0], theme:t[1], name:NAMES[p], city:CITY[p], league:(g==='01'&&LG[p]==='Bronze')?'Silver':LG[p], tw:i<2, ratio:RAT[Math.floor(rnd()*RAT.length)], hue:h});
+    }
+  });});
+
+  var st={game:'all', tour:'all', league:'all', top:false, shown:24}, list=[];
+  var grid=document.getElementById('glGrid'), more=document.getElementById('glMore'), cnt=document.getElementById('glCount');
+  function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+  function bg(w){ var h=w.hue; return 'linear-gradient(160deg,hsl('+h[0]+','+h[1]+'%,'+h[2]+'%),hsl('+(h[0]+8)+','+(h[1]-6)+'%,'+(h[2]-9)+'%))'; }
+  function plural(n){ var a=n%10,b=n%100; return a===1&&b!==11?'работа':(a>=2&&a<=4&&(b<12||b>14)?'работы':'работ'); }
+
+  function tours(){
+    var box=document.getElementById('fTour'), h='<button type="button" aria-pressed="'+(st.tour==='all')+'" data-v="all">Все туры</button>';
+    var games=st.game==='all'?['02','01']:[st.game];
+    games.forEach(function(g){ TOURS[g].forEach(function(t){ var v=g+'-'+t[0];
+      h+='<button type="button" aria-pressed="'+(st.tour===v)+'" data-v="'+v+'">'+(st.game==='all'?'Игра '+g+' · ':'')+'Тур '+t[0]+'<span>'+esc(t[1])+'</span></button>'; }); });
+    box.innerHTML=h;
+    box.querySelectorAll('button').forEach(function(b){ b.addEventListener('click',function(){ st.tour=b.getAttribute('data-v'); st.shown=24; tours(); render(); }); });
+  }
+  function render(){
+    list=W.filter(function(w){
+      return (st.game==='all'||w.game===st.game) && (st.tour==='all'||st.tour===w.game+'-'+w.tour) && (st.league==='all'||w.league===st.league) && (!st.top||w.tw);
+    });
+    cnt.textContent=list.length+' '+plural(list.length);
+    grid.innerHTML=list.slice(0,st.shown).map(function(w,i){
+      return '<button class="glw" type="button" data-i="'+i+'" aria-label="'+esc(w.theme)+', '+esc(w.name)+'"><span class="glw-img" style="aspect-ratio:'+w.ratio+';background:'+bg(w)+'">[работа]</span>'+(w.tw?'<span class="glw-tw">TOP WORK</span>':'')+'<span class="glw-cap"><b>'+esc(w.name)+'</b><span>Игра '+w.game+' · Тур '+w.tour+'</span></span></button>';
+    }).join('');
+    document.getElementById('glEmpty').hidden=list.length>0;
+    more.hidden=list.length<=st.shown;
+    grid.querySelectorAll('.glw').forEach(function(b){ b.addEventListener('click',function(){ open(+b.getAttribute('data-i')); }); });
+  }
+  document.querySelectorAll('#fGame button').forEach(function(b){ b.addEventListener('click',function(){
+    document.querySelectorAll('#fGame button').forEach(function(x){ x.setAttribute('aria-selected', x===b); });
+    st.game=b.getAttribute('data-v'); st.tour='all'; st.shown=24; tours(); render(); }); });
+  document.getElementById('fLeague').addEventListener('change',function(e){ st.league=e.target.value; st.shown=24; render(); });
+  document.getElementById('fTop').addEventListener('change',function(e){ st.top=e.target.checked; st.shown=24; render(); });
+  more.addEventListener('click',function(){ st.shown+=24; render(); });
+
+  // просмотр работы
+  var lb=document.getElementById('lb'), cur=0, lastFocus=null;
+  function fill(){
+    var w=list[cur];
+    var img=document.getElementById('lbImg'); img.style.background=bg(w); img.style.aspectRatio=w.ratio; img.textContent='[работа]';
+    document.getElementById('lbTags').innerHTML='<span class="lgb lgb--'+w.league+'">'+w.league+'</span>'+(w.tw?'<span class="lb-tw">TOP WORK</span>':'');
+    document.getElementById('lbTitle').textContent='«'+w.theme+'»';
+    document.getElementById('lbMeta').textContent='Игра '+w.game+' · Тур '+w.tour+' · сезон 1';
+    document.getElementById('lbAuthor').textContent=w.name+', '+w.city+' →';
+  }
+  function open(i){ cur=i; lastFocus=document.activeElement; fill(); lb.hidden=false; document.body.style.overflow='hidden'; document.getElementById('lbClose').focus(); }
+  function close(){ lb.hidden=true; document.body.style.overflow=''; if(lastFocus) lastFocus.focus(); }
+  function step(d){ cur=(cur+d+list.length)%list.length; fill(); }
+  document.getElementById('lbClose').addEventListener('click',close);
+  document.getElementById('lbPrev').addEventListener('click',function(){ step(-1); });
+  document.getElementById('lbNext').addEventListener('click',function(){ step(1); });
+  lb.addEventListener('click',function(e){ if(e.target===lb) close(); });
+  document.addEventListener('keydown',function(e){ if(lb.hidden) return; if(e.key==='Escape') close(); if(e.key==='ArrowLeft') step(-1); if(e.key==='ArrowRight') step(1); });
+  // свайп на телефоне
+  var x0=null; lb.addEventListener('touchstart',function(e){ x0=e.touches[0].clientX; },{passive:true});
+  lb.addEventListener('touchend',function(e){ if(x0===null) return; var dx=e.changedTouches[0].clientX-x0; if(Math.abs(dx)>50) step(dx<0?1:-1); x0=null; });
+
+  tours(); render();
+})();
+</script>
+
+<script>
+(function(){ var l=document.querySelector('.lang-list'); if(!l) return;
+  l.addEventListener('click',function(e){ var b=e.target.closest('button'); if(!b) return; e.stopPropagation();
+    if(b.disabled) return; var h=b.getAttribute('data-href'); if(h && !b.classList.contains('on')) location.href=h; else l.hidden=true; },true);
+})();
+</script>
+<script src="../assets/consent.js?v=1" defer></script>
+</body>
+</html>

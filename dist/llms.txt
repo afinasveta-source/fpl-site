@@ -1,0 +1,23 @@
+# Face Painting League (FPL)
+
+> Face Painting League (FPL) is an online league for face painters, run by MAGFACE. Artists from any country take part in online Games made of judged rounds: each round has a new brief, works are scored anonymously by professional judges, and every artist gets an FPL Rating that places them into the Bronze, Silver or Gold league. A season has three Games and a Super Final, with short open challenges in between. Artists who submit all works on time receive a numbered, verifiable certificate.
+
+Key facts:
+- Organizer: MAGFACE, after seven years of face painting marathons (1,400+ artists, 30,000+ works).
+- Season 1: three Games and a Super Final. The first Game is free for new participants.
+- Judging: anonymous; head-to-head or by criteria depending on the round. TOP WORK marks the best works of each round.
+- Certificates: numbered FPL-S1-01-0247 (season, Game, number) and verifiable online.
+- Languages: English and Russian.
+
+## Main pages
+- [Home](https://facepaintingleague.com/): what the League is and how to join
+- [Games & calendar](https://facepaintingleague.com/games.html): season structure, next Game, past results
+- [FPL Rating](https://facepaintingleague.com/rating.html): rankings of face painters by league
+- [Gallery](https://facepaintingleague.com/gallery.html): judged face painting works
+- [Find an artist](https://facepaintingleague.com/find.html): face painters taking bookings
+- [Rules & FAQ](https://facepaintingleague.com/rules.html): rules in plain words
+- [Certificate check](https://facepaintingleague.com/diploma.html): verify a certificate number
+- [About](https://facepaintingleague.com/about.html): history, judges, organizer
+
+## Russian version
+- [Главная](https://facepaintingleague.com/ru/)

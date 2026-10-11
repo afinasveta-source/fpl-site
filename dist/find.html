@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<!-- SEO -->
+<title>Find a face painter — FPL artists taking bookings</title>
+<meta name="description" content="Hire a face painter whose work has been scored by professional judges. Search FPL artists by city and see their rating, awards and works.">
+<link rel="canonical" href="https://facepaintingleague.com/find.html">
+<link rel="alternate" hreflang="en" href="https://facepaintingleague.com/find.html">
+<link rel="alternate" hreflang="ru" href="https://facepaintingleague.com/ru/find.html">
+<link rel="alternate" hreflang="x-default" href="https://facepaintingleague.com/find.html">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<meta name="theme-color" content="#1E1B18">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Face Painting League">
+<meta property="og:title" content="Find a face painter — FPL artists taking bookings">
+<meta property="og:description" content="Hire a face painter whose work has been scored by professional judges. Search FPL artists by city and see their rating, awards and works.">
+<meta property="og:url" content="https://facepaintingleague.com/find.html">
+<meta property="og:image" content="https://facepaintingleague.com/assets/og-en.png">
+<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta property="og:locale" content="en_US">
+<meta property="og:locale:alternate" content="ru_RU">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Find a face painter — FPL artists taking bookings">
+<meta name="twitter:description" content="Hire a face painter whose work has been scored by professional judges. Search FPL artists by city and see their rating, awards and works.">
+<meta name="twitter:image" content="https://facepaintingleague.com/assets/og-en.png">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@graph": [
+  {
+   "@type": "Organization",
+   "@id": "https://facepaintingleague.com/#org",
+   "name": "Face Painting League",
+   "alternateName": "FPL",
+   "url": "https://facepaintingleague.com/",
+   "logo": "https://facepaintingleague.com/assets/logo-fpl.png",
+   "brand": {
+    "@type": "Brand",
+    "name": "MAGFACE"
+   },
+   "description": "Online league for face painters by MAGFACE: Games with judged rounds, leagues, an FPL Rating and verifiable certificates."
+  },
+  {
+   "@type": "CollectionPage",
+   "@id": "https://facepaintingleague.com/find.html#page",
+   "url": "https://facepaintingleague.com/find.html",
+   "name": "Find a face painter — FPL artists taking bookings",
+   "description": "Hire a face painter whose work has been scored by professional judges. Search FPL artists by city and see their rating, awards and works.",
+   "inLanguage": "en",
+   "isPartOf": {
+    "@id": "https://facepaintingleague.com/#site"
+   },
+   "publisher": {
+    "@id": "https://facepaintingleague.com/#org"
+   },
+   "breadcrumb": {
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+     {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Home",
+      "item": "https://facepaintingleague.com/"
+     },
+     {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Find an artist",
+      "item": "https://facepaintingleague.com/find.html"
+     }
+    ]
+   }
+  }
+ ]
+}
+</script>
+<!-- /SEO -->
+
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<link href="assets/site.css" rel="stylesheet"/>
+<style>
+/* =========================================================
+   НАЙТИ МАСТЕРА
+   ========================================================= */
+.sr{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap}
+.sec-note{margin:0; font:500 13px/1.5 var(--f-body); color:var(--muted)}
+.gcard-tag{font:600 11px/1 var(--f-body); letter-spacing:.16em; text-transform:uppercase; color:var(--accent-text)}
+.fdhero{padding-top:120px; padding-bottom:48px}
+.fdhero-body{max-width:760px}
+.fdhero h1{margin:20px 0 0; font:400 clamp(32px,3.9vw,56px)/1.08 var(--f-display); letter-spacing:-.03em; color:var(--cream)}
+.fdhero h1 span{color:var(--peach)}
+.fdhero .lead{margin:18px 0 0; font:400 17px/1.6 var(--f-body); color:#CFC7BE; max-width:560px}
+.fdsearch{display:flex; gap:8px; max-width:560px; margin-top:28px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); border-radius:999px; padding:6px}
+.fdsearch input,.fdsearch select{min-width:0; flex:1; border:0; border-radius:999px; background:#fff; padding:13px 18px; font:500 15px var(--f-body); color:var(--ink)}
+.fdsearch select{flex:.9}
+.fdsearch .btnC{border:0; cursor:pointer; flex:none}
+.fdsearch input:focus-visible,.fdsearch select:focus-visible,.fdsearch .btnC:focus-visible,.fdopts select:focus-visible{outline:3px solid var(--peach); outline-offset:2px}
+
+.fdhead{display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:14px}
+.fdcount{margin:0; font:600 14px var(--f-body); color:var(--muted)}
+.fdopts{display:flex; gap:14px; align-items:center; flex-wrap:wrap}
+.fdopts select{border:1px solid rgba(21,19,26,.15); background:#fff; border-radius:999px; padding:10px 16px; font:500 14px var(--f-body); color:var(--ink)}
+.gltw{display:inline-flex; align-items:center; gap:8px; font:600 14px var(--f-body); cursor:pointer; user-select:none}
+.gltw input{appearance:none; width:38px; height:22px; border-radius:999px; background:#DCD4CA; position:relative; cursor:pointer; transition:background .15s; margin:0}
+.gltw input::after{content:""; position:absolute; top:3px; left:3px; width:16px; height:16px; border-radius:50%; background:#fff; transition:transform .15s}
+.gltw input:checked{background:var(--indigo)}
+.gltw input:checked::after{transform:translateX(16px)}
+.gltw input:focus-visible{outline:3px solid var(--peach); outline-offset:2px}
+
+/* карточки мастеров */
+.fdlist{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px}
+.fdc{background:#fff; border-radius:12px; overflow:hidden; display:flex; flex-direction:column}
+.fdc-works{display:grid; grid-template-columns:2fr 1fr 1fr; gap:3px; height:170px}
+.fdc-works span{display:grid; place-items:center; font:600 11px var(--f-body); color:rgba(60,50,44,.5)}
+.fdc-body{padding:18px 20px 20px; display:grid; gap:12px}
+.fdc-top{display:flex; gap:14px; align-items:center}
+.fdc-ava{width:52px; height:52px; border-radius:50%; flex:none; background:linear-gradient(160deg,#E9E3DB,#D2C7BB); border:3px solid #fff; margin-top:-38px; box-shadow:0 0 0 1px rgba(21,19,26,.06)}
+.fdc-top > div{min-width:0; flex:1}
+.fdc-top h3{margin:0; font:500 18px/1.2 var(--f-display); letter-spacing:-.01em}
+.fdc-top p{margin:4px 0 0; font:500 13.5px var(--f-body); color:var(--muted)}
+.fdc-rt{text-align:right; flex:none}
+.fdc-rt b{display:block; font:500 20px/1 var(--f-display); font-variant-numeric:tabular-nums}
+.fdc-rt .lgb{margin-top:6px}
+.fdc-tags{display:flex; flex-wrap:wrap; gap:6px}
+.fdc-tags span{background:#F3EEE8; border-radius:999px; padding:6px 10px; font:600 12px/1 var(--f-body); color:#4A433D}
+.fdc-aw{display:flex; flex-wrap:wrap; gap:6px; align-items:center; font:600 12.5px var(--f-body); color:#5B534B}
+.fdc-aw i{font-style:normal; display:inline-grid; place-items:center; min-width:22px; height:22px; padding:0 6px; border-radius:999px; font:700 10.5px/1 var(--f-body); color:#fff}
+.fdc-aw .g{background:linear-gradient(135deg,#E8C760,#A8800F)} .fdc-aw .s{background:linear-gradient(135deg,#C9CED3,#7E858C)} .fdc-aw .b{background:linear-gradient(135deg,#D09468,#8E5530)}
+.fdc-aw .tw{background:#FDE3D5; color:#8A2E07}
+.fdc-act{display:flex; gap:16px; align-items:center; padding-top:4px; border-top:1px solid #F1ECE5; padding-top:14px}
+.fdc-act .btnC{border:0; cursor:pointer; padding:11px 20px!important; font-size:14px!important}
+.fdc-act .btnC:focus-visible,.fdc-act a:focus-visible{outline:3px solid var(--peach); outline-offset:2px}
+.fdc-act a{font:600 14px var(--f-body); color:var(--ink); text-decoration:none; border-bottom:1px solid currentColor}
+.fdc-act .trip{margin-left:auto; font:500 12.5px var(--f-body); color:var(--muted); text-align:right}
+.fdempty{background:#fff; border-radius:12px; padding:32px; text-align:center}
+.fdempty b{font:500 18px var(--f-display)}
+.fdempty p{margin:8px 0 16px; font:500 15px var(--f-body); color:var(--muted)}
+
+.fdtrust{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px}
+.fdtrust article{background:#fff; border-radius:12px; padding:24px}
+.fdtrust h3{margin:0; font:500 18px/1.25 var(--f-display)}
+.fdtrust p{margin:10px 0 0; font:500 15px/1.6 var(--f-body); color:#3A342F}
+.fdtrust a{color:var(--accent-text)}
+.fdnote{margin:16px 0 0; font:500 13.5px/1.6 var(--f-body); color:var(--muted); max-width:760px}
+
+.fdmaster{display:grid; grid-template-columns:1fr 1.1fr; gap:28px; align-items:center; background:#FCE9DD; border-radius:12px; padding:32px}
+.fdmaster .h2{margin-top:12px}
+.fdmaster p{margin:12px 0 0; font:500 15px/1.6 var(--f-body); color:#5E4A3E}
+.fmsteps{list-style:none; margin:0; padding:0; display:grid; gap:8px}
+.fmsteps li{display:flex; gap:12px; align-items:center; background:#fff; border-radius:10px; padding:14px 16px; font:600 14.5px/1.4 var(--f-body)}
+.fmsteps span{flex:none; width:28px; height:28px; border-radius:50%; background:var(--graphite); color:var(--cream); display:grid; place-items:center; font:500 13px/1 var(--f-display)}
+
+/* окно «Написать» */
+.fdm{position:fixed; inset:0; z-index:200; background:rgba(21,19,26,.6); display:grid; place-items:center; padding:16px}
+.fdm[hidden]{display:none}
+.fdm-card{position:relative; width:min(440px,100%); background:var(--page); border-radius:14px; padding:28px}
+.fdm-x{position:absolute; top:12px; right:12px; width:40px; height:40px; border-radius:50%; border:0; background:#ECE7E0; font:400 24px/1 var(--f-body); cursor:pointer; color:var(--ink)}
+.mc-status{display:inline-flex; align-items:center; gap:8px; font:600 13px var(--f-body); color:#2E7A3C}
+.mc-status i{width:8px; height:8px; border-radius:50%; background:#3FA34D}
+.fdm-card h2{margin:12px 0 0; font:500 24px/1.2 var(--f-display)}
+.fdm-city{margin:6px 0 0; font:500 14px var(--f-body); color:var(--muted)}
+.fdm-links{display:grid; gap:8px; margin-top:20px}
+.fdm-link{display:flex; align-items:center; justify-content:space-between; gap:10px; background:#fff; border-radius:10px; padding:12px 14px}
+.fdm-link div{min-width:0}
+.fdm-link b{display:block; font:600 14px var(--f-body)}
+.fdm-link span{font:500 14px var(--f-body); color:#5B534B; user-select:all; word-break:break-all}
+.fdm-link button{flex:none; border:1px solid rgba(21,19,26,.15); background:none; border-radius:999px; padding:8px 12px; font:600 13px var(--f-body); cursor:pointer; color:var(--ink)}
+.fdm-link a{flex:none; font:600 13px var(--f-body); color:var(--accent-text)}
+.fdm-note{margin:16px 0 0; font:500 13px/1.55 var(--f-body); color:var(--muted)}
+.fdm button:focus-visible,.fdm a:focus-visible{outline:3px solid var(--peach); outline-offset:2px}
+
+@media (max-width:980px){
+  .fdlist,.fdtrust,.fdmaster{grid-template-columns:1fr}
+}
+@media (max-width:640px){
+  .fdhero{padding-top:104px; padding-bottom:28px}
+  .fdhero .lead{font-size:15px; line-height:1.5; margin-top:12px; color:#B7AEA5}
+  .fdsearch{flex-direction:column; border-radius:16px; padding:8px; margin-top:22px}
+  .fdsearch .btnC{width:100%!important; justify-content:center}
+  .fdhead{flex-direction:column; align-items:stretch}
+  .fdopts{justify-content:space-between}
+  .fdopts select{flex:1; min-width:0}
+  .fdc-works{height:130px}
+  .fdc-body{padding:16px}
+  .fdc-top h3{font-size:16px}
+  .fdc-act .trip{display:none}
+  .fdc-act .btnC{width:auto!important; flex:1; justify-content:center}
+  .fdc-act a{white-space:nowrap}
+  .fdc-ava{margin-top:-30px; width:46px; height:46px}
+  .fdc-top{align-items:flex-start}
+  .fdm-link{flex-wrap:wrap}
+  .fdm-link div{flex-basis:100%}
+  .fdm-link span{word-break:normal}
+  .fdmaster{padding:22px 20px}
+  .fdm{place-items:end center; padding:0}
+  .fdm-card{border-radius:16px 16px 0 0; padding:24px 20px calc(24px + env(safe-area-inset-bottom,0px))}
+}
+@media (prefers-reduced-motion:reduce){ .gltw input,.gltw input::after{transition:none} }
+
+
+.lang-list button.soon{opacity:.45; cursor:default; display:flex; justify-content:space-between; gap:10px} .lang-list button.soon small{font:500 11px var(--f-body)} .lang-list button.soon:hover{background:none}
+</style>
+</head>
+<body>
+<main class="wrap glow">
+<nav class="nav">
+<a class="logo" href="index.html" style="text-decoration:none">FPL<small>by MAGFACE</small></a>
+<a href="games.html">Games</a><a href="rating.html">Rating</a><a href="gallery.html">Gallery</a><a aria-current="page" href="find.html">Find an artist</a><a href="about.html">About</a><a href="rules.html">Rules</a>
+<div class="lang-dd"><button aria-expanded="false" aria-haspopup="true" aria-label="Site language" class="lang-cur" type="button"><svg aria-hidden="true" height="15" viewbox="0 0 24 24" width="15"><g fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18M12 3c2.6 2.8 2.6 15.2 0 18M12 3c-2.6 2.8-2.6 15.2 0 18"></path></g></svg><span data-lang-label>EN</span><svg aria-hidden="true" height="6" viewbox="0 0 10 6" width="9"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"></path></svg></button><ul class="lang-list" hidden><li><button type="button" data-lang="ru" data-short="RU" data-href="ru/find.html">Русский</button></li><li><button type="button" data-lang="en" data-short="EN" data-href="find.html" class="on" aria-current="true">English</button></li><li><button type="button" data-lang="de" data-short="DE" disabled class="soon">Deutsch<small>soon</small></button></li><li><button type="button" data-lang="es" data-short="ES" disabled class="soon">Español<small>soon</small></button></li><li><button type="button" data-lang="fr" data-short="FR" disabled class="soon">Français<small>soon</small></button></li><li><button type="button" data-lang="zh" data-short="中文" disabled class="soon">中文<small>soon</small></button></li><li><button type="button" data-lang="ja" data-short="日本語" disabled class="soon">日本語<small>soon</small></button></li></ul></div>
+<a class="btn-outline" style="border-color:var(--indigo); color:var(--indigo); letter-spacing:.08em" href="https://t.me/facepaintingleaguebot" target="_blank" rel="noopener">Join</a>
+<button aria-controls="mmenu" aria-expanded="false" aria-label="Open menu" class="burger" data-menu-open="" type="button"><span></span><span></span></button>
+</nav>
+<!-- НАЙТИ МАСТЕРА: ШАПКА -->
+<section aria-labelledby="fdtitle" class="heroC fdhero">
+<div class="fdhero-body">
+<span class="eyebrow">For clients</span>
+<h1 id="fdtitle">Find a face <span>painter</span></h1>
+<p class="lead">League artists taking bookings. Each one has works scored by judges, a rating and awards.</p>
+<form class="fdsearch" id="fdForm" role="search">
+<label class="sr" for="fdCity">City</label>
+<input autocomplete="off" id="fdCity" list="fdCities" placeholder="City" type="text"/>
+<datalist id="fdCities"></datalist>
+<button class="btnC" type="submit">Search</button>
+</form>
+</div>
+</section>
+<!-- РЕЗУЛЬТАТЫ -->
+<section aria-labelledby="fdResTitle">
+<div class="fdhead">
+<h2 class="sr" id="fdResTitle">Artists</h2>
+<p aria-live="polite" class="fdcount" id="fdCount"></p>
+<div class="fdopts">
+<label class="gltw"><input id="fdAwards" type="checkbox"/><span>With League awards</span></label>
+<label class="sr" for="fdSort">Sort by</label>
+<select id="fdSort"><option value="rating">By rating</option><option value="works">By TOP WORK</option></select>
+</div>
+</div>
+<div class="fdlist" id="fdList"></div>
+<div class="fdempty" hidden="" id="fdEmpty">
+<b>No artists in this city are taking bookings yet</b>
+<p>Try a nearby city or look at artists who travel across the region.</p>
+<button class="btn-outline" id="fdReset" type="button">Show all</button>
+</div>
+<p class="sec-note" style="margin-top:14px">Artists on this page are placeholders for the mockup.</p>
+</section>
+<!-- ПОЧЕМУ МАСТЕРАМ ЛИГИ МОЖНО ДОВЕРЯТЬ -->
+<section aria-labelledby="trustTitle">
+<h2 class="h2" id="trustTitle" style="margin-bottom:22px">Why <span class="a-pink">League artists</span></h2>
+<div class="fdtrust">
+<article><h3>Works scored by judges</h3><p>Every work in the profile has been scored anonymously by professional judges.</p></article>
+<article><h3>Skill shown by rating</h3><p>The rating and league show an artist's level compared with other participants.</p></article>
+<article><h3>Certificates can be verified</h3><p>You can check a certificate number on the website. <a href="diploma.html">Check a certificate</a></p></article>
+</div>
+<p class="fdnote">You arrange the date, price and materials directly with the artist. The League is not part of the booking and is not responsible for it.</p>
+</section>
+<!-- ДЛЯ МАСТЕРОВ -->
+<section aria-labelledby="fmTitle" class="fdmaster">
+<div>
+<span class="gcard-tag">For League artists</span>
+<h2 class="h2" id="fmTitle">Want to be listed?</h2>
+<p>The listing is free for League participants. It only shows artists who have turned on bookings themselves.</p>
+</div>
+<ol class="fmsteps">
+<li><span>1</span>Open the bot: “Profile” → “Taking bookings”</li>
+<li><span>2</span>Enter the city you work in and whether you travel outside it</li>
+<li><span>3</span>Add a contact where clients can reach you</li>
+</ol>
+</section>
+<!-- ОКНО «НАПИСАТЬ» -->
+<div aria-labelledby="fdmName" aria-modal="true" class="fdm" hidden="" id="fdm" role="dialog">
+<div class="fdm-card">
+<button aria-label="Close" class="fdm-x" id="fdmClose" type="button">×</button>
+<span class="mc-status"><i></i>Taking bookings</span>
+<h2 id="fdmName"></h2>
+<p class="fdm-city" id="fdmCity"></p>
+<div class="fdm-links" id="fdmLinks"></div>
+<p class="fdm-note">Contacts are shown with the artist's consent. Tell them about the event, date and number of guests so the artist can reply faster.</p>
+</div>
+</div>
+<footer class="site-footer">
+<div class="f-brand"><span class="f-logo">FPL</span><p>Face Painting League by MAGFACE. The online league for face painters.</p></div>
+<div><b>League</b><a href="games.html">Games &amp; calendar</a><a href="rating.html">Rating</a><a href="index.html#archive">Hall of Fame</a><a href="about.html#jury">Judges</a><a href="find.html">Find an artist</a></div>
+<div><b>For artists</b><a href="index.html#how">How to join</a><a href="diploma.html">Certificate check</a><a href="rules.html#faq">FAQ</a></div>
+<div><b>Documents</b><a href="rules.html">League Rules</a><a href="privacy.html">Privacy Policy</a><a href="rules.html#docs">Consent to publish works</a></div>
+<div><b>Contacts</b><a href="mailto:info@maskarad-grim.ru">info@maskarad-grim.ru</a><a href="https://t.me/maskarad_grim" target="_blank" rel="noopener">Telegram</a><a href="https://vk.ru/publicmaskarad" target="_blank" rel="noopener">VK</a><a href="https://www.instagram.com/facepaintingleague/" target="_blank" rel="noopener">Instagram*</a></div>
+<p class="f-note">* Instagram is owned by Meta, which is recognized as an extremist organization and banned in Russia.</p>
+<p class="f-copy">© 2026 MAGFACE · Sole proprietor S. O. Afinogenova</p>
+</footer>
+</main>
+<div class="mmenu" hidden="" id="mmenu">
+<div class="mmenu-head"><span class="logo">FPL</span><button aria-label="Close menu" class="burger is-open" data-menu-close="" type="button"><span></span><span></span></button></div>
+<nav aria-label="Site sections" class="mmenu-links"><a href="games.html">Games &amp; calendar <small>Season 1 · Games of the season</small></a>
+<a href="rating.html">Rating <small>Bronze · Silver · Gold leagues</small></a>
+<a href="gallery.html">Gallery <small>best works of the season</small></a>
+<a href="find.html">Find an artist <small>League artists taking bookings</small></a>
+<a href="about.html">About <small>how it works, judges, awards</small></a>
+<a href="rules.html">Rules &amp; FAQ</a></nav>
+<div class="mmenu-foot">
+<a class="btn-wide mm-primary" href="https://t.me/facepaintingleaguebot" target="_blank" rel="noopener">Join</a>
+<a class="btn-wide mm-secondary" href="https://www.instagram.com/facepaintingleague/" target="_blank" rel="noopener">Follow on Instagram*</a>
+<p>Telegram bot · VK · Instagram*</p>
+</div>
+</div>
+<div class="mbar"><a class="btn-wide" href="https://t.me/facepaintingleaguebot" target="_blank" rel="noopener">Join</a><a class="btn-wide" href="https://www.instagram.com/facepaintingleague/" target="_blank" rel="noopener">Instagram*</a></div>
+<script>
+(function(){
+  var menu=document.getElementById('mmenu'); if(!menu) return;
+  function setOpen(o){ menu.hidden=!o; document.body.classList.toggle('menu-open',o);
+    document.querySelectorAll('[data-menu-open]').forEach(function(b){b.setAttribute('aria-expanded',o)}); }
+  document.querySelectorAll('[data-menu-open]').forEach(function(b){ b.addEventListener('click',function(){setOpen(true)}); });
+  menu.querySelectorAll('[data-menu-close], .mmenu-links a').forEach(function(el){ el.addEventListener('click',function(){setOpen(false)}); });
+  document.addEventListener('keydown',function(e){ if(e.key==='Escape') setOpen(false); });
+})();
+</script>
+<script>
+(function(){
+  // переключатель языка (в прототипе переведены первый экран и полоса доверия)
+  var els=[].slice.call(document.querySelectorAll('[data-en]'));
+  els.forEach(function(el){ el.setAttribute('data-ru', el.innerHTML); });
+  var dd=document.querySelector('.lang-dd');
+  if(dd){ var cur=dd.querySelector('.lang-cur'), list=dd.querySelector('.lang-list');
+    function close(){ list.hidden=true; cur.setAttribute('aria-expanded','false'); }
+    cur.addEventListener('click',function(e){ e.stopPropagation(); list.hidden=!list.hidden; cur.setAttribute('aria-expanded', String(!list.hidden)); });
+    document.addEventListener('click',function(e){ if(!dd.contains(e.target)) close(); });
+    document.addEventListener('keydown',function(e){ if(e.key==='Escape') close(); });
+    list.querySelectorAll('button').forEach(function(btn){ btn.addEventListener('click',function(){
+      var lang=btn.getAttribute('data-lang');
+      list.querySelectorAll('button').forEach(function(b){ b.classList.toggle('on', b===btn); if(b===btn) b.setAttribute('aria-current','true'); else b.removeAttribute('aria-current'); });
+      dd.querySelector('[data-lang-label]').textContent=btn.getAttribute('data-short');
+      // в прототипе переведён только английский; для других языков временно показываем английский текст
+      els.forEach(function(el){ var t=el.getAttribute('data-'+lang)||(lang==='ru'?null:el.getAttribute('data-en')); el.innerHTML = t||el.getAttribute('data-ru'); });
+      document.documentElement.lang = lang; close();
+    }); });
+  }
+})();
+</script>
+<script>
+(function(){
+  // ПРИМЕР каталога для макета. На сайте сюда попадают только мастера, включившие в боте «Принимаю заказы».
+  var M=[
+    {name:'Anna Petrova', city:'Saint Petersburg', trip:'travels across Leningrad Oblast', league:'Gold', rating:684, aw:{g:1,tw:3}, tg:'@anna_facepaint', vk:'vk.com/anna.facepaint'},
+    {name:'Maria Ivanova', city:'Moscow', trip:'travels across Moscow Oblast', league:'Gold', rating:671, aw:{s:1,tw:2}, tg:'@maria_grim', vk:''},
+    {name:'Olga Smirnova', city:'Kazan', trip:'', league:'Gold', rating:655, aw:{tw:1}, tg:'@olga_aqua', vk:'vk.com/olga.aqua'},
+    {name:'Aigerim Saparova', city:'Almaty', trip:'travels across the region', league:'Silver', rating:641, aw:{g:1,tw:1}, tg:'@aigerim_art', vk:''},
+    {name:'Elena Volkova', city:'Novosibirsk', trip:'', league:'Silver', rating:612, aw:{}, tg:'@volkova_paint', vk:'vk.com/volkova.paint'},
+    {name:'Daria Kim', city:'Yekaterinburg', trip:'travels up to 50 km', league:'Silver', rating:598, aw:{s:1}, tg:'@dasha_kim_art', vk:''},
+    {name:'Ksenia Orlova', city:'Minsk', trip:'', league:'Silver', rating:577, aw:{b:1}, tg:'@orlova_face', vk:''},
+    {name:'Polina Zaitseva', city:'Samara', trip:'travels across the region', league:'Bronze', rating:512, aw:{tw:1}, tg:'@polina_grim', vk:'vk.com/polina.grim'},
+    {name:'Tatiana Morozova', city:'Moscow', trip:'', league:'Bronze', rating:498, aw:{}, tg:'@morozova_fp', vk:''},
+    {name:'Yulia Sokolova', city:'Saint Petersburg', trip:'', league:'Bronze', rating:471, aw:{}, tg:'@sokolova_bodyart', vk:'vk.com/sokolova.bodyart'}
+  ];
+  var st={city:'', awards:false, sort:'rating'};
+  var HUES=[[24,28,84],[14,24,82],[34,26,80],[8,20,83],[40,22,79]];
+  function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+  function bg(i){ var h=HUES[i%HUES.length]; return 'linear-gradient(160deg,hsl('+h[0]+','+h[1]+'%,'+h[2]+'%),hsl('+(h[0]+8)+','+(h[1]-6)+'%,'+(h[2]-9)+'%))'; }
+  function hasAw(a){ return !!(a.g||a.s||a.b||a.tw); }
+  function plural(n){ var a=n,b=0; return a===1&&b!==11?'artist':(a>=2&&a<=4&&(b<12||b>14)?'artists':'artists'); }
+
+  // подсказки городов и событий
+  var cities=Array.from(new Set(M.map(function(m){return m.city}))).sort();
+  document.getElementById('fdCities').innerHTML=cities.map(function(c){return '<option value="'+esc(c)+'">'}).join('');
+
+  var list=[];
+  function render(){
+    var q=st.city.trim().toLowerCase();
+    list=M.filter(function(m){ return (!q||m.city.toLowerCase().indexOf(q)>-1) && (!st.awards||hasAw(m.aw)); });
+    list.sort(function(a,b){ return st.sort==='works'?((b.aw.tw||0)-(a.aw.tw||0)||b.rating-a.rating):b.rating-a.rating; });
+    document.getElementById('fdCount').textContent=list.length+' '+plural(list.length)+(q?' · '+st.city.trim():'')+' · taking bookings';
+    document.getElementById('fdList').innerHTML=list.map(function(m,i){
+      var a=m.aw, aw='';
+      if(a.g) aw+='<i class="g">1</i>'; if(a.s) aw+='<i class="s">2</i>'; if(a.b) aw+='<i class="b">3</i>';
+      if(a.tw) aw+='<i class="tw">TOP WORK ×'+a.tw+'</i>';
+      aw=aw?aw:'<span>League member</span>';
+      return '<article class="fdc"><div class="fdc-works"><span style="background:'+bg(i)+'">[work]</span><span style="background:'+bg(i+2)+'"></span><span style="background:'+bg(i+3)+'"></span></div>'+
+        '<div class="fdc-body"><div class="fdc-top"><span class="fdc-ava"></span><div><h3>'+esc(m.name)+'</h3><p>'+esc(m.city)+(m.trip?' · '+esc(m.trip):'')+'</p></div>'+
+        '<div class="fdc-rt"><b>'+m.rating+'</b><span class="lgb lgb--'+m.league+'">'+m.league+'</span></div></div>'+
+        '<div class="fdc-aw">'+aw+'</div>'+
+        '<div class="fdc-act"><button class="btnC" type="button" data-i="'+i+'">Message</button><a href="master.html">Profile and works</a></div></div></article>';
+    }).join('');
+    document.getElementById('fdEmpty').hidden=list.length>0;
+    document.querySelectorAll('.fdc-act .btnC').forEach(function(b){ b.addEventListener('click',function(){ openM(list[+b.getAttribute('data-i')]); }); });
+  }
+  document.getElementById('fdForm').addEventListener('submit',function(e){ e.preventDefault(); st.city=document.getElementById('fdCity').value; render(); });
+  document.getElementById('fdCity').addEventListener('change',function(e){ st.city=e.target.value; render(); });
+  document.getElementById('fdAwards').addEventListener('change',function(e){ st.awards=e.target.checked; render(); });
+  document.getElementById('fdSort').addEventListener('change',function(e){ st.sort=e.target.value; render(); });
+  document.getElementById('fdReset').addEventListener('click',function(){ st.city=''; st.awards=false; document.getElementById('fdCity').value=''; document.getElementById('fdAwards').checked=false; render(); });
+
+  // окно с контактами: адрес показываем текстом и даём скопировать
+  var dlg=document.getElementById('fdm'), last=null;
+  function row(label,val,url){
+    return '<div class="fdm-link"><div><b>'+label+'</b><span>'+esc(val)+'</span></div>'+(url?'<a href="'+url+'" target="_blank" rel="noopener">Open</a>':'')+'<button type="button" data-copy="'+esc(val)+'">Copy</button></div>';
+  }
+  function openM(m){
+    last=document.activeElement;
+    document.getElementById('fdmName').textContent=m.name;
+    document.getElementById('fdmCity').textContent=m.city+(m.trip?' · '+m.trip:'');
+    var h=row('Telegram',m.tg,'https://t.me/'+m.tg.replace('@',''));
+    if(m.vk) h+=row('VK',m.vk,'https://'+m.vk);
+    var box=document.getElementById('fdmLinks'); box.innerHTML=h;
+    box.querySelectorAll('[data-copy]').forEach(function(b){ b.addEventListener('click',function(){
+      var v=b.getAttribute('data-copy');
+      function done(){ b.textContent='Copied'; setTimeout(function(){ b.textContent='Copy'; },1600); }
+      try{ navigator.clipboard.writeText(v).then(done,function(){ sel2(b); }); }catch(e){ sel2(b); }
+    });});
+    dlg.hidden=false; document.getElementById('fdmClose').focus();
+  }
+  function sel2(b){ var s=b.parentNode.querySelector('span'); var r=document.createRange(); r.selectNodeContents(s); var w=getSelection(); w.removeAllRanges(); w.addRange(r); }
+  function closeM(){ dlg.hidden=true; if(last) last.focus(); }
+  document.getElementById('fdmClose').addEventListener('click',closeM);
+  dlg.addEventListener('click',function(e){ if(e.target===dlg) closeM(); });
+  document.addEventListener('keydown',function(e){ if(!dlg.hidden&&e.key==='Escape') closeM(); });
+
+  render();
+})();
+</script>
+<script>
+(function(){ var l=document.querySelector('.lang-list'); if(!l) return;
+  l.addEventListener('click',function(e){ var b=e.target.closest('button'); if(!b) return; e.stopPropagation();
+    if(b.disabled) return; var h=b.getAttribute('data-href'); if(h && !b.classList.contains('on')) location.href=h; else l.hidden=true; },true);
+})();
+</script>
+<script src="assets/consent.js?v=1" defer></script>
+</body>
+</html>
