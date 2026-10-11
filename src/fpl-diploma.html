@@ -151,7 +151,7 @@
         <figcaption>Образец</figcaption>
         <div class="dip-in">
           <div class="dip-top"><span class="dip-logo">FPL</span><span class="dip-kind">Диплом участника</span></div>
-          <div class="dip-name">Анна Петрова</div>
+          <div class="dip-name">Имя Фамилия</div>
           <p class="dip-sub">завершила Игру 01 · сезон 1<br>Face Painting League by MAGFACE</p>
           <div class="dip-bot">
             <div class="dmark"><span class="dip-lbl">Номер диплома</span><span class="dip-no">FPL-S1-01-0247</span><i class="dpin">1</i></div>
@@ -177,7 +177,7 @@
       </article>
       <article>
         <h3>Для заказчиков и работодателей</h3>
-        <p>Мастер показал диплом FPL? Проверьте номер здесь. На странице результата есть ссылка на профиль мастера с рейтингом и работами из лиги.</p>
+        <p>Мастер показал диплом FPL? Проверьте номер здесь: вы увидите имя, Игру, лигу и результат.</p>
       </article>
       <article>
         <h3>Не нашли диплом?</h3>
@@ -256,12 +256,13 @@
 </script>
 <script>
 (function(){
-  // ПРИМЕР базы для макета. На сайте номер проверяется по базе дипломов из бота.
-  var DB={
-    'FPL-S1-01-0247':{st:'ok', name:'Анна Петрова', city:'Санкт-Петербург, Россия', game:'Игра 01 · сезон 1', league:'Silver', result:'TOP-10 Игры', note:'Все работы сданы в срок'},
-    'FPL-S1-01-0112':{st:'ok', name:'Мария Иванова', city:'Москва, Россия', game:'Игра 01 · сезон 1', league:'Gold', result:'2 место в лиге', note:'Все работы сданы в срок'},
-    'FPL-S1-01-0999':{st:'rev', name:'Диплом отозван', reason:'Диплом отозван организатором лиги. Если это ваш диплом, напишите нам в бота.'}
-  };
+  // База дипломов — /data/certificates.json: выгружается из базы лиги, только выданные и неотозванные.
+  var DB=null;
+  function getDB(cb){
+    if(DB) return cb(DB);
+    fetch('/data/certificates.json',{cache:'no-cache'}).then(function(r){ return r.ok?r.json():{}; }).catch(function(){ return {}; })
+      .then(function(j){ DB=(j&&j.certificates)||{}; cb(DB); });
+  }
   var form=document.getElementById('dform'), inp=document.getElementById('dno'), out=document.getElementById('dres');
   function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
   // приводим ввод к виду FPL-S1-01-0247: регистр, пробелы, буква O вместо нуля
@@ -283,18 +284,19 @@
       return;
     }
     inp.value=n;
-    var d=DB[n];
-    if(d&&d.st==='ok'){
-      out.innerHTML='<div class="dres dres--ok"><span class="dres-ic">✓</span><div><span class="dres-status">Диплом подтверждён</span><h2>'+esc(d.name)+'</h2><p class="dres-sub">'+esc(d.city)+' · <span style="white-space:nowrap">диплом '+n+'</span></p>'+
-      '<dl><div><dt>Игра</dt><dd>'+esc(d.game)+'</dd></div><div><dt>Лига</dt><dd>'+esc(d.league)+'</dd></div><div><dt>Результат</dt><dd>'+esc(d.result)+'</dd></div><div><dt>Условие</dt><dd>'+esc(d.note)+'</dd></div></dl>'+
-      '<div class="dres-actions"><a class="btn-outline" href="fpl-master.html">Профиль мастера</a><a class="text-link" href="fpl-rating.html">Рейтинг лиги</a></div></div></div>';
-    } else if(d&&d.st==='rev'){
-      out.innerHTML='<div class="dres dres--rev"><span class="dres-ic">!</span><div><span class="dres-status">Недействителен</span><h2>Диплом '+n+' отозван</h2><p class="dres-text">'+esc(d.reason)+'</p></div></div>';
-    } else {
-      out.innerHTML='<div class="dres dres--no"><span class="dres-ic">×</span><div><span class="dres-status">Не найден</span><h2>Диплома '+n+' нет в базе</h2><p class="dres-text">Проверьте номер ещё раз. Если номер верный, а диплом не находится, напишите нам в бота — разберёмся.</p></div></div>';
-    }
+    getDB(function(db){ render(n, db[n]); });
     if(!fromUrl){ try{ history.replaceState(null,'','?n='+n); }catch(e){} }
     if(fromUrl||window.innerWidth<640){ out.scrollIntoView({behavior:'smooth', block:'start'}); }
+  }
+  function render(n, d){
+    if(d){
+      var rows=[['Игра',d.game],['Лига',d.league],['Результат',d.result]].filter(function(x){ return x[1]; });
+      out.innerHTML='<div class="dres dres--ok"><span class="dres-ic">✓</span><div><span class="dres-status">Диплом подтверждён</span><h2>'+esc(d.name)+'</h2><p class="dres-sub"><span style="white-space:nowrap">диплом '+n+'</span></p>'+
+      '<dl>'+rows.map(function(x){ return '<div><dt>'+x[0]+'</dt><dd>'+esc(x[1])+'</dd></div>'; }).join('')+'</dl>'+
+      '<div class="dres-actions"><a class="text-link" href="fpl-rating.html">Рейтинг лиги</a></div></div></div>';
+    } else {
+      out.innerHTML='<div class="dres dres--no"><span class="dres-ic">×</span><div><span class="dres-status">Не найден</span><h2>Диплома '+n+' нет в базе</h2><p class="dres-text">Проверьте номер ещё раз. Дипломы Игры 01 выдаются после финала 10 ноября. Если номер верный, а диплом не находится, напишите нам в бота — разберёмся.</p></div></div>';
+    }
   }
   form.addEventListener('submit',function(e){ e.preventDefault(); show(inp.value,false); });
   // номер из ссылки QR: ?n=FPL-S1-01-0247 или #FPL-S1-01-0247

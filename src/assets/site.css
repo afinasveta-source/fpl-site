@@ -1006,3 +1006,12 @@ section.tile--lemon .h2{color:var(--ink)!important}
 .tw-names{list-style:none; margin:0; padding:0; display:grid; gap:6px}
 .tw-names li{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
 .tw-line{margin-top:8px}
+
+/* «Скоро»: раздел ещё не наполнен настоящими данными */
+.soon{background:#fff; border:1px solid #E2DBD2; border-radius:24px; padding:36px 32px; max-width:860px}
+.soon .h2{margin:14px 0 14px}
+.soon p{font-size:17px; line-height:1.55; margin:0 0 12px; color:#4A423B}
+.soon p:last-child{margin-bottom:0}
+.soon-hero{max-width:760px; padding:24px 0 8px}
+.soon-hero .lead{margin:16px 0 24px}
+@media (max-width:640px){ .soon{padding:26px 20px; border-radius:20px} .soon p{font-size:16px} }

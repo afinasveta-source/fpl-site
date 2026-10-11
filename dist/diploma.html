@@ -226,7 +226,7 @@
 <figcaption>Sample</figcaption>
 <div class="dip-in">
 <div class="dip-top"><span class="dip-logo">FPL</span><span class="dip-kind">Participant certificate</span></div>
-<div class="dip-name">Anna Petrova</div>
+<div class="dip-name">First Last</div>
 <p class="dip-sub">completed Game 01 · Season 1<br/>Face Painting League by MAGFACE</p>
 <div class="dip-bot">
 <div class="dmark"><span class="dip-lbl">Certificate number</span><span class="dip-no">FPL-S1-01-0247</span><i class="dpin">1</i></div>
@@ -251,7 +251,7 @@
 </article>
 <article>
 <h3>For clients and employers</h3>
-<p>An artist showed you an FPL certificate? Check the number here. The result page links to the artist profile with their rating and League works.</p>
+<p>An artist showed you an FPL certificate? Check the number here: you will see the name, Game, league and result.</p>
 </article>
 <article>
 <h3>Can't find a certificate?</h3>
@@ -318,12 +318,13 @@
 </script>
 <script>
 (function(){
-  // ПРИМЕР базы для макета. На сайте номер проверяется по базе дипломов из бота.
-  var DB={
-    'FPL-S1-01-0247':{st:'ok', name:'Anna Petrova', city:'Saint Petersburg, Russia', game:'Game 01 · Season 1', league:'Silver', result:'Game TOP-10', note:'All works submitted on time'},
-    'FPL-S1-01-0112':{st:'ok', name:'Maria Ivanova', city:'Moscow, Russia', game:'Game 01 · Season 1', league:'Gold', result:'2nd place in the league', note:'All works submitted on time'},
-    'FPL-S1-01-0999':{st:'rev', name:'Certificate revoked', reason:'This certificate was revoked by the League organizer. If it is your certificate, message us in the bot.'}
-  };
+  // База дипломов — /data/certificates.json: выгружается из базы лиги, только выданные и неотозванные.
+  var DB=null;
+  function getDB(cb){
+    if(DB) return cb(DB);
+    fetch('/data/certificates.json',{cache:'no-cache'}).then(function(r){ return r.ok?r.json():{}; }).catch(function(){ return {}; })
+      .then(function(j){ DB=(j&&j.certificates)||{}; cb(DB); });
+  }
   var form=document.getElementById('dform'), inp=document.getElementById('dno'), out=document.getElementById('dres');
   function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
   // приводим ввод к виду FPL-S1-01-0247: регистр, пробелы, буква O вместо нуля
@@ -345,18 +346,19 @@
       return;
     }
     inp.value=n;
-    var d=DB[n];
-    if(d&&d.st==='ok'){
-      out.innerHTML='<div class="dres dres--ok"><span class="dres-ic">✓</span><div><span class="dres-status">Certificate verified</span><h2>'+esc(d.name)+'</h2><p class="dres-sub">'+esc(d.city)+' · <span style="white-space:nowrap">certificate '+n+'</span></p>'+
-      '<dl><div><dt>Game</dt><dd>'+esc(d.game)+'</dd></div><div><dt>League</dt><dd>'+esc(d.league)+'</dd></div><div><dt>Result</dt><dd>'+esc(d.result)+'</dd></div><div><dt>Condition</dt><dd>'+esc(d.note)+'</dd></div></dl>'+
-      '<div class="dres-actions"><a class="btn-outline" href="master.html">Artist profile</a><a class="text-link" href="rating.html">League rating</a></div></div></div>';
-    } else if(d&&d.st==='rev'){
-      out.innerHTML='<div class="dres dres--rev"><span class="dres-ic">!</span><div><span class="dres-status">Invalid</span><h2>Certificate '+n+' revoked</h2><p class="dres-text">'+esc(d.reason)+'</p></div></div>';
-    } else {
-      out.innerHTML='<div class="dres dres--no"><span class="dres-ic">×</span><div><span class="dres-status">Not found</span><h2>Certificate '+n+' is not in the database</h2><p class="dres-text">Check the number again. If the number is correct but the certificate is not found, message us in the bot and we’ll sort it out.</p></div></div>';
-    }
+    getDB(function(db){ render(n, db[n]); });
     if(!fromUrl){ try{ history.replaceState(null,'','?n='+n); }catch(e){} }
     if(fromUrl||window.innerWidth<640){ out.scrollIntoView({behavior:'smooth', block:'start'}); }
+  }
+  function render(n, d){
+    if(d){
+      var rows=[['Game',d.game],['League',d.league],['Result',d.result]].filter(function(x){ return x[1]; });
+      out.innerHTML='<div class="dres dres--ok"><span class="dres-ic">✓</span><div><span class="dres-status">Certificate verified</span><h2>'+esc(d.name)+'</h2><p class="dres-sub"><span style="white-space:nowrap">certificate '+n+'</span></p>'+
+      '<dl>'+rows.map(function(x){ return '<div><dt>'+x[0]+'</dt><dd>'+esc(x[1])+'</dd></div>'; }).join('')+'</dl>'+
+      '<div class="dres-actions"><a class="text-link" href="rating.html">League rating</a></div></div></div>';
+    } else {
+      out.innerHTML='<div class="dres dres--no"><span class="dres-ic">×</span><div><span class="dres-status">Not found</span><h2>Certificate '+n+' is not in the database</h2><p class="dres-text">Check the number again. Game 01 certificates are issued after the final on 10 November. If the number is correct but the certificate is not found, message us in the bot and we will look into it.</p></div></div>';
+    }
   }
   form.addEventListener('submit',function(e){ e.preventDefault(); show(inp.value,false); });
   // номер из ссылки QR: ?n=FPL-S1-01-0247 или #FPL-S1-01-0247

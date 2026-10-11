@@ -188,28 +188,14 @@
     </div>
   </section>
 
-  <!-- ФИЛЬТРЫ И СЕТКА -->
-  <section class="glsec" aria-label="Работы">
-    <div class="glbar">
-      <div class="glrow">
-        <div class="tabs" role="tablist" aria-label="Игра" id="fGame">
-          <button role="tab" aria-selected="true" data-v="all">Все Игры</button>
-          <button role="tab" aria-selected="false" data-v="02">Игра 02</button>
-          <button role="tab" aria-selected="false" data-v="01">Игра 01</button>
-        </div>
-        <div class="glsel">
-          <label class="sr" for="fLeague">Лига</label>
-          <select id="fLeague"><option value="all">Все лиги</option><option value="Gold">Gold</option><option value="Silver">Silver</option><option value="Bronze">Bronze</option></select>
-          <label class="gltw"><input type="checkbox" id="fTop"><span>Только TOP WORK</span></label>
-        </div>
-      </div>
-      <div class="gltours" id="fTour" aria-label="Тур"></div>
+  <!-- ГАЛЕРЕЯ ОТКРОЕТСЯ ПОСЛЕ ФИНАЛА -->
+  <section aria-labelledby="glSoon">
+    <div class="soon">
+      <span class="gcard-tag">Скоро</span>
+      <h2 class="h2" id="glSoon">Галерея откроется <span class="a-pink">после финала Игры 01</span></h2>
+      <p>Здесь будут работы участниц — с именем автора, Игрой и туром. Публикуем только работы тех, кто дал согласие на публикацию.</p>
+      <p><a class="text-link" href="games.html#g01">TOP WORK уже объявленных туров — в «Играх»</a></p>
     </div>
-    <p class="glcount" id="glCount" aria-live="polite"></p>
-    <div class="glgrid" id="glGrid"></div>
-    <p class="rempty" id="glEmpty" hidden>По этим фильтрам работ пока нет.</p>
-    <button class="btn-outline glmore" type="button" id="glMore">Показать ещё</button>
-    <p class="sec-note" style="margin-top:14px">Работы на странице — пример для макета.</p>
   </section>
 
   <!-- ПРИЗЫВ -->
@@ -221,22 +207,6 @@
       <a class="btn-wide btn-pink" style="flex:1" href="https://www.instagram.com/facepaintingleague/" target="_blank" rel="noopener">Следить в Instagram*</a>
     </div>
   </section>
-
-  <!-- ПРОСМОТР РАБОТЫ -->
-  <div class="lb" id="lb" hidden role="dialog" aria-modal="true" aria-labelledby="lbTitle">
-    <button class="lb-x" type="button" id="lbClose" aria-label="Закрыть">×</button>
-    <button class="lb-nav lb-prev" type="button" id="lbPrev" aria-label="Предыдущая работа">←</button>
-    <figure class="lb-fig">
-      <div class="lb-img" id="lbImg"></div>
-      <figcaption class="lb-cap">
-        <div class="lb-tags" id="lbTags"></div>
-        <h2 id="lbTitle"></h2>
-        <p id="lbMeta"></p>
-        <a class="lb-author" id="lbAuthor" href="master.html"></a>
-      </figcaption>
-    </figure>
-    <button class="lb-nav lb-next" type="button" id="lbNext" aria-label="Следующая работа">→</button>
-  </div>
 
   <footer class="site-footer">
     <div class="f-brand"><span class="f-logo">FPL</span><p>Face Painting League by MAGFACE. Онлайн-лига аквагримёров.</p></div>
@@ -295,84 +265,6 @@
       document.documentElement.lang = lang; close();
     }); });
   }
-})();
-</script>
-<script>
-(function(){
-  // ПРИМЕР работ для макета. На сайте список приходит из базы бота (работы с согласием на публикацию).
-  var TOURS={'01':[['1','Свободная тема'],['2','Животные'],['3','Цветочный узор'],['4','Космос'],['5','Сказочный персонаж']],
-             '02':[['1','Свободная тема'],['2','Ночной город'],['3','Портрет в цвете'],['4','Морские обитатели']]};
-  var NAMES=['Анна Петрова','Мария Иванова','Lucía Martín','Ольга Смирнова','Айгерим Сапарова','Елена Волкова','Дарья Ким','Nino Beridze','Ксения Орлова','Виктория Лебедева','Полина Зайцева','Татьяна Морозова','Alina Kowalska','Юлия Соколова','Софья Белова'];
-  var CITY=['Санкт-Петербург','Москва','Valencia','Казань','Алматы','Новосибирск','Екатеринбург','Тбилиси','Минск','Краснодар','Самара','Пермь','Warszawa','Воронеж','Ростов-на-Дону'];
-  var LG=['Gold','Gold','Gold','Gold','Silver','Silver','Silver','Silver','Silver','Silver','Bronze','Bronze','Bronze','Bronze','Silver'];
-  var RAT=['4/5','3/4','1/1','4/5','2/3','4/5','3/4','4/5','1/1','3/4'];
-  // тёплые нейтральные заглушки разной тональности, чтобы коллаж читался как набор фото
-  var HUES=[[28,30,86],[18,28,84],[36,26,82],[12,24,85],[42,22,80],[24,18,78],[8,22,83],[32,30,88]];
-  var W=[], seed=7; function rnd(){ seed=(seed*9301+49297)%233280; return seed/233280; }
-  ['02','01'].forEach(function(g){ TOURS[g].slice().reverse().forEach(function(t){
-    var n=g==='01'?6:5;
-    for(var i=0;i<n;i++){
-      var p=Math.floor(rnd()*NAMES.length), h=HUES[Math.floor(rnd()*HUES.length)];
-      W.push({game:g, tour:t[0], theme:t[1], name:NAMES[p], city:CITY[p], league:(g==='01'&&LG[p]==='Bronze')?'Silver':LG[p], tw:i<2, ratio:RAT[Math.floor(rnd()*RAT.length)], hue:h});
-    }
-  });});
-
-  var st={game:'all', tour:'all', league:'all', top:false, shown:24}, list=[];
-  var grid=document.getElementById('glGrid'), more=document.getElementById('glMore'), cnt=document.getElementById('glCount');
-  function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
-  function bg(w){ var h=w.hue; return 'linear-gradient(160deg,hsl('+h[0]+','+h[1]+'%,'+h[2]+'%),hsl('+(h[0]+8)+','+(h[1]-6)+'%,'+(h[2]-9)+'%))'; }
-  function plural(n){ var a=n%10,b=n%100; return a===1&&b!==11?'работа':(a>=2&&a<=4&&(b<12||b>14)?'работы':'работ'); }
-
-  function tours(){
-    var box=document.getElementById('fTour'), h='<button type="button" aria-pressed="'+(st.tour==='all')+'" data-v="all">Все туры</button>';
-    var games=st.game==='all'?['02','01']:[st.game];
-    games.forEach(function(g){ TOURS[g].forEach(function(t){ var v=g+'-'+t[0];
-      h+='<button type="button" aria-pressed="'+(st.tour===v)+'" data-v="'+v+'">'+(st.game==='all'?'Игра '+g+' · ':'')+'Тур '+t[0]+'<span>'+esc(t[1])+'</span></button>'; }); });
-    box.innerHTML=h;
-    box.querySelectorAll('button').forEach(function(b){ b.addEventListener('click',function(){ st.tour=b.getAttribute('data-v'); st.shown=24; tours(); render(); }); });
-  }
-  function render(){
-    list=W.filter(function(w){
-      return (st.game==='all'||w.game===st.game) && (st.tour==='all'||st.tour===w.game+'-'+w.tour) && (st.league==='all'||w.league===st.league) && (!st.top||w.tw);
-    });
-    cnt.textContent=list.length+' '+plural(list.length);
-    grid.innerHTML=list.slice(0,st.shown).map(function(w,i){
-      return '<button class="glw" type="button" data-i="'+i+'" aria-label="'+esc(w.theme)+', '+esc(w.name)+'"><span class="glw-img" style="aspect-ratio:'+w.ratio+';background:'+bg(w)+'">[работа]</span>'+(w.tw?'<span class="glw-tw">TOP WORK</span>':'')+'<span class="glw-cap"><b>'+esc(w.name)+'</b><span>Игра '+w.game+' · Тур '+w.tour+'</span></span></button>';
-    }).join('');
-    document.getElementById('glEmpty').hidden=list.length>0;
-    more.hidden=list.length<=st.shown;
-    grid.querySelectorAll('.glw').forEach(function(b){ b.addEventListener('click',function(){ open(+b.getAttribute('data-i')); }); });
-  }
-  document.querySelectorAll('#fGame button').forEach(function(b){ b.addEventListener('click',function(){
-    document.querySelectorAll('#fGame button').forEach(function(x){ x.setAttribute('aria-selected', x===b); });
-    st.game=b.getAttribute('data-v'); st.tour='all'; st.shown=24; tours(); render(); }); });
-  document.getElementById('fLeague').addEventListener('change',function(e){ st.league=e.target.value; st.shown=24; render(); });
-  document.getElementById('fTop').addEventListener('change',function(e){ st.top=e.target.checked; st.shown=24; render(); });
-  more.addEventListener('click',function(){ st.shown+=24; render(); });
-
-  // просмотр работы
-  var lb=document.getElementById('lb'), cur=0, lastFocus=null;
-  function fill(){
-    var w=list[cur];
-    var img=document.getElementById('lbImg'); img.style.background=bg(w); img.style.aspectRatio=w.ratio; img.textContent='[работа]';
-    document.getElementById('lbTags').innerHTML='<span class="lgb lgb--'+w.league+'">'+w.league+'</span>'+(w.tw?'<span class="lb-tw">TOP WORK</span>':'');
-    document.getElementById('lbTitle').textContent='«'+w.theme+'»';
-    document.getElementById('lbMeta').textContent='Игра '+w.game+' · Тур '+w.tour+' · сезон 1';
-    document.getElementById('lbAuthor').textContent=w.name+', '+w.city+' →';
-  }
-  function open(i){ cur=i; lastFocus=document.activeElement; fill(); lb.hidden=false; document.body.style.overflow='hidden'; document.getElementById('lbClose').focus(); }
-  function close(){ lb.hidden=true; document.body.style.overflow=''; if(lastFocus) lastFocus.focus(); }
-  function step(d){ cur=(cur+d+list.length)%list.length; fill(); }
-  document.getElementById('lbClose').addEventListener('click',close);
-  document.getElementById('lbPrev').addEventListener('click',function(){ step(-1); });
-  document.getElementById('lbNext').addEventListener('click',function(){ step(1); });
-  lb.addEventListener('click',function(e){ if(e.target===lb) close(); });
-  document.addEventListener('keydown',function(e){ if(lb.hidden) return; if(e.key==='Escape') close(); if(e.key==='ArrowLeft') step(-1); if(e.key==='ArrowRight') step(1); });
-  // свайп на телефоне
-  var x0=null; lb.addEventListener('touchstart',function(e){ x0=e.touches[0].clientX; },{passive:true});
-  lb.addEventListener('touchend',function(e){ if(x0===null) return; var dx=e.changedTouches[0].clientX-x0; if(Math.abs(dx)>50) step(dx<0?1:-1); x0=null; });
-
-  tours(); render();
 })();
 </script>
 

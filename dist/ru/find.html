@@ -218,33 +218,17 @@
       <span class="eyebrow">Для заказчиков</span>
       <h1 id="fdtitle">Найти мастера <span>аквагрима</span></h1>
       <p class="lead">Мастера лиги, которые принимают заказы. У каждого — работы, оценённые жюри, рейтинг и награды.</p>
-      <form class="fdsearch" id="fdForm" role="search">
-        <label class="sr" for="fdCity">Город</label>
-        <input id="fdCity" list="fdCities" type="text" placeholder="Город" autocomplete="off">
-        <datalist id="fdCities"></datalist>
-        <button class="btnC" type="submit">Найти</button>
-      </form>
     </div>
   </section>
 
-  <!-- РЕЗУЛЬТАТЫ -->
-  <section aria-labelledby="fdResTitle">
-    <div class="fdhead">
-      <h2 class="sr" id="fdResTitle">Мастера</h2>
-      <p class="fdcount" id="fdCount" aria-live="polite"></p>
-      <div class="fdopts">
-        <label class="gltw"><input type="checkbox" id="fdAwards"><span>С наградами лиги</span></label>
-        <label class="sr" for="fdSort">Сортировка</label>
-        <select id="fdSort"><option value="rating">По рейтингу</option><option value="works">По TOP WORK</option></select>
-      </div>
+  <!-- КАТАЛОГ ОТКРОЕТСЯ ПОСЛЕ ФИНАЛА -->
+  <section aria-labelledby="fdSoon">
+    <div class="soon">
+      <span class="gcard-tag">Скоро</span>
+      <h2 class="h2" id="fdSoon">Каталог откроется <span class="a-pink">после финала Игры 01</span></h2>
+      <p>После финала участницы смогут включить в боте приём заказов, указать город и контакт. В каталоге появятся только те, кто сам это включит.</p>
+      <p><a class="text-link" href="rating.html">Пока — рейтинг мастеров лиги</a></p>
     </div>
-    <div class="fdlist" id="fdList"></div>
-    <div class="fdempty" id="fdEmpty" hidden>
-      <b>В этом городе пока нет мастеров с открытыми заказами</b>
-      <p>Попробуйте соседний город или посмотрите мастеров, которые выезжают по области.</p>
-      <button class="btn-outline" type="button" id="fdReset">Показать всех</button>
-    </div>
-    <p class="sec-note" style="margin-top:14px">Мастера на странице — пример для макета.</p>
   </section>
 
   <!-- ПОЧЕМУ МАСТЕРАМ ЛИГИ МОЖНО ДОВЕРЯТЬ -->
@@ -266,23 +250,11 @@
       <p>Каталог бесплатный для участников лиги. В нём показываются только те, кто сам включил приём заказов.</p>
     </div>
     <ol class="fmsteps">
-      <li><span>1</span>Откройте бота: «Профиль» → «Принимаю заказы»</li>
+      <li><span>1</span>После финала бот предложит включить приём заказов</li>
       <li><span>2</span>Укажите город, где работаете, и выезжаете ли за его пределы</li>
       <li><span>3</span>Добавьте контакт, по которому вам напишут клиенты</li>
     </ol>
   </section>
-
-  <!-- ОКНО «НАПИСАТЬ» -->
-  <div class="fdm" id="fdm" hidden role="dialog" aria-modal="true" aria-labelledby="fdmName">
-    <div class="fdm-card">
-      <button class="fdm-x" type="button" id="fdmClose" aria-label="Закрыть">×</button>
-      <span class="mc-status"><i></i>Принимает заказы</span>
-      <h2 id="fdmName"></h2>
-      <p class="fdm-city" id="fdmCity"></p>
-      <div class="fdm-links" id="fdmLinks"></div>
-      <p class="fdm-note">Контакты показаны с согласия мастера. Расскажите о событии, дате и количестве гостей — так мастер быстрее ответит.</p>
-    </div>
-  </div>
 
   <footer class="site-footer">
     <div class="f-brand"><span class="f-logo">FPL</span><p>Face Painting League by MAGFACE. Онлайн-лига аквагримёров.</p></div>
@@ -341,86 +313,6 @@
       document.documentElement.lang = lang; close();
     }); });
   }
-})();
-</script>
-<script>
-(function(){
-  // ПРИМЕР каталога для макета. На сайте сюда попадают только мастера, включившие в боте «Принимаю заказы».
-  var M=[
-    {name:'Анна Петрова', city:'Санкт-Петербург', trip:'выезд по Ленобласти', league:'Gold', rating:684, aw:{g:1,tw:3}, tg:'@anna_facepaint', vk:'vk.com/anna.facepaint'},
-    {name:'Мария Иванова', city:'Москва', trip:'выезд по Подмосковью', league:'Gold', rating:671, aw:{s:1,tw:2}, tg:'@maria_grim', vk:''},
-    {name:'Ольга Смирнова', city:'Казань', trip:'', league:'Gold', rating:655, aw:{tw:1}, tg:'@olga_aqua', vk:'vk.com/olga.aqua'},
-    {name:'Айгерим Сапарова', city:'Алматы', trip:'выезд по области', league:'Silver', rating:641, aw:{g:1,tw:1}, tg:'@aigerim_art', vk:''},
-    {name:'Елена Волкова', city:'Новосибирск', trip:'', league:'Silver', rating:612, aw:{}, tg:'@volkova_paint', vk:'vk.com/volkova.paint'},
-    {name:'Дарья Ким', city:'Екатеринбург', trip:'выезд до 50 км', league:'Silver', rating:598, aw:{s:1}, tg:'@dasha_kim_art', vk:''},
-    {name:'Ксения Орлова', city:'Минск', trip:'', league:'Silver', rating:577, aw:{b:1}, tg:'@orlova_face', vk:''},
-    {name:'Полина Зайцева', city:'Самара', trip:'выезд по области', league:'Bronze', rating:512, aw:{tw:1}, tg:'@polina_grim', vk:'vk.com/polina.grim'},
-    {name:'Татьяна Морозова', city:'Москва', trip:'', league:'Bronze', rating:498, aw:{}, tg:'@morozova_fp', vk:''},
-    {name:'Юлия Соколова', city:'Санкт-Петербург', trip:'', league:'Bronze', rating:471, aw:{}, tg:'@sokolova_bodyart', vk:'vk.com/sokolova.bodyart'}
-  ];
-  var st={city:'', awards:false, sort:'rating'};
-  var HUES=[[24,28,84],[14,24,82],[34,26,80],[8,20,83],[40,22,79]];
-  function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
-  function bg(i){ var h=HUES[i%HUES.length]; return 'linear-gradient(160deg,hsl('+h[0]+','+h[1]+'%,'+h[2]+'%),hsl('+(h[0]+8)+','+(h[1]-6)+'%,'+(h[2]-9)+'%))'; }
-  function hasAw(a){ return !!(a.g||a.s||a.b||a.tw); }
-  function plural(n){ var a=n%10,b=n%100; return a===1&&b!==11?'мастер':(a>=2&&a<=4&&(b<12||b>14)?'мастера':'мастеров'); }
-
-  // подсказки городов и событий
-  var cities=Array.from(new Set(M.map(function(m){return m.city}))).sort();
-  document.getElementById('fdCities').innerHTML=cities.map(function(c){return '<option value="'+esc(c)+'">'}).join('');
-
-  var list=[];
-  function render(){
-    var q=st.city.trim().toLowerCase();
-    list=M.filter(function(m){ return (!q||m.city.toLowerCase().indexOf(q)>-1) && (!st.awards||hasAw(m.aw)); });
-    list.sort(function(a,b){ return st.sort==='works'?((b.aw.tw||0)-(a.aw.tw||0)||b.rating-a.rating):b.rating-a.rating; });
-    document.getElementById('fdCount').textContent=list.length+' '+plural(list.length)+(q?' · '+st.city.trim():'')+' · принимают заказы';
-    document.getElementById('fdList').innerHTML=list.map(function(m,i){
-      var a=m.aw, aw='';
-      if(a.g) aw+='<i class="g">1</i>'; if(a.s) aw+='<i class="s">2</i>'; if(a.b) aw+='<i class="b">3</i>';
-      if(a.tw) aw+='<i class="tw">TOP WORK ×'+a.tw+'</i>';
-      aw=aw?aw:'<span>Участник лиги</span>';
-      return '<article class="fdc"><div class="fdc-works"><span style="background:'+bg(i)+'">[работа]</span><span style="background:'+bg(i+2)+'"></span><span style="background:'+bg(i+3)+'"></span></div>'+
-        '<div class="fdc-body"><div class="fdc-top"><span class="fdc-ava"></span><div><h3>'+esc(m.name)+'</h3><p>'+esc(m.city)+(m.trip?' · '+esc(m.trip):'')+'</p></div>'+
-        '<div class="fdc-rt"><b>'+m.rating+'</b><span class="lgb lgb--'+m.league+'">'+m.league+'</span></div></div>'+
-        '<div class="fdc-aw">'+aw+'</div>'+
-        '<div class="fdc-act"><button class="btnC" type="button" data-i="'+i+'">Написать</button><a href="master.html">Профиль и работы</a></div></div></article>';
-    }).join('');
-    document.getElementById('fdEmpty').hidden=list.length>0;
-    document.querySelectorAll('.fdc-act .btnC').forEach(function(b){ b.addEventListener('click',function(){ openM(list[+b.getAttribute('data-i')]); }); });
-  }
-  document.getElementById('fdForm').addEventListener('submit',function(e){ e.preventDefault(); st.city=document.getElementById('fdCity').value; render(); });
-  document.getElementById('fdCity').addEventListener('change',function(e){ st.city=e.target.value; render(); });
-  document.getElementById('fdAwards').addEventListener('change',function(e){ st.awards=e.target.checked; render(); });
-  document.getElementById('fdSort').addEventListener('change',function(e){ st.sort=e.target.value; render(); });
-  document.getElementById('fdReset').addEventListener('click',function(){ st.city=''; st.awards=false; document.getElementById('fdCity').value=''; document.getElementById('fdAwards').checked=false; render(); });
-
-  // окно с контактами: адрес показываем текстом и даём скопировать
-  var dlg=document.getElementById('fdm'), last=null;
-  function row(label,val,url){
-    return '<div class="fdm-link"><div><b>'+label+'</b><span>'+esc(val)+'</span></div>'+(url?'<a href="'+url+'" target="_blank" rel="noopener">Открыть</a>':'')+'<button type="button" data-copy="'+esc(val)+'">Копировать</button></div>';
-  }
-  function openM(m){
-    last=document.activeElement;
-    document.getElementById('fdmName').textContent=m.name;
-    document.getElementById('fdmCity').textContent=m.city+(m.trip?' · '+m.trip:'');
-    var h=row('Telegram',m.tg,'https://t.me/'+m.tg.replace('@',''));
-    if(m.vk) h+=row('ВКонтакте',m.vk,'https://'+m.vk);
-    var box=document.getElementById('fdmLinks'); box.innerHTML=h;
-    box.querySelectorAll('[data-copy]').forEach(function(b){ b.addEventListener('click',function(){
-      var v=b.getAttribute('data-copy');
-      function done(){ b.textContent='Скопировано'; setTimeout(function(){ b.textContent='Копировать'; },1600); }
-      try{ navigator.clipboard.writeText(v).then(done,function(){ sel2(b); }); }catch(e){ sel2(b); }
-    });});
-    dlg.hidden=false; document.getElementById('fdmClose').focus();
-  }
-  function sel2(b){ var s=b.parentNode.querySelector('span'); var r=document.createRange(); r.selectNodeContents(s); var w=getSelection(); w.removeAllRanges(); w.addRange(r); }
-  function closeM(){ dlg.hidden=true; if(last) last.focus(); }
-  document.getElementById('fdmClose').addEventListener('click',closeM);
-  dlg.addEventListener('click',function(e){ if(e.target===dlg) closeM(); });
-  document.addEventListener('keydown',function(e){ if(!dlg.hidden&&e.key==='Escape') closeM(); });
-
-  render();
 })();
 </script>
 

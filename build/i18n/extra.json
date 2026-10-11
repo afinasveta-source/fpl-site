@@ -51,6 +51,41 @@
   "@Имя": "@Name",
   "Игра 01: <span class=\"a-pink\">TOP WORK</span>": "Game 01: <span class=\"a-pink\">TOP WORK</span>",
   "Лучшие работы туров, итоги которых уже объявлены. Баллы и места участниц не публикуются — свой результат каждая видит в боте.": "The best works of rounds whose results have been announced. Scores and places are not published — every artist sees her own result in the bot.",
-  "<a class=\"btnC\" data-en=\"Join the next Game →\" href=\"#how\">Участвовать в следующей Игре →</a>\n<a class=\"linkC\" data-fpl-after=\"link\" href=\"rating.html\">Рейтинг после 1 тура</a>": "<a class=\"btnC\" data-en=\"Join the next Game →\" href=\"#how\">Join the next Game →</a>\n<a class=\"linkC\" data-fpl-after=\"link\" href=\"rating.html\">Rating after round 1</a>"
+  "<a class=\"btnC\" data-en=\"Join the next Game →\" href=\"#how\">Участвовать в следующей Игре →</a>\n<a class=\"linkC\" data-fpl-after=\"link\" href=\"rating.html\">Рейтинг после 1 тура</a>": "<a class=\"btnC\" data-en=\"Join the next Game →\" href=\"#how\">Join the next Game →</a>\n<a class=\"linkC\" data-fpl-after=\"link\" href=\"rating.html\">Rating after round 1</a>",
+  "<b>ПЕРВЫЙ ТУР</b><br/>Задание: тема тура и референсы<br/>Сдать до: дата и время по Москве": "<b>ROUND ONE</b><br/>Brief: the round theme and references<br/>Submit by: date and time (Moscow)",
+  "Имя Фамилия": "First Last",
+  "Город · в лиге с сезона 1": "City · in the league since season 1",
+  "Работы призёров Игры 01 появятся здесь после финала 10 ноября. Лучшие работы уже объявленных туров — в разделе «Игры».": "Works by the Game 01 winners will appear here after the final on 10 November. The best works of rounds already announced are on the Games page.",
+  "<a class=\"text-link\" href=\"games.html#g01\">TOP WORK туров</a>": "<a class=\"text-link\" href=\"games.html#g01\">TOP WORK by round</a>",
+  "Дипломы Игры 01 выдаются после финала 10 ноября.": "Game 01 certificates are issued after the final on 10 November.",
+  "<span>Мы в соцсетях</span>\n<a href=\"#\"><span>Instagram* <small>@facepaintingleague</small></span><i>→</i></a>\n<a href=\"#\">Telegram<i>→</i></a>\n<a href=\"#\">ВКонтакте<i>→</i></a>": "<span>Follow us</span>\n<a href=\"#\"><span>Instagram* <small>@facepaintingleague</small></span><i>→</i></a>\n<a href=\"#\">Telegram<i>→</i></a>\n<a href=\"#\">VK<i>→</i></a>",
+  "Мастер лиги": "League artist",
+  "Страницы <span>мастеров</span>": "Artist <span>pages</span>",
+  "Появятся после финала Игры 01: рейтинг, награды и работы из лиги — у тех, кто разрешит публичную страницу.": "Coming after the Game 01 final: rating, awards and League works — for artists who allow a public page.",
+  "<a class=\"btnC\" href=\"rating.html\">Рейтинг мастеров</a>": "<a class=\"btnC\" href=\"rating.html\">Artist rating</a>",
+  "Скоро": "Coming soon",
+  "Галерея откроется <span class=\"a-pink\">после финала Игры 01</span>": "The gallery opens <span class=\"a-pink\">after the Game 01 final</span>",
+  "Здесь будут работы участниц — с именем автора, Игрой и туром. Публикуем только работы тех, кто дал согласие на публикацию.": "Works will appear here with the artist’s name, Game and round. We only publish works of artists who have consented to publication.",
+  "<a class=\"text-link\" href=\"games.html#g01\">TOP WORK уже объявленных туров — в «Играх»</a>": "<a class=\"text-link\" href=\"games.html#g01\">TOP WORK of rounds already announced — on the Games page</a>",
+  "Каталог откроется <span class=\"a-pink\">после финала Игры 01</span>": "The directory opens <span class=\"a-pink\">after the Game 01 final</span>",
+  "После финала участницы смогут включить в боте приём заказов, указать город и контакт. В каталоге появятся только те, кто сам это включит.": "After the final, artists will be able to turn on bookings in the bot and add their city and contact. Only artists who turn it on themselves will be listed.",
+  "<a class=\"text-link\" href=\"rating.html\">Пока — рейтинг мастеров лиги</a>": "<a class=\"text-link\" href=\"rating.html\">Meanwhile — the League artist rating</a>",
+  "<span>1</span>После финала бот предложит включить приём заказов": "<span>1</span>After the final, the bot will offer to turn on bookings",
+  "Мастер показал диплом FPL? Проверьте номер здесь: вы увидите имя, Игру, лигу и результат.": "An artist showed you an FPL certificate? Check the number here: you will see the name, Game, league and result.",
+  "ИП Афиногенова Светлана Олеговна · ИНН 784101042100 · ОГРНИП 313784708500435": "Sole proprietor Svetlana Afinogenova · INN 784101042100 · OGRNIP 313784708500435",
+  "<b data-en=\"Online\">Онлайн</b><span data-en=\"join from any country\">участие из любой страны</span>": "<b data-en=\"Online\">Online</b><span data-en=\"join from any country\">join from any country</span>",
+  "Хочешь свою <span class=\"a-lemon\">страницу мастера?</span>": "Want your own <span class=\"a-lemon\">artist page?</span>",
+  "Играй в лиге: после финала Игры 01 страницу можно будет открыть в боте. Рейтинг, награды и работы пополняются с каждой Игрой.": "Play in the League: after the Game 01 final you will be able to open your page in the bot. Rating, awards and works grow with every Game."
+ },
+ "js": {
+  "diploma": {
+   "[['Игра',d.game],['Лига',d.league],['Результат',d.result]]": "[['Game',d.game],['League',d.league],['Result',d.result]]",
+   "<span class=\"dres-status\">Диплом подтверждён</span>": "<span class=\"dres-status\">Certificate confirmed</span>",
+   "<span style=\"white-space:nowrap\">диплом '+n": "<span style=\"white-space:nowrap\">certificate '+n",
+   ">Рейтинг лиги</a>": ">League rating</a>",
+   "<span class=\"dres-status\">Не найден</span><h2>Диплома '+n+' нет в базе</h2>": "<span class=\"dres-status\">Not found</span><h2>Certificate '+n+' is not in the database</h2>",
+   "Проверьте номер ещё раз. Дипломы Игры 01 выдаются после финала 10 ноября. Если номер верный, а диплом не находится, напишите нам в бота — разберёмся.": "Check the number again. Game 01 certificates are issued after the final on 10 November. If the number is correct but the certificate is not found, message us in the bot and we will look into it.",
+   "+' нет в базе</h2>": "+' is not in the database</h2>"
+  }
  }
 }

@@ -30,7 +30,7 @@ def fix(s, en):
     s = s.replace('<a href="#">Instagram*</a>', f'<a href="{IG}"{EXT}>Instagram*</a>')
     s = s.replace('<a href="#">Telegram<i>→</i></a>', f'<a href="{TG}"{EXT}>Telegram<i>→</i></a>')
     s = s.replace('<a href="#">ВКонтакте<i>→</i></a>', f'<a href="{VK}"{EXT}>ВКонтакте<i>→</i></a>').replace('<a href="#">VK<i>→</i></a>', f'<a href="{VK}"{EXT}>VK<i>→</i></a>')
-    s = re.sub(r'<a href="#">(<span>)?Instagram\* <small>@\[(?:ник|handle)\]</small>', lambda m: f'<a href="{IG}"{EXT}>{m.group(1) or ""}Instagram* <small>@facepaintingleague</small>', s)
+    s = re.sub(r'<a href="#">(<span>)?Instagram\* <small>@(?:\[(?:ник|handle)\]|facepaintingleague)</small>', lambda m: f'<a href="{IG}"{EXT}>{m.group(1) or ""}Instagram* <small>@facepaintingleague</small>', s)
     # «Участвовать →» и документы/вопросы в боте
     for t in ['Участвовать →', 'Join →', 'Задать вопрос в боте', 'Ask in the bot', 'Читать в боте', 'Read in the bot']:
         s = re.sub(r'<a class="(btnC|ghostC)" href="#">' + re.escape(t) + '</a>', lambda m: f'<a class="{m.group(1)}" href="{JOIN}"{EXT}>{t}</a>', s)

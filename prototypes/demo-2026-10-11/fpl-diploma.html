@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Проверка диплома · FPL</title>
+<link rel="stylesheet" href="assets/site.css">
+<style>
+/* =========================================================
+   ПРОВЕРКА ДИПЛОМА
+   ========================================================= */
+.dhero{padding-top:120px; padding-bottom:48px}
+.dhero-body{display:grid; grid-template-columns:1.1fr 1fr; gap:56px; align-items:end}
+.dhero h1{margin:20px 0 0; font:400 clamp(32px,3.9vw,56px)/1.08 var(--f-display); letter-spacing:-.03em; color:var(--cream)}
+.dhero h1 span{color:var(--peach)}
+.dhero .lead{margin:20px 0 0; font:400 18px/1.6 var(--f-body); color:#CFC7BE; max-width:520px}
+.dform{background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.09); border-radius:12px; padding:24px}
+.dform label{display:block; font:600 11px/1 var(--f-body); letter-spacing:.16em; text-transform:uppercase; color:#9C9188; margin-bottom:12px}
+.dform-row{display:flex; gap:8px}
+.dform input{flex:1; min-width:0; background:#fff; border:0; border-radius:999px; padding:15px 20px; font:600 18px/1 var(--f-body); letter-spacing:.08em; color:var(--ink); text-transform:uppercase}
+.dform input::placeholder{color:#B9AEA2; letter-spacing:.08em}
+.dform input:focus-visible,.dform .btnC:focus-visible{outline:3px solid var(--peach); outline-offset:2px}
+.dform .btnC{border:0; cursor:pointer; flex:none}
+.dhint{margin:12px 0 0; font:500 13px/1.5 var(--f-body); color:#9C9188}
+
+/* результат */
+.dres-wrap{padding-top:0!important}
+.dres{display:grid; grid-template-columns:auto 1fr; gap:24px; align-items:start; background:#fff; border-radius:12px; padding:28px; border-left:4px solid var(--c)}
+.dres--ok{--c:#3FA34D} .dres--no{--c:#B3261E} .dres--rev{--c:#B8901F}
+.dres-ic{width:56px; height:56px; border-radius:50%; display:grid; place-items:center; font:600 24px/1 var(--f-body); color:#fff; background:var(--c)}
+.dres-status{font:600 11px/1 var(--f-body); letter-spacing:.16em; text-transform:uppercase; color:var(--c)}
+.dres h2{margin:10px 0 0; font:500 clamp(24px,2.6vw,34px)/1.15 var(--f-display); letter-spacing:-.02em}
+.dres-sub{margin:6px 0 0; font:500 15px var(--f-body); color:var(--muted)}
+.dres dl{margin:20px 0 0; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; padding-top:18px; border-top:1px solid #EFE9E2}
+.dres dt{font:600 11px/1 var(--f-body); letter-spacing:.14em; text-transform:uppercase; color:var(--muted)}
+.dres dd{margin:8px 0 0; font:600 15px/1.4 var(--f-body)}
+.dres-actions{display:flex; gap:18px; flex-wrap:wrap; align-items:center; margin-top:20px}
+.dres-actions .btn-outline{text-decoration:none; display:inline-block}
+.dres p.dres-text{margin:12px 0 0; font:500 15px/1.6 var(--f-body); color:#3A342F; max-width:620px}
+
+/* где найти номер */
+.dwhere{display:grid; grid-template-columns:1fr 1fr; gap:28px; align-items:center}
+.dmock{transform:rotate(-1.5deg)}
+.dip-in{border:1px solid #EDE5DA; padding:22px 24px}
+.dip-top{display:flex; justify-content:space-between; align-items:center}
+.dip-logo{font:700 24px/1 var(--f-display); color:var(--indigo)}
+.dip-kind{font:600 11px/1 var(--f-body); letter-spacing:.18em; text-transform:uppercase; color:var(--muted)}
+.dmock .dip-name{margin-top:26px}
+.dip-sub{margin:8px 0 0; font:500 14px/1.5 var(--f-body); color:#5B534B}
+.dip-bot{display:flex; justify-content:space-between; align-items:flex-end; margin-top:26px; padding-top:16px; border-top:1px solid #EDE5DA}
+.dmark,.dqr{position:relative}
+.dip-lbl{display:block; font:600 10px/1 var(--f-body); letter-spacing:.16em; text-transform:uppercase; color:var(--muted); margin-bottom:8px}
+.dip-no{font:600 17px/1 var(--f-body); letter-spacing:.08em; outline:2px solid var(--indigo); outline-offset:5px; border-radius:2px}
+.dqr-box{display:block; width:62px; height:62px; outline:2px solid var(--indigo); outline-offset:4px;
+  background:
+    linear-gradient(#15131A,#15131A) 0 0/18px 18px no-repeat,
+    linear-gradient(#15131A,#15131A) 100% 0/18px 18px no-repeat,
+    linear-gradient(#15131A,#15131A) 0 100%/18px 18px no-repeat,
+    repeating-conic-gradient(#15131A 0 25%, #fff 0 50%) 50% 50%/10px 10px}
+.dpin{position:absolute; top:-30px; right:-14px; width:24px; height:24px; border-radius:50%; background:var(--indigo); color:var(--ink); display:grid; place-items:center; font:700 12px/1 var(--f-body); font-style:normal}
+.dsteps{list-style:none; margin:0; padding:0; display:grid; gap:12px}
+.dsteps li{display:flex; gap:14px; background:#fff; border-radius:12px; padding:18px 20px}
+.dsteps li > i{flex:none; width:28px; height:28px; border-radius:50%; background:var(--indigo); color:var(--ink); display:grid; place-items:center; font:700 13px/1 var(--f-body); font-style:normal}
+.dsteps b{font:500 16px/1.2 var(--f-display)}
+.dsteps p{margin:6px 0 0; font:500 14px/1.5 var(--f-body); color:#5B534B}
+.dfmt,.dfmt-l{display:grid; grid-template-columns:auto auto 1fr; gap:0 10px; margin:10px 0 0!important}
+.dfmt span{font:600 20px/1 var(--f-body)!important; letter-spacing:.08em; color:var(--ink)!important; padding-bottom:8px; border-bottom:2px solid var(--peach)}
+.dfmt span:nth-child(2){border-color:var(--indigo)} .dfmt span:nth-child(3){border-color:var(--graphite); justify-self:start}
+.dfmt-l{margin-top:6px!important}
+.dfmt-l span{font:500 12px var(--f-body); color:var(--muted)}
+
+/* кому выдаётся */
+.dwho{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px}
+.dwho article{background:#fff; border-radius:12px; padding:24px}
+.dwho h3{margin:0; font:500 18px/1.25 var(--f-display)}
+.dwho p{margin:10px 0 0; font:500 15px/1.6 var(--f-body); color:#3A342F}
+
+@media (max-width:980px){
+  .dhero-body,.dwhere{grid-template-columns:1fr}
+  .dwho{grid-template-columns:1fr}
+  .dres dl{grid-template-columns:1fr 1fr}
+  .dmock{transform:none; max-width:520px}
+}
+@media (max-width:640px){
+  .dhero{padding-top:104px; padding-bottom:28px}
+  .dhero-body{gap:24px}
+  .dhero .lead{font-size:15px; line-height:1.5; margin-top:12px; color:#B7AEA5}
+  .dform{padding:18px}
+  .dform-row{flex-direction:column}
+  .dform input{font-size:17px; padding:14px 18px}
+  .dform .btnC{width:100%!important; justify-content:center}
+  .dres{grid-template-columns:1fr; gap:14px; padding:22px 20px}
+  .dres-ic{width:44px; height:44px; font-size:20px}
+  .dres dl{grid-template-columns:1fr 1fr; gap:14px}
+  .dip-in{padding:18px}
+  .dip-no{font-size:15px}
+  .dqr-box{width:52px; height:52px}
+  .dwho article{padding:20px}
+}
+
+
+.dqr-svg{display:block; width:62px; height:62px; background:#fff; outline:2px solid var(--indigo); outline-offset:4px}
+.dmark .dpin{top:-6px; right:auto; left:calc(100% + 12px)}
+.dqr .dpin{top:-34px; right:-12px}
+.dfmt{display:flex!important; gap:14px; margin:12px 0 0!important; flex-wrap:wrap}
+.dfmt span{display:flex; flex-direction:column; gap:6px; font:500 12px var(--f-body)!important; color:var(--muted)!important; letter-spacing:0; padding:0!important; border:0!important}
+.dfmt b{font:600 20px/1 var(--f-body); letter-spacing:.08em; color:var(--ink); padding-bottom:8px; border-bottom:2px solid var(--peach)}
+.dfmt span:nth-child(2) b{border-color:var(--gold)} .dfmt span:nth-child(3) b{border-color:var(--indigo)} .dfmt span:nth-child(4) b{border-color:var(--graphite)}
+@media (max-width:640px){ .dqr-svg{width:52px; height:52px} }
+
+</style>
+</head>
+<body>
+<main class="wrap glow">
+  <nav class="nav">
+    <a class="logo" href="fpl-site-pro-ink.html" style="text-decoration:none">FPL<small>by MAGFACE</small></a>
+    <a href="fpl-games.html">Игры</a><a href="fpl-rating.html">Рейтинг</a><a href="fpl-gallery.html">Галерея</a><a href="fpl-find.html">Найти мастера</a><a href="fpl-about.html">О лиге</a><a href="fpl-rules.html">Правила</a>
+    <div class="lang-dd"><button type="button" class="lang-cur" aria-haspopup="true" aria-expanded="false" aria-label="Язык сайта"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.8 2.6 15.2 0 18M12 3c-2.6 2.8-2.6 15.2 0 18"/></g></svg><span data-lang-label>RU</span><svg viewBox="0 0 10 6" width="9" height="6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button><ul class="lang-list" hidden><li><button type="button" data-lang="ru" data-short="RU" class="on" aria-current="true">Русский</button></li><li><button type="button" data-lang="en" data-short="EN">English</button></li><li><button type="button" data-lang="de" data-short="DE">Deutsch</button></li><li><button type="button" data-lang="es" data-short="ES">Español</button></li><li><button type="button" data-lang="fr" data-short="FR">Français</button></li><li><button type="button" data-lang="zh" data-short="中文">中文</button></li><li><button type="button" data-lang="ja" data-short="日本語">日本語</button></li></ul></div>
+    <button class="btn-outline" style="border-color:var(--indigo); color:var(--indigo); letter-spacing:.08em">Участвовать</button>
+    <button class="burger" type="button" aria-label="Открыть меню" aria-controls="mmenu" aria-expanded="false" data-menu-open><span></span><span></span></button>
+  </nav>
+  <!-- ПРОВЕРКА ДИПЛОМА: ШАПКА И ФОРМА -->
+  <section class="heroC dhero" aria-labelledby="dtitle">
+    <div class="dhero-body">
+      <div>
+        <span class="eyebrow">Face Painting League</span>
+        <h1 id="dtitle">Проверка <span>диплома</span></h1>
+        <p class="lead">У каждого диплома FPL есть уникальный номер и QR-код. Введите номер — и увидите, кому и за какую Игру выдан диплом.</p>
+      </div>
+      <form class="dform" id="dform" novalidate>
+        <label for="dno">Номер диплома</label>
+        <div class="dform-row">
+          <input id="dno" name="n" type="text" inputmode="text" autocomplete="off" spellcheck="false" placeholder="FPL-S1-01-0247" maxlength="18" aria-describedby="dhint">
+          <button class="btnC" type="submit">Проверить</button>
+        </div>
+        <p class="dhint" id="dhint">Номер напечатан внизу диплома. Можно вводить без дефисов.</p>
+      </form>
+    </div>
+  </section>
+
+  <!-- РЕЗУЛЬТАТ -->
+  <section class="dres-wrap" aria-live="polite">
+    <div id="dres" hidden></div>
+  </section>
+
+  <!-- ГДЕ НАЙТИ НОМЕР -->
+  <section aria-labelledby="whereTitle">
+    <h2 class="h2" id="whereTitle" style="margin-bottom:22px">Где найти <span class="a-pink">номер</span></h2>
+    <div class="dwhere">
+      <figure class="diploma dmock">
+        <figcaption>Образец</figcaption>
+        <div class="dip-in">
+          <div class="dip-top"><span class="dip-logo">FPL</span><span class="dip-kind">Диплом участника</span></div>
+          <div class="dip-name">Анна Петрова</div>
+          <p class="dip-sub">завершила Игру 01 · сезон 1<br>Face Painting League by MAGFACE</p>
+          <div class="dip-bot">
+            <div class="dmark"><span class="dip-lbl">Номер диплома</span><span class="dip-no">FPL-S1-01-0247</span><i class="dpin">1</i></div>
+            <div class="dqr"><svg class="dqr-svg" viewBox="0 0 29 29" shape-rendering="crispEdges" aria-hidden="true"><path d="M0 0h1v1h-1zM1 0h1v1h-1zM2 0h1v1h-1zM3 0h1v1h-1zM4 0h1v1h-1zM5 0h1v1h-1zM6 0h1v1h-1zM8 0h1v1h-1zM11 0h1v1h-1zM12 0h1v1h-1zM13 0h1v1h-1zM15 0h1v1h-1zM22 0h1v1h-1zM23 0h1v1h-1zM24 0h1v1h-1zM25 0h1v1h-1zM26 0h1v1h-1zM27 0h1v1h-1zM28 0h1v1h-1zM0 1h1v1h-1zM6 1h1v1h-1zM9 1h1v1h-1zM11 1h1v1h-1zM13 1h1v1h-1zM17 1h1v1h-1zM18 1h1v1h-1zM19 1h1v1h-1zM22 1h1v1h-1zM28 1h1v1h-1zM0 2h1v1h-1zM2 2h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM6 2h1v1h-1zM9 2h1v1h-1zM10 2h1v1h-1zM11 2h1v1h-1zM16 2h1v1h-1zM17 2h1v1h-1zM20 2h1v1h-1zM22 2h1v1h-1zM24 2h1v1h-1zM25 2h1v1h-1zM26 2h1v1h-1zM28 2h1v1h-1zM0 3h1v1h-1zM2 3h1v1h-1zM3 3h1v1h-1zM4 3h1v1h-1zM6 3h1v1h-1zM8 3h1v1h-1zM10 3h1v1h-1zM11 3h1v1h-1zM13 3h1v1h-1zM15 3h1v1h-1zM18 3h1v1h-1zM22 3h1v1h-1zM24 3h1v1h-1zM25 3h1v1h-1zM26 3h1v1h-1zM28 3h1v1h-1zM0 4h1v1h-1zM2 4h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM6 4h1v1h-1zM8 4h1v1h-1zM9 4h1v1h-1zM12 4h1v1h-1zM13 4h1v1h-1zM15 4h1v1h-1zM17 4h1v1h-1zM18 4h1v1h-1zM22 4h1v1h-1zM24 4h1v1h-1zM25 4h1v1h-1zM26 4h1v1h-1zM28 4h1v1h-1zM0 5h1v1h-1zM6 5h1v1h-1zM8 5h1v1h-1zM9 5h1v1h-1zM12 5h1v1h-1zM18 5h1v1h-1zM19 5h1v1h-1zM20 5h1v1h-1zM22 5h1v1h-1zM28 5h1v1h-1zM0 6h1v1h-1zM1 6h1v1h-1zM2 6h1v1h-1zM3 6h1v1h-1zM4 6h1v1h-1zM5 6h1v1h-1zM6 6h1v1h-1zM8 6h1v1h-1zM10 6h1v1h-1zM12 6h1v1h-1zM14 6h1v1h-1zM16 6h1v1h-1zM18 6h1v1h-1zM20 6h1v1h-1zM22 6h1v1h-1zM23 6h1v1h-1zM24 6h1v1h-1zM25 6h1v1h-1zM26 6h1v1h-1zM27 6h1v1h-1zM28 6h1v1h-1zM8 7h1v1h-1zM10 7h1v1h-1zM14 7h1v1h-1zM15 7h1v1h-1zM16 7h1v1h-1zM17 7h1v1h-1zM18 7h1v1h-1zM19 7h1v1h-1zM20 7h1v1h-1zM0 8h1v1h-1zM4 8h1v1h-1zM6 8h1v1h-1zM7 8h1v1h-1zM8 8h1v1h-1zM10 8h1v1h-1zM11 8h1v1h-1zM13 8h1v1h-1zM14 8h1v1h-1zM16 8h1v1h-1zM17 8h1v1h-1zM19 8h1v1h-1zM21 8h1v1h-1zM22 8h1v1h-1zM23 8h1v1h-1zM24 8h1v1h-1zM25 8h1v1h-1zM28 8h1v1h-1zM1 9h1v1h-1zM3 9h1v1h-1zM5 9h1v1h-1zM7 9h1v1h-1zM9 9h1v1h-1zM10 9h1v1h-1zM12 9h1v1h-1zM14 9h1v1h-1zM15 9h1v1h-1zM18 9h1v1h-1zM22 9h1v1h-1zM23 9h1v1h-1zM24 9h1v1h-1zM25 9h1v1h-1zM26 9h1v1h-1zM27 9h1v1h-1zM28 9h1v1h-1zM0 10h1v1h-1zM4 10h1v1h-1zM5 10h1v1h-1zM6 10h1v1h-1zM8 10h1v1h-1zM10 10h1v1h-1zM13 10h1v1h-1zM14 10h1v1h-1zM15 10h1v1h-1zM18 10h1v1h-1zM20 10h1v1h-1zM22 10h1v1h-1zM23 10h1v1h-1zM24 10h1v1h-1zM28 10h1v1h-1zM0 11h1v1h-1zM1 11h1v1h-1zM3 11h1v1h-1zM4 11h1v1h-1zM5 11h1v1h-1zM7 11h1v1h-1zM8 11h1v1h-1zM13 11h1v1h-1zM15 11h1v1h-1zM17 11h1v1h-1zM19 11h1v1h-1zM20 11h1v1h-1zM22 11h1v1h-1zM24 11h1v1h-1zM25 11h1v1h-1zM27 11h1v1h-1zM28 11h1v1h-1zM0 12h1v1h-1zM1 12h1v1h-1zM2 12h1v1h-1zM6 12h1v1h-1zM8 12h1v1h-1zM9 12h1v1h-1zM10 12h1v1h-1zM11 12h1v1h-1zM13 12h1v1h-1zM15 12h1v1h-1zM17 12h1v1h-1zM20 12h1v1h-1zM21 12h1v1h-1zM27 12h1v1h-1zM1 13h1v1h-1zM3 13h1v1h-1zM7 13h1v1h-1zM12 13h1v1h-1zM13 13h1v1h-1zM14 13h1v1h-1zM15 13h1v1h-1zM17 13h1v1h-1zM20 13h1v1h-1zM21 13h1v1h-1zM22 13h1v1h-1zM24 13h1v1h-1zM25 13h1v1h-1zM26 13h1v1h-1zM27 13h1v1h-1zM28 13h1v1h-1zM1 14h1v1h-1zM4 14h1v1h-1zM5 14h1v1h-1zM6 14h1v1h-1zM7 14h1v1h-1zM8 14h1v1h-1zM11 14h1v1h-1zM15 14h1v1h-1zM17 14h1v1h-1zM20 14h1v1h-1zM21 14h1v1h-1zM23 14h1v1h-1zM25 14h1v1h-1zM26 14h1v1h-1zM28 14h1v1h-1zM0 15h1v1h-1zM11 15h1v1h-1zM14 15h1v1h-1zM15 15h1v1h-1zM16 15h1v1h-1zM17 15h1v1h-1zM18 15h1v1h-1zM20 15h1v1h-1zM21 15h1v1h-1zM22 15h1v1h-1zM24 15h1v1h-1zM27 15h1v1h-1zM28 15h1v1h-1zM0 16h1v1h-1zM3 16h1v1h-1zM6 16h1v1h-1zM10 16h1v1h-1zM11 16h1v1h-1zM13 16h1v1h-1zM14 16h1v1h-1zM16 16h1v1h-1zM17 16h1v1h-1zM18 16h1v1h-1zM19 16h1v1h-1zM20 16h1v1h-1zM21 16h1v1h-1zM27 16h1v1h-1zM0 17h1v1h-1zM1 17h1v1h-1zM2 17h1v1h-1zM3 17h1v1h-1zM4 17h1v1h-1zM11 17h1v1h-1zM12 17h1v1h-1zM15 17h1v1h-1zM17 17h1v1h-1zM18 17h1v1h-1zM22 17h1v1h-1zM23 17h1v1h-1zM24 17h1v1h-1zM25 17h1v1h-1zM27 17h1v1h-1zM28 17h1v1h-1zM5 18h1v1h-1zM6 18h1v1h-1zM8 18h1v1h-1zM9 18h1v1h-1zM10 18h1v1h-1zM12 18h1v1h-1zM13 18h1v1h-1zM14 18h1v1h-1zM15 18h1v1h-1zM16 18h1v1h-1zM18 18h1v1h-1zM21 18h1v1h-1zM22 18h1v1h-1zM23 18h1v1h-1zM26 18h1v1h-1zM28 18h1v1h-1zM4 19h1v1h-1zM7 19h1v1h-1zM9 19h1v1h-1zM10 19h1v1h-1zM11 19h1v1h-1zM13 19h1v1h-1zM15 19h1v1h-1zM16 19h1v1h-1zM17 19h1v1h-1zM18 19h1v1h-1zM20 19h1v1h-1zM22 19h1v1h-1zM23 19h1v1h-1zM27 19h1v1h-1zM28 19h1v1h-1zM0 20h1v1h-1zM1 20h1v1h-1zM2 20h1v1h-1zM3 20h1v1h-1zM6 20h1v1h-1zM7 20h1v1h-1zM8 20h1v1h-1zM9 20h1v1h-1zM11 20h1v1h-1zM12 20h1v1h-1zM13 20h1v1h-1zM16 20h1v1h-1zM20 20h1v1h-1zM21 20h1v1h-1zM22 20h1v1h-1zM23 20h1v1h-1zM24 20h1v1h-1zM25 20h1v1h-1zM28 20h1v1h-1zM8 21h1v1h-1zM12 21h1v1h-1zM13 21h1v1h-1zM14 21h1v1h-1zM15 21h1v1h-1zM18 21h1v1h-1zM19 21h1v1h-1zM20 21h1v1h-1zM24 21h1v1h-1zM28 21h1v1h-1zM0 22h1v1h-1zM1 22h1v1h-1zM2 22h1v1h-1zM3 22h1v1h-1zM4 22h1v1h-1zM5 22h1v1h-1zM6 22h1v1h-1zM8 22h1v1h-1zM10 22h1v1h-1zM11 22h1v1h-1zM15 22h1v1h-1zM18 22h1v1h-1zM19 22h1v1h-1zM20 22h1v1h-1zM22 22h1v1h-1zM24 22h1v1h-1zM25 22h1v1h-1zM26 22h1v1h-1zM28 22h1v1h-1zM0 23h1v1h-1zM6 23h1v1h-1zM11 23h1v1h-1zM12 23h1v1h-1zM14 23h1v1h-1zM15 23h1v1h-1zM17 23h1v1h-1zM19 23h1v1h-1zM20 23h1v1h-1zM24 23h1v1h-1zM27 23h1v1h-1zM0 24h1v1h-1zM2 24h1v1h-1zM3 24h1v1h-1zM4 24h1v1h-1zM6 24h1v1h-1zM8 24h1v1h-1zM10 24h1v1h-1zM11 24h1v1h-1zM13 24h1v1h-1zM14 24h1v1h-1zM15 24h1v1h-1zM19 24h1v1h-1zM20 24h1v1h-1zM21 24h1v1h-1zM22 24h1v1h-1zM23 24h1v1h-1zM24 24h1v1h-1zM25 24h1v1h-1zM27 24h1v1h-1zM0 25h1v1h-1zM2 25h1v1h-1zM3 25h1v1h-1zM4 25h1v1h-1zM6 25h1v1h-1zM9 25h1v1h-1zM11 25h1v1h-1zM12 25h1v1h-1zM15 25h1v1h-1zM19 25h1v1h-1zM20 25h1v1h-1zM21 25h1v1h-1zM23 25h1v1h-1zM28 25h1v1h-1zM0 26h1v1h-1zM2 26h1v1h-1zM3 26h1v1h-1zM4 26h1v1h-1zM6 26h1v1h-1zM9 26h1v1h-1zM10 26h1v1h-1zM11 26h1v1h-1zM12 26h1v1h-1zM15 26h1v1h-1zM16 26h1v1h-1zM17 26h1v1h-1zM21 26h1v1h-1zM25 26h1v1h-1zM26 26h1v1h-1zM27 26h1v1h-1zM28 26h1v1h-1zM0 27h1v1h-1zM6 27h1v1h-1zM9 27h1v1h-1zM11 27h1v1h-1zM13 27h1v1h-1zM15 27h1v1h-1zM17 27h1v1h-1zM19 27h1v1h-1zM20 27h1v1h-1zM23 27h1v1h-1zM24 27h1v1h-1zM25 27h1v1h-1zM27 27h1v1h-1zM28 27h1v1h-1zM0 28h1v1h-1zM1 28h1v1h-1zM2 28h1v1h-1zM3 28h1v1h-1zM4 28h1v1h-1zM5 28h1v1h-1zM6 28h1v1h-1zM8 28h1v1h-1zM10 28h1v1h-1zM11 28h1v1h-1zM14 28h1v1h-1zM15 28h1v1h-1zM20 28h1v1h-1zM21 28h1v1h-1zM23 28h1v1h-1zM24 28h1v1h-1zM25 28h1v1h-1zM27 28h1v1h-1z" fill="currentColor"/></svg><i class="dpin">2</i></div>
+          </div>
+        </div>
+      </figure>
+      <ol class="dsteps">
+        <li><i>1</i><div><b>Номер</b><p>Внизу слева. Введите его в поле выше.</p></div></li>
+        <li><i>2</i><div><b>QR-код</b><p>Наведите камеру телефона — страница проверки откроется сама, номер подставится автоматически.</p></div></li>
+        <li class="dformat"><div><b>Как читать номер</b>
+          <p class="dfmt"><span><b>FPL</b>лига</span><span><b>S1</b>сезон</span><span><b>01</b>Игра</span><span><b>0247</b>номер диплома</span></p></div></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- КОМУ ВЫДАЁТСЯ -->
+  <section aria-labelledby="whoTitle">
+    <div class="dwho">
+      <article>
+        <h3 id="whoTitle">Кому выдаётся диплом</h3>
+        <p>Каждому, кто сдал все работы Игры в установленные сроки. Диплом выдаётся и тем, кто выбыл по итогам судейства, если все работы были сданы вовремя (п. 7.8 Правил лиги).</p>
+      </article>
+      <article>
+        <h3>Для заказчиков и работодателей</h3>
+        <p>Мастер показал диплом FPL? Проверьте номер здесь. На странице результата есть ссылка на профиль мастера с рейтингом и работами из лиги.</p>
+      </article>
+      <article>
+        <h3>Не нашли диплом?</h3>
+        <p>Проверьте номер ещё раз: часто путают 0 и O. Если номер верный, а диплом не находится, напишите нам в бота — разберёмся.</p>
+      </article>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="f-brand"><span class="f-logo">FPL</span><p>Face Painting League by MAGFACE. Онлайн-лига аквагримёров.</p></div>
+    <div><b>Лига</b><a href="fpl-games.html">Игры и календарь</a><a href="fpl-rating.html">Рейтинг</a><a href="fpl-site-pro-ink.html#archive">Зал славы</a><a href="fpl-about.html#jury">Жюри</a><a href="fpl-find.html">Найти мастера</a></div>
+    <div><b>Участникам</b><a href="fpl-site-pro-ink.html#how">Как участвовать</a><a href="fpl-diploma.html" aria-current="page">Проверка диплома</a><a href="fpl-rules.html#faq">Вопросы</a></div>
+    <div><b>Документы</b><a href="fpl-rules.html">Правила лиги</a><a href="fpl-privacy.html">Политика конфиденциальности</a><a href="fpl-rules.html#docs">Согласие на публикацию работ</a></div>
+    <div><b>Контакты</b><a href="mailto:info@maskarad-grim.ru">info@maskarad-grim.ru</a><a href="#">Telegram</a><a href="#">ВКонтакте</a><a href="#">Instagram*</a></div>
+    <p class="f-note">* Instagram принадлежит компании Meta, признанной экстремистской организацией и запрещённой в России.</p>
+    <p class="f-copy">© 2026 MAGFACE · ИП Афиногенова С. О.</p>
+  </footer>
+</main>
+<div class="mmenu" id="mmenu" hidden>
+  <div class="mmenu-head"><span class="logo">FPL</span><button class="burger is-open" type="button" aria-label="Закрыть меню" data-menu-close><span></span><span></span></button></div>
+  <nav class="mmenu-links" aria-label="Разделы сайта">
+    <a href="fpl-games.html">Игры и календарь <small>сезон 1 · Игры сезона</small></a>
+    <a href="fpl-rating.html">Рейтинг <small>лиги Bronze · Silver · Gold</small></a>
+    <a href="fpl-gallery.html">Галерея работ <small>лучшие работы сезона</small></a>
+    <a href="fpl-find.html">Найти мастера <small>мастера лиги, которые принимают заказы</small></a>
+    <a href="fpl-about.html">О лиге <small>как всё устроено, судьи, награды</small></a>
+    <a href="fpl-rules.html">Правила и вопросы</a>
+  </nav>
+  <div class="mmenu-foot">
+    <button class="btn-wide mm-primary" type="button">Участвовать</button>
+    <button class="btn-wide mm-secondary" type="button">Следить за лигой</button>
+    <p>Telegram-бот · ВКонтакте · Instagram*</p>
+  </div>
+</div>
+<div class="mbar"><button class="btn-wide">Участвовать</button><button class="btn-wide">Следить</button></div>
+<script>
+(function(){
+  var menu=document.getElementById('mmenu'); if(!menu) return;
+  function setOpen(o){ menu.hidden=!o; document.body.classList.toggle('menu-open',o);
+    document.querySelectorAll('[data-menu-open]').forEach(function(b){b.setAttribute('aria-expanded',o)}); }
+  document.querySelectorAll('[data-menu-open]').forEach(function(b){ b.addEventListener('click',function(){setOpen(true)}); });
+  menu.querySelectorAll('[data-menu-close], .mmenu-links a').forEach(function(el){ el.addEventListener('click',function(){setOpen(false)}); });
+  document.addEventListener('keydown',function(e){ if(e.key==='Escape') setOpen(false); });
+})();
+</script>
+<script>
+(function(){
+  // проверка диплома (в прототипе — один пример)
+  var f=document.getElementById('verifyForm'); if(f){
+    f.addEventListener('submit',function(e){ e.preventDefault();
+      var v=(document.getElementById('dipNo').value||'').trim().toUpperCase(), r=document.getElementById('verifyResult');
+      r.hidden=false;
+      if(v==='FPL-S1-01-0247'){ r.className='verify-result ok'; r.innerHTML='<b>✓ Диплом подтверждён</b><br>Анна Петрова · Игра 01, сезон 1 · лига Silver<br>Все работы сданы в срок · <a href="#players">профиль мастера</a> <span style="color:#6E6560">(пример)</span>'; }
+      else { r.className='verify-result'; r.textContent=v?'Диплом с номером '+v+' не найден. Проверьте номер на дипломе.':'Введите номер диплома.'; }
+    });
+  }
+  // переключатель языка (в прототипе переведены первый экран и полоса доверия)
+  var els=[].slice.call(document.querySelectorAll('[data-en]'));
+  els.forEach(function(el){ el.setAttribute('data-ru', el.innerHTML); });
+  var dd=document.querySelector('.lang-dd');
+  if(dd){ var cur=dd.querySelector('.lang-cur'), list=dd.querySelector('.lang-list');
+    function close(){ list.hidden=true; cur.setAttribute('aria-expanded','false'); }
+    cur.addEventListener('click',function(e){ e.stopPropagation(); list.hidden=!list.hidden; cur.setAttribute('aria-expanded', String(!list.hidden)); });
+    document.addEventListener('click',function(e){ if(!dd.contains(e.target)) close(); });
+    document.addEventListener('keydown',function(e){ if(e.key==='Escape') close(); });
+    list.querySelectorAll('button').forEach(function(btn){ btn.addEventListener('click',function(){
+      var lang=btn.getAttribute('data-lang');
+      list.querySelectorAll('button').forEach(function(b){ b.classList.toggle('on', b===btn); if(b===btn) b.setAttribute('aria-current','true'); else b.removeAttribute('aria-current'); });
+      dd.querySelector('[data-lang-label]').textContent=btn.getAttribute('data-short');
+      // в прототипе переведён только английский; для других языков временно показываем английский текст
+      els.forEach(function(el){ var t=el.getAttribute('data-'+lang)||(lang==='ru'?null:el.getAttribute('data-en')); el.innerHTML = t||el.getAttribute('data-ru'); });
+      document.documentElement.lang = lang; close();
+    }); });
+  }
+})();
+</script>
+<script>
+(function(){
+  // ПРИМЕР базы для макета. На сайте номер проверяется по базе дипломов из бота.
+  var DB={
+    'FPL-S1-01-0247':{st:'ok', name:'Анна Петрова', city:'Санкт-Петербург, Россия', game:'Игра 01 · сезон 1', league:'Silver', result:'TOP-10 Игры', note:'Все работы сданы в срок'},
+    'FPL-S1-01-0112':{st:'ok', name:'Мария Иванова', city:'Москва, Россия', game:'Игра 01 · сезон 1', league:'Gold', result:'2 место в лиге', note:'Все работы сданы в срок'},
+    'FPL-S1-01-0999':{st:'rev', name:'Диплом отозван', reason:'Диплом отозван организатором лиги. Если это ваш диплом, напишите нам в бота.'}
+  };
+  var form=document.getElementById('dform'), inp=document.getElementById('dno'), out=document.getElementById('dres');
+  function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+  // приводим ввод к виду FPL-S1-01-0247: регистр, пробелы, буква O вместо нуля
+  function norm(v){
+    var t=(v||'').toUpperCase().replace(/[^A-ZА-ЯЁ0-9]/g,'');
+    t=t.replace(/^ФПЛ/,'FPL');
+    if(t.indexOf('FPL')!==0) return null;
+    t=t.slice(3).replace(/^[СC]/,'S');           // русская С или латинская C вместо S
+    if(t.charAt(0)!=='S') return null;
+    t=t.slice(1).replace(/O/g,'0');             // буква O вместо нуля
+    // сезон 1–2 цифры, Игра 2 цифры, номер 4 цифры
+    var m=t.match(/^(\d{1,2})(\d{2})(\d{4})$/);
+    return m?('FPL-S'+parseInt(m[1],10)+'-'+m[2]+'-'+m[3]):null;
+  }
+  function show(raw, fromUrl){
+    var n=norm(raw); out.hidden=false;
+    if(!n){
+      out.innerHTML='<div class="dres dres--no"><span class="dres-ic">?</span><div><span class="dres-status">Неверный формат</span><h2>Проверьте номер</h2><p class="dres-text">Номер диплома выглядит так: <b>FPL-S1-01-0247</b> — буквы FPL, сезон, номер Игры и номер диплома.</p></div></div>';
+      return;
+    }
+    inp.value=n;
+    var d=DB[n];
+    if(d&&d.st==='ok'){
+      out.innerHTML='<div class="dres dres--ok"><span class="dres-ic">✓</span><div><span class="dres-status">Диплом подтверждён</span><h2>'+esc(d.name)+'</h2><p class="dres-sub">'+esc(d.city)+' · <span style="white-space:nowrap">диплом '+n+'</span></p>'+
+      '<dl><div><dt>Игра</dt><dd>'+esc(d.game)+'</dd></div><div><dt>Лига</dt><dd>'+esc(d.league)+'</dd></div><div><dt>Результат</dt><dd>'+esc(d.result)+'</dd></div><div><dt>Условие</dt><dd>'+esc(d.note)+'</dd></div></dl>'+
+      '<div class="dres-actions"><a class="btn-outline" href="fpl-master.html">Профиль мастера</a><a class="text-link" href="fpl-rating.html">Рейтинг лиги</a></div></div></div>';
+    } else if(d&&d.st==='rev'){
+      out.innerHTML='<div class="dres dres--rev"><span class="dres-ic">!</span><div><span class="dres-status">Недействителен</span><h2>Диплом '+n+' отозван</h2><p class="dres-text">'+esc(d.reason)+'</p></div></div>';
+    } else {
+      out.innerHTML='<div class="dres dres--no"><span class="dres-ic">×</span><div><span class="dres-status">Не найден</span><h2>Диплома '+n+' нет в базе</h2><p class="dres-text">Проверьте номер ещё раз. Если номер верный, а диплом не находится, напишите нам в бота — разберёмся.</p></div></div>';
+    }
+    if(!fromUrl){ try{ history.replaceState(null,'','?n='+n); }catch(e){} }
+    if(fromUrl||window.innerWidth<640){ out.scrollIntoView({behavior:'smooth', block:'start'}); }
+  }
+  form.addEventListener('submit',function(e){ e.preventDefault(); show(inp.value,false); });
+  // номер из ссылки QR: ?n=FPL-S1-01-0247 или #FPL-S1-01-0247
+  var q=(location.search.match(/[?&]n=([^&]+)/)||[])[1] || location.hash.slice(1);
+  if(q){ show(decodeURIComponent(q),true); }
+})();
+</script>
+
+</body>
+</html>

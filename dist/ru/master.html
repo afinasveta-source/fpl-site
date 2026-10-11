@@ -270,157 +270,21 @@
     <a class="btn-outline" style="border-color:var(--indigo); color:var(--indigo); letter-spacing:.08em" href="https://t.me/facepaintingleaguebot" target="_blank" rel="noopener">Участвовать</a>
     <button class="burger" type="button" aria-label="Открыть меню" aria-controls="mmenu" aria-expanded="false" data-menu-open><span></span><span></span></button>
   </nav>
-  <!-- ПРОФИЛЬ МАСТЕРА: ШАПКА -->
-  <section class="heroC mhero" aria-labelledby="mname">
+  <!-- ПРОФИЛЬ МАСТЕРА: СКОРО -->
+  <section class="heroC" aria-labelledby="mname">
     <a class="back" href="rating.html">← Рейтинг мастеров</a>
-    <div class="mhero-body">
-      <figure class="mphoto">
-        <div class="mphoto-ph">[фото мастера из анкеты]</div>
-        <span class="mphoto-league lgb lgb--Silver">Silver</span>
-      </figure>
-      <div class="mhead">
-        <span class="eyebrow">Мастер лиги · в FPL с сезона 1</span>
-        <h1 id="mname">Анна <span>Петрова</span></h1>
-        <p class="mloc">Санкт-Петербург · Россия</p>
-        <div class="mactions">
-          <a class="btnC" href="#contact">Написать мастеру</a>
-          <button class="ghostC" type="button" data-share>Поделиться профилем</button>
-        </div>
-      </div>
-      <aside class="mrating" aria-label="Рейтинг">
-        <span class="mr-label">Рейтинг FPL</span>
-        <div class="mr-row"><b>647</b><span class="mr-delta">↑ +38 за Игру</span></div>
-        <div class="mr-bar"><i style="width:84%"></i></div>
-        <div class="mr-scale"><span>Silver</span><span class="mr-next">до Gold +33</span></div>
-        <dl class="mr-stats">
-          <div><dt>Место</dt><dd>#21 <small>↑7</small></dd></div>
-          <div><dt>Очки FPL</dt><dd>31</dd></div>
-          <div><dt>Игр</dt><dd>2</dd></div>
-        </dl>
-      </aside>
+    <div class="soon-hero">
+      <span class="eyebrow">Мастер лиги</span>
+      <h1 id="mname">Страницы <span>мастеров</span></h1>
+      <p class="lead">Появятся после финала Игры 01: рейтинг, награды и работы из лиги — у тех, кто разрешит публичную страницу.</p>
+      <div class="mactions"><a class="btnC" href="rating.html">Рейтинг мастеров</a></div>
     </div>
-  </section>
-
-  <!-- НАГРАДЫ -->
-  <section aria-labelledby="awTitle">
-    <div class="sec-head"><h2 class="h2" id="awTitle">Награды</h2><span class="sec-note">за всё время в лиге</span></div>
-    <div class="mawards">
-      <article class="maw"><span class="maw-ic maw-ic--s">2</span><div><b>Серебро</b><span>Игра 02 · лига Silver</span></div></article>
-      <article class="maw"><span class="maw-ic maw-ic--t10">TOP<br>10</span><div><b>TOP-10</b><span>Игра 01 · лига Bronze</span></div></article>
-      <article class="maw"><span class="maw-ic maw-ic--tw">TOP<br>WORK</span><div><b>TOP WORK ×3</b><span>лучшие работы туров</span></div></article>
-      <article class="maw"><span class="maw-ic maw-ic--lg">S</span><div><b>Переход в Silver</b><span>после Игры 01</span></div></article>
-    </div>
-  </section>
-
-  <!-- ПОРТФОЛИО -->
-  <section aria-labelledby="pfTitle">
-    <div class="sec-head">
-      <h2 class="h2" id="pfTitle">Работы <span class="a-pink">в лиге</span></h2>
-      <div class="tabs" role="tablist" aria-label="Игра">
-        <button role="tab" aria-selected="true" data-game="all">Все</button>
-        <button role="tab" aria-selected="false" data-game="02">Игра 02</button>
-        <button role="tab" aria-selected="false" data-game="01">Игра 01</button>
-      </div>
-    </div>
-    <div class="pf collapsed" id="pf"></div>
-    <button class="btn-outline pf-more" type="button" id="pfMore">Показать все работы</button>
-    <p class="sec-note" style="margin-top:14px">Работы опубликованы с согласия автора. Нажмите на работу, чтобы увидеть задание и оценку тура.</p>
-  </section>
-
-  <!-- ИСТОРИЯ -->
-  <section aria-labelledby="hsTitle">
-    <h2 class="h2" id="hsTitle" style="margin-bottom:22px">История <span class="a-indigo">рейтинга</span></h2>
-    <div class="mhist">
-      <figure class="mchart">
-        <svg class="chart-d" viewBox="0 0 640 260" role="img" aria-label="Рейтинг по турам: от 500 до 647">
-          <rect x="40" y="20" width="590" height="50" fill="#F5EDCF"/>
-          <rect x="40" y="70" width="590" height="110" fill="#ECEEF0"/>
-          <rect x="40" y="180" width="590" height="50" fill="#F3E6DA"/>
-          <g font-family="Manrope, sans-serif" font-size="12" font-weight="600" fill="#8A8079">
-            <text x="52" y="40">Gold</text><text x="52" y="90">Silver</text><text x="52" y="222">Bronze</text>
-            <text x="36" y="74" text-anchor="end">680</text><text x="36" y="184" text-anchor="end">430</text>
-          </g>
-          <line x1="320" y1="20" x2="320" y2="230" stroke="#15131A" stroke-opacity=".18" stroke-dasharray="4 4"/>
-          <g font-family="Manrope, sans-serif" font-size="12" font-weight="600" fill="#6E6560">
-            <text x="180" y="252" text-anchor="middle">Игра 01</text><text x="480" y="252" text-anchor="middle">Игра 02</text>
-          </g>
-          <polyline fill="none" stroke="#F2601F" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"
-            points="70,206 120,196 170,176 220,170 270,150 370,140 420,128 470,118 520,104 590,96"/>
-          <g fill="#fff" stroke="#F2601F" stroke-width="3">
-            <circle cx="70" cy="206" r="4"/><circle cx="120" cy="196" r="4"/><circle cx="170" cy="176" r="4"/><circle cx="220" cy="170" r="4"/><circle cx="270" cy="150" r="4"/>
-            <circle cx="370" cy="140" r="4"/><circle cx="420" cy="128" r="4"/><circle cx="470" cy="118" r="4"/><circle cx="520" cy="104" r="4"/>
-          </g>
-          <circle cx="590" cy="96" r="7" fill="#F2601F"/>
-          <text x="590" y="82" text-anchor="middle" font-family="Unbounded, sans-serif" font-size="15" font-weight="500" fill="#15131A">647</text>
-        </svg>
-        <svg class="chart-m" viewBox="0 0 340 236" role="img" aria-label="Рейтинг по турам: от 500 до 647">
-          <rect x="8" y="14" width="324" height="47.5" fill="#F5EDCF"/>
-          <rect x="8" y="61.5" width="324" height="104.5" fill="#ECEEF0"/>
-          <rect x="8" y="166.0" width="324" height="47.5" fill="#F3E6DA"/>
-          <g font-family="Manrope, sans-serif" font-size="11" font-weight="600" fill="#8A8079">
-            <text x="16" y="53.5">Gold</text><text x="16" y="77.5">Silver</text><text x="16" y="205.5">Bronze</text>
-          </g>
-          <line x1="161.4" y1="14" x2="161.4" y2="213.5" stroke="#15131A" stroke-opacity=".18" stroke-dasharray="4 4"/>
-          <g font-family="Manrope, sans-serif" font-size="12" font-weight="600" fill="#6E6560">
-            <text x="83.3" y="230" text-anchor="middle">Игра 01</text><text x="245.1" y="230" text-anchor="middle">Игра 02</text>
-          </g>
-          <polyline fill="none" stroke="#F2601F" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" points="22.0,190.7 49.9,181.2 77.8,162.2 105.7,156.5 133.5,137.5 189.3,128.0 217.2,116.6 245.1,107.1 273.0,93.8 312.0,86.2"/>
-          <g fill="#fff" stroke="#F2601F" stroke-width="2.5"><circle cx="22.0" cy="190.7" r="3.5"/><circle cx="49.9" cy="181.2" r="3.5"/><circle cx="77.8" cy="162.2" r="3.5"/><circle cx="105.7" cy="156.5" r="3.5"/><circle cx="133.5" cy="137.5" r="3.5"/><circle cx="189.3" cy="128.0" r="3.5"/><circle cx="217.2" cy="116.6" r="3.5"/><circle cx="245.1" cy="107.1" r="3.5"/><circle cx="273.0" cy="93.8" r="3.5"/></g>
-          <circle cx="312.0" cy="86.2" r="6" fill="#F2601F"/>
-          <text x="312.0" y="74.2" text-anchor="end" font-family="Unbounded, sans-serif" font-size="15" font-weight="500" fill="#15131A">647</text>
-        </svg>
-        <figcaption>Каждая точка — результат тура. Пример данных.</figcaption>
-      </figure>
-      <div class="mdips">
-        <div class="mdips-head"><b>Дипломы</b><span>2</span></div>
-        <a class="mdipl" href="diploma.html">
-          <div class="mdipl-in">
-            <div class="mdipl-top"><span class="mdipl-logo">FPL</span><span class="mdipl-kind">Диплом</span></div>
-            <b>Игра 02 · сезон 1</b>
-            <span class="mdipl-sub">Призёр · 2 место в лиге Silver</span>
-            <div class="mdipl-bot"><span class="mdipl-no">FPL-S1-02-0112</span><i>✓ проверить</i></div>
-          </div>
-        </a>
-        <a class="mdipl" href="diploma.html">
-          <div class="mdipl-in">
-            <div class="mdipl-top"><span class="mdipl-logo">FPL</span><span class="mdipl-kind">Диплом</span></div>
-            <b>Игра 01 · сезон 1</b>
-            <span class="mdipl-sub">Участник · все туры сданы</span>
-            <div class="mdipl-bot"><span class="mdipl-no">FPL-S1-01-0247</span><i>✓ проверить</i></div>
-          </div>
-        </a>
-      </div>
-    </div>
-  </section>
-
-  <!-- О МАСТЕРЕ И КОНТАКТЫ -->
-  <section class="mabout" id="contact" aria-labelledby="abTitle">
-    <div>
-      <h2 class="h2" id="abTitle">О мастере</h2>
-      <p class="mbio">Рисую на детских праздниках и городских событиях с 2019 года. Люблю сложные цветовые переходы и тематические образы под сценарий праздника. В лиге — чтобы расти и пробовать новое.</p>
-      <dl class="mfacts">
-        <div><dt>Опыт</dt><dd>с 2019 года</dd></div>
-        <div><dt>Где работает</dt><dd>Санкт-Петербург и область</dd></div>
-        <div><dt>Специализация</dt><dd>детские праздники, боди-арт</dd></div>
-      </dl>
-      <p class="mself">Мастер заполняет этот блок сам в боте. Если ничего не заполнено, блок не показывается.</p>
-    </div>
-    <aside class="mcontact">
-      <span class="mc-status"><i></i>Принимает заказы</span>
-      <h3>Связаться с мастером</h3>
-      <p>Сообщение придёт мастеру напрямую. Контакты показаны с согласия мастера.</p>
-      <div class="mc-links">
-        <a class="btn-wide" href="#">Написать в Telegram</a>
-        <a href="https://www.instagram.com/facepaintingleague/" target="_blank" rel="noopener"><span>Instagram* <small>@facepaintingleague</small></span><i>→</i></a>
-        <a href="https://vk.ru/publicmaskarad" target="_blank" rel="noopener">ВКонтакте<i>→</i></a>
-      </div>
-    </aside>
   </section>
 
   <!-- ПРИЗЫВ -->
   <section class="tile tile--indigo cta-strong" style="padding:48px">
-    <h2 class="h1">Хочешь такой <span class="a-lemon">же профиль?</span></h2>
-    <p class="tile-text" style="font-size:17px; margin:16px 0 28px">Сыграй в следующей Игре — профиль появится после первого тура и будет пополняться с каждой Игрой.</p>
+    <h2 class="h1">Хочешь свою <span class="a-lemon">страницу мастера?</span></h2>
+    <p class="tile-text" style="font-size:17px; margin:16px 0 28px">Играй в лиге: после финала Игры 01 страницу можно будет открыть в боте. Рейтинг, награды и работы пополняются с каждой Игрой.</p>
     <div style="display:flex; gap:12px; flex-wrap:wrap; max-width:620px">
       <a class="btn-wide" style="flex:1" href="https://t.me/facepaintingleaguebot" target="_blank" rel="noopener">Участвовать</a>
       <a class="btn-wide btn-pink" style="flex:1; text-align:center; text-decoration:none" href="rating.html">Все мастера</a>
@@ -484,46 +348,6 @@
       document.documentElement.lang = lang; close();
     }); });
   }
-})();
-</script>
-<script>
-(function(){
-  // ПРИМЕР работ для макета
-  var W=[
-    ['02','Игра 02 · Тур 4','«Морские обитатели»',true],
-    ['02','Игра 02 · Тур 3','«Портрет в цвете»',true],
-    ['02','Игра 02 · Тур 2','«Ночной город»',false],
-    ['02','Игра 02 · Тур 1','Свободная тема',false],
-    ['01','Игра 01 · Тур 5','«Сказочный персонаж»',true],
-    ['01','Игра 01 · Тур 4','«Космос»',false],
-    ['01','Игра 01 · Тур 3','«Цветочный узор»',false],
-    ['01','Игра 01 · Тур 2','«Животные»',false],
-    ['01','Игра 01 · Тур 1','Свободная тема',false]
-  ];
-  var pf=document.getElementById('pf');
-  function render(g){
-    var list=W.filter(function(w){return g==='all'||w[0]===g});
-    var feat=list.length>=5 && (list.length-5)%4===0; // крупная первая работа, только если сетка ляжет ровно
-    pf.innerHTML=list.map(function(w,i){
-      return '<figure class="pfw'+(feat&&i===0?' feature':'')+'" tabindex="0"><span class="ph-t">[работа]</span>'+(w[3]?'<span class="tw">TOP WORK</span>':'')+'<figcaption>'+w[2]+'<span>'+w[1]+'</span></figcaption></figure>';
-    }).join('');
-  }
-  document.querySelectorAll('.sec-head .tabs button').forEach(function(b){ b.addEventListener('click',function(){
-    document.querySelectorAll('.sec-head .tabs button').forEach(function(x){x.setAttribute('aria-selected',x===b)});
-    render(b.getAttribute('data-game'));
-  });});
-  render('all');
-  var more=document.getElementById('pfMore');
-  function upd(){ var n=pf.children.length; more.textContent='Показать все работы ('+n+')'; more.style.visibility=n>5?'visible':'hidden'; }
-  upd(); more.addEventListener('click',function(){ pf.classList.remove('collapsed'); });
-  document.querySelectorAll('.sec-head .tabs button').forEach(function(b){ b.addEventListener('click',upd); });
-
-  // поделиться профилем
-  document.querySelectorAll('[data-share]').forEach(function(btn){ btn.addEventListener('click',function(){
-    var url=location.href;
-    if(navigator.share){ navigator.share({title:document.title,url:url}).catch(function(){}); }
-    else if(navigator.clipboard){ navigator.clipboard.writeText(url).then(function(){ var t=btn.textContent; btn.textContent='Ссылка скопирована'; setTimeout(function(){btn.textContent=t},1800); }).catch(function(){}); }
-  });});
 })();
 </script>
 
