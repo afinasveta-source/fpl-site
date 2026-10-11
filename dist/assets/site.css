@@ -998,6 +998,15 @@ section.tile--lemon .h2{color:var(--ink)!important}
 .pod-ini{font:500 44px/1 var(--f-display); color:rgba(30,27,24,.35)}
 .ava{display:inline-grid; place-items:center; font:600 14px var(--f-body); color:#6E6560}
 
+/* TOP WORK по турам (fpl-data.js) */
+.tw-rounds{display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:14px}
+.tw-round{background:#fff; border:1px solid #E2DBD2; border-radius:18px; padding:18px 20px}
+.tw-round h3{margin:0 0 4px; font-size:18px}
+.tw-round .meta{margin:0 0 10px; color:#7A6E62; font-size:14px}
+.tw-names{list-style:none; margin:0; padding:0; display:grid; gap:6px}
+.tw-names li{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+.tw-line{margin-top:8px}
+
 /* кнопки-ссылки */
 a.btn-wide,a.btn-outline{text-decoration:none; display:inline-flex; align-items:center; justify-content:center; text-align:center}
 .mbar a.btn-wide{display:flex}

@@ -1,0 +1,697 @@
+#!/usr/bin/env python3
+"""fpl-db-import: перенос данных из SaleBot (проект 874007) в базу сайта.
+
+Вход — закрытые наборы, которые присылает блок бота «Сайт: выгрузка в базу» (POST /api/ingest):
+  /var/lib/fpl/private/private-sb-<таблица>.json  — массив строк таблицы (объекты «колонка: значение»);
+  /var/lib/fpl/private/private-sb-manifest.json   — присылается ПОСЛЕДНИМ:
+    {"export_id": "<любая уникальная строка>", "project": "874007",
+     "tables": {"mg_round_snapshot": 512, "mg_legal_acceptances": 830, ...}}   # число строк
+Импорт начинается, только когда все таблицы манифеста на месте и число строк совпадает,
+и только если такой снимок ещё не переносили (sha256 всех файлов).
+
+Что переносится (таблица SaleBot → база):
+  client_id (все таблицы)            → users + external_identities (salebot_client)
+  mg_person_names / mg_public_names  → users.full_name / users.display_name
+  mg_client_channels                 → users.telegram_id, external_identities (telegram / vk), если есть такие поля
+  mg_legal_documents                 → legal_documents (части склеиваются, текст не меняется)
+  mg_legal_acceptances               → consents (журнал, только добавление; публичность = последнее согласие на публикацию)
+  марафон (GAMES ниже)               → seasons, events, rounds
+  mg_round_snapshot                  → event_participants (лига Игры: А → gold, Б → silver), round_results
+  mg_rating_rounds                   → какие туры опубликованы (состояние confirmed / published / locked)
+  mg_rating_events                   → rating_transactions (ключ — батч + участник; отменённые в боте батчи → void)
+  mg_rating_players                  → participant_stats, season_participants
+
+Повторный запуск ничего не дублирует: соответствие «строка SaleBot → запись базы» — в import_row_map.
+Всё в одной транзакции: снимок переносится целиком или не переносится (пакет помечается failed).
+Публичная сводка без имён: /data/import-status.json. После успешного переноса запускается fpl-db-export.
+
+Запуск: fpl-db-import [--force] [--no-export] [--published fpl_game1_2026:1,2]
+"""
+import datetime, glob, hashlib, json, os, re, subprocess, sys, time
+
+PRIVATE = os.environ.get('FPL_PRIVATE', '/var/lib/fpl/private')
+DATA = os.environ.get('FPL_DATA', '/var/lib/fpl/data')
+ENV_FILE = os.environ.get('FPL_DB_ENV', '/etc/fpl-db.env')
+EXPORT = os.environ.get('FPL_DB_EXPORT', '/usr/local/bin/fpl-db-export')
+PROJECT = '874007'
+PREFIX = 'private-sb-'
+
+# Марафон SaleBot → Игра лиги. Новая Игра = новая строка здесь.
+GAMES = {
+    'fpl_game1_2026': dict(season_no=1, game_no=1, title='Игра 01', title_en='Game 01',
+                           starts='2026-09-30', ends='2026-11-10', status='active', rounds=5),
+}
+SEASONS = {1: dict(name='Сезон 1', status='active')}
+ROUND_TITLES = {1: ('Тур 1', 'Round 1'), 2: ('Тур 2', 'Round 2'), 3: ('Тур 3', 'Round 3'),
+                4: ('Тур 4', 'Round 4'), 5: ('Финал', 'Final')}
+PUBLISHED_STATES = {'confirmed', 'published', 'locked'}
+# Решение 11.10: лиги Игры 01 записываются как лиги сезона — А → gold, Б → silver.
+LEAGUE = {'a': 'gold', 'а': 'gold', 'лига а': 'gold', 'league_a': 'gold', 'gold': 'gold',
+          'b': 'silver', 'б': 'silver', 'лига б': 'silver', 'league_b': 'silver', 'silver': 'silver',
+          'bronze': 'bronze'}
+DOC_TYPE = {'rules': 'rules', 'pd_consent': 'personal_data', 'personal_data': 'personal_data',
+            'publication_consent': 'publication', 'publication': 'publication',
+            'model_confirmation': 'model_confirmation', 'privacy_policy': 'privacy_policy',
+            'guardian_consent': 'guardian_consent', 'offer': 'offer'}
+RATING_METHOD = {'initial': 'initial_seeding', 'round': 'pairwise_elo', 'correction': 'manual_adjustment',
+                 'finalize': 'criteria_virtual_elo'}
+TOPWORK_RULE = 'FPL_TOPWORK_V1'  # ≈20% пула, не больше 10, равные на границе входят, пул < 5 — нет
+MSK = datetime.timezone(datetime.timedelta(hours=3))
+
+
+# ---------------------------------------------------------------- вспомогательное
+def now_iso():
+    return time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+
+
+def g(row, *names):
+    for n in names:
+        v = row.get(n)
+        if v is not None and v != '':
+            return v
+    return None
+
+
+def s(v):
+    return None if v is None else str(v).strip() or None
+
+
+def num(v):
+    try:
+        return None if v is None or v == '' else float(v)
+    except (TypeError, ValueError):
+        return None
+
+
+def integer(v):
+    f = num(v)
+    return None if f is None else int(round(f))
+
+
+def ts(v, default_tz=datetime.timezone.utc):
+    """Время из SaleBot: unix-секунды, 'YYYY-MM-DD HH:MM:SS' (UTC), ISO, 'DD.MM.YYYY'."""
+    if v is None or v == '':
+        return None
+    if isinstance(v, (int, float)) or re.fullmatch(r'\d{9,11}(\.\d+)?', str(v).strip()):
+        return datetime.datetime.fromtimestamp(float(v), datetime.timezone.utc)
+    t = str(v).strip().replace('T', ' ').rstrip('Z')
+    for fmt in ('%Y-%m-%d %H:%M:%S.%f', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M', '%Y-%m-%d', '%d.%m.%Y %H:%M', '%d.%m.%Y'):
+        try:
+            d = datetime.datetime.strptime(t, fmt)
+            return d.replace(tzinfo=default_tz)
+        except ValueError:
+            pass
+    try:
+        d = datetime.datetime.fromisoformat(str(v).strip())
+        return d if d.tzinfo else d.replace(tzinfo=default_tz)
+    except ValueError:
+        return None
+
+
+def league(v):
+    if v is None:
+        return None
+    return LEAGUE.get(str(v).strip().lower())
+
+
+def sha(obj):
+    return hashlib.sha256(json.dumps(obj, ensure_ascii=False, sort_keys=True, default=str).encode()).hexdigest()
+
+
+def write_json(path, obj, mode=0o644):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = path + '.tmp'
+    with open(tmp, 'w', encoding='utf-8') as f:
+        json.dump(obj, f, ensure_ascii=False, indent=1)
+    os.chmod(tmp, mode)
+    os.replace(tmp, path)
+
+
+def dsn():
+    if os.environ.get('FPL_DATABASE_DSN'):
+        return os.environ['FPL_DATABASE_DSN']
+    env = {}
+    with open(ENV_FILE, encoding='utf-8') as f:
+        for line in f:
+            if '=' in line:
+                k, v = line.rstrip('\n').split('=', 1)
+                env[k] = v
+    return env['FPL_DATABASE_DSN']
+
+
+def connect():
+    # на сервере — пакет python3-psycopg (3.x) или python3-psycopg2; FPL_DB_DRIVER=psycopg2 — для проверки второго
+    if os.environ.get('FPL_DB_DRIVER') != 'psycopg2':
+        try:
+            import psycopg
+            return psycopg.connect(dsn())
+        except ImportError:
+            pass
+    import psycopg2
+    return psycopg2.connect(dsn())
+
+
+# ---------------------------------------------------------------- вход
+class Waiting(Exception):
+    pass
+
+
+def load_input():
+    mpath = os.path.join(PRIVATE, PREFIX + 'manifest.json')
+    if not os.path.exists(mpath):
+        raise Waiting('no manifest')
+    with open(mpath, encoding='utf-8') as f:
+        manifest = json.load(f)
+    tables = manifest.get('tables') or {}
+    if not isinstance(tables, dict) or not tables:
+        raise Waiting('manifest without tables')
+    data, h = {}, hashlib.sha256()
+    h.update(open(mpath, 'rb').read())
+    for name in sorted(tables):
+        if not re.fullmatch(r'[a-z0-9_]{1,29}', name):
+            raise Waiting('bad table name in manifest')
+        p = os.path.join(PRIVATE, PREFIX + name + '.json')
+        if not os.path.exists(p):
+            raise Waiting('missing %s' % name)
+        raw = open(p, 'rb').read()
+        rows = json.loads(raw)
+        if not isinstance(rows, list):
+            raise Waiting('%s is not a list' % name)
+        if int(tables[name]) != len(rows):
+            raise Waiting('%s: %d rows of %s' % (name, len(rows), tables[name]))
+        data[name] = [r for r in rows if isinstance(r, dict)]
+        h.update(name.encode() + b'\0' + raw)
+    return manifest, data, h.hexdigest()
+
+
+# ---------------------------------------------------------------- перенос
+class Importer:
+    def __init__(self, cur, batch_id, data, published_override):
+        self.cur, self.batch, self.data = cur, batch_id, data
+        self.published_override = published_override
+        self.issues = []
+        self.counts = {}
+        self.users = {}       # client_id -> user_id
+        self.identities = {}  # client_id -> external_identity_id
+
+    # --- база
+    def one(self, sql, args=()):
+        self.cur.execute(sql, args)
+        r = self.cur.fetchone()
+        return r[0] if r else None
+
+    def ex(self, sql, args=()):
+        self.cur.execute(sql, args)
+
+    def issue(self, table, key, severity, message):
+        self.issues.append((table, None if key is None else str(key)[:200], severity, message[:500]))
+
+    def count(self, k, n=1):
+        self.counts[k] = self.counts.get(k, 0) + n
+
+    def mapped(self, st, sk, tt):
+        return self.one('SELECT target_id::text FROM import_row_map WHERE source_table=%s AND source_key=%s AND target_table=%s',
+                        (st, str(sk), tt))
+
+    def remember(self, st, sk, tt, tid, row=None):
+        self.ex('''INSERT INTO import_row_map (first_batch_id, last_batch_id, source_table, source_key, target_table, target_id, row_sha256)
+                   VALUES (%s::uuid, %s::uuid, %s, %s, %s, %s::uuid, %s)
+                   ON CONFLICT (source_table, source_key, target_table) DO UPDATE
+                   SET last_batch_id=EXCLUDED.last_batch_id, target_id=EXCLUDED.target_id,
+                       row_sha256=EXCLUDED.row_sha256, updated_at=now()''',
+                (self.batch, self.batch, st, str(sk), tt, str(tid), sha(row) if row is not None else None))
+
+    def rows(self, table):
+        return self.data.get(table, [])
+
+    # --- 1. люди
+    def people(self):
+        names, public, channels = {}, {}, {}
+        for r in self.rows('mg_person_names'):
+            cid = s(g(r, 'client_id'))
+            if not cid:
+                continue
+            full = s(g(r, 'full_name')) or ' '.join(x for x in (s(r.get('last_name')), s(r.get('first_name')), s(r.get('middle_name'))) if x) or None
+            names[cid] = full
+        for r in sorted(self.rows('mg_public_names'), key=lambda r: (str(g(r, 'updated_at', 'created_at') or ''), str(g(r, 'id') or ''))):
+            cid = s(g(r, 'client_id'))
+            if cid:
+                public[cid] = s(g(r, 'public_name', 'name'))
+        for r in self.rows('mg_client_channels'):
+            cid = s(g(r, 'client_id'))
+            if cid:
+                channels.setdefault(cid, []).append(r)
+        # согласие на публикацию: последнее решение по publication_consent
+        latest_pub = {}
+        for r in sorted(self.rows('mg_legal_acceptances'), key=self.acceptance_order):
+            if DOC_TYPE.get(s(g(r, 'doc_type')) or '') == 'publication':
+                latest_pub[s(g(r, 'client_id'))] = (s(g(r, 'status')) or '').lower() == 'accepted'
+
+        clients = set(names) | set(public) | set(channels) | set(latest_pub)
+        for t in ('mg_legal_acceptances', 'mg_round_snapshot', 'mg_rating_players', 'mg_rating_events'):
+            clients |= {s(g(r, 'client_id')) for r in self.rows(t) if s(g(r, 'client_id'))}
+        clients.discard(None)
+
+        for cid in sorted(clients):
+            tg, vk = self.channel_ids(channels.get(cid, []))
+            show = bool(latest_pub.get(cid))
+            row = {'full_name': names.get(cid), 'display_name': public.get(cid), 'telegram_id': tg, 'show': show}
+            uid = self.mapped('salebot_client', cid, 'users')
+            if uid:
+                self.ex('''UPDATE users SET full_name=%s, display_name=%s, telegram_id=coalesce(%s, telegram_id),
+                             public_rating = (deleted_at IS NULL AND %s), public_works = (deleted_at IS NULL AND %s)
+                           WHERE id=%s::uuid''', (row['full_name'], row['display_name'], tg, show, show, uid))
+                self.count('users_updated')
+            else:
+                uid = self.one('''INSERT INTO users (account_status, full_name, display_name, telegram_id, public_rating, public_works)
+                                  VALUES ('imported', %s, %s, %s, %s, %s) RETURNING id::text''',
+                               (row['full_name'], row['display_name'], tg, show, show))
+                self.count('users_created')
+            self.remember('salebot_client', cid, 'users', uid, row)
+            self.users[cid] = uid
+            self.identities[cid] = self.identity(uid, 'salebot_client', cid, {'project': PROJECT})
+            if tg:
+                self.identity(uid, 'telegram', str(tg), {})
+            if vk:
+                self.identity(uid, 'vk', str(vk), {})
+        self.counts['people'] = len(self.users)
+        self.counts['public_people'] = sum(1 for c in self.users if latest_pub.get(c))
+
+    def channel_ids(self, rows):
+        tg = vk = None
+        for r in rows:
+            ch = (s(g(r, 'channel', 'messenger', 'platform', 'source')) or '').lower()
+            tg = tg or integer(g(r, 'telegram_id', 'tg_id'))
+            vk = vk or s(g(r, 'vk_id'))
+            ext = g(r, 'external_id', 'platform_id', 'messenger_id', 'recipient', 'user_id')
+            if ext is not None:
+                if 'telegram' in ch or ch == 'tg':
+                    tg = tg or integer(ext)
+                elif 'vk' in ch:
+                    vk = vk or s(ext)
+        if tg is not None and not (0 < tg < 2 ** 63):
+            tg = None
+        return tg, vk
+
+    def identity(self, uid, provider, ext, meta):
+        project = PROJECT if provider == 'salebot_client' else ''
+        return self.one('''INSERT INTO external_identities (user_id, provider, project_ref, external_id, linked_at, metadata)
+                           VALUES (%s::uuid, %s, %s, %s, now(), %s::jsonb)
+                           ON CONFLICT (provider, project_ref, external_id) DO UPDATE
+                           SET user_id = coalesce(external_identities.user_id, EXCLUDED.user_id),
+                               linked_at = coalesce(external_identities.linked_at, EXCLUDED.linked_at)
+                           RETURNING id::text''', (uid, provider, project, ext, json.dumps(meta)))
+
+    # --- 2. документы и согласия
+    @staticmethod
+    def acceptance_order(r):
+        t = ts(g(r, 'accepted_unix')) or ts(g(r, 'accepted_at_utc', 'created_at'))
+        return (t or datetime.datetime.min.replace(tzinfo=datetime.timezone.utc), integer(g(r, 'id')) or 0)
+
+    def documents(self):
+        groups = {}
+        for r in self.rows('mg_legal_documents'):
+            dt, ver = s(g(r, 'doc_type')), s(g(r, 'version'))
+            if not dt or not ver:
+                continue
+            groups.setdefault((dt, ver), []).append(r)
+        docs = {}
+        for (dt, ver), parts in sorted(groups.items()):
+            mapped = DOC_TYPE.get(dt)
+            if not mapped:
+                self.issue('mg_legal_documents', '%s/%s' % (dt, ver), 'warning', 'неизвестный тип документа — пропущен')
+                continue
+            parts.sort(key=lambda r: integer(g(r, 'part_no')) or 0)
+            body = '\n'.join((r.get('body') or '').replace('\r\n', '\n') for r in parts).strip()
+            if not body:
+                self.issue('mg_legal_documents', '%s/%s' % (dt, ver), 'warning', 'пустой текст — пропущен')
+                continue
+            title = s(g(parts[0], 'title')) or dt
+            published = ts(g(parts[0], 'published_on', 'published_at'), MSK)
+            if published is None:
+                first = [self.acceptance_order(a)[0] for a in self.rows('mg_legal_acceptances')
+                         if s(g(a, 'doc_type')) == dt and s(g(a, 'version')) == ver]
+                published = min(first) if first else datetime.datetime.now(datetime.timezone.utc)
+            digest = hashlib.sha256(body.encode()).hexdigest()
+            existing = self.one('SELECT body_sha256 || \'|\' || id::text FROM legal_documents WHERE doc_type=%s AND version=%s', (mapped, ver))
+            if existing:
+                old_sha, did = existing.split('|')
+                if old_sha != digest:
+                    self.issue('mg_legal_documents', '%s/%s' % (dt, ver), 'error',
+                               'текст принятой редакции в боте отличается от сохранённого — оставлен сохранённый')
+            else:
+                did = self.one('''INSERT INTO legal_documents (doc_type, version, title, body, body_sha256, published_at)
+                                  VALUES (%s, %s, %s, %s, %s, %s) RETURNING id::text''',
+                               (mapped, ver, title, body, digest, published))
+                self.count('documents_created')
+            self.remember('mg_legal_documents', '%s/%s' % (dt, ver), 'legal_documents', did)
+            current = any(integer(g(r, 'is_current')) == 1 for r in parts)
+            docs[(dt, ver)] = (did, published, current, mapped)
+        # прежние редакции: superseded_at = дата следующей редакции того же типа
+        by_type = {}
+        for (dt, ver), v in docs.items():
+            by_type.setdefault(dt, []).append((v[1], ver, v))
+        for dt, lst in by_type.items():
+            lst.sort()
+            for i, (pub, ver, (did, _, current, _m)) in enumerate(lst):
+                if not current and i + 1 < len(lst) and lst[i + 1][0] >= pub:
+                    self.ex('UPDATE legal_documents SET superseded_at=%s WHERE id=%s::uuid AND superseded_at IS NULL',
+                            (lst[i + 1][0], did))
+        self.docs = docs
+
+    def consents(self):
+        new = 0
+        for r in self.rows('mg_legal_acceptances'):
+            cid, dt, ver = s(g(r, 'client_id')), s(g(r, 'doc_type')), s(g(r, 'version'))
+            rid = s(g(r, 'id'))
+            if not cid or not dt or not rid:
+                self.issue('mg_legal_acceptances', rid, 'warning', 'нет client_id / doc_type / id — пропущено')
+                continue
+            ctype = DOC_TYPE.get(dt)
+            status = (s(g(r, 'status')) or '').lower()
+            if not ctype or status not in ('accepted', 'revoked', 'declined'):
+                self.issue('mg_legal_acceptances', rid, 'warning', 'неизвестный тип или статус согласия — пропущено')
+                continue
+            ch = (s(g(r, 'channel')) or '').lower()
+            channel = 'telegram' if 'telegram' in ch or ch == 'tg' else 'vk' if 'vk' in ch else 'import'
+            recorded = self.acceptance_order(r)[0]
+            if recorded.year < 2000:
+                recorded = datetime.datetime.now(datetime.timezone.utc)
+                self.issue('mg_legal_acceptances', rid, 'warning', 'нет времени согласия — записано время переноса')
+            doc = self.docs.get((dt, ver)) if hasattr(self, 'docs') else None
+            meta = {'source': 'salebot', 'project': PROJECT, 'source_id': rid,
+                    'marathon': s(g(r, 'marathon')), 'context': g(r, 'context')}
+            self.cur.execute('''INSERT INTO consents (user_id, external_identity_id, legal_document_id, consent_type, accepted,
+                                  status, document_version, channel, button_text, idempotency_key, recorded_at, metadata)
+                                VALUES (%s::uuid, %s::uuid, %s::uuid, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb)
+                                ON CONFLICT (idempotency_key) DO NOTHING RETURNING id''',
+                             (self.users[cid], self.identities[cid], doc[0] if doc else None, ctype, status == 'accepted',
+                              status, ver, channel, s(g(r, 'button_text')), 'salebot:%s:legal_acceptance:%s' % (PROJECT, rid),
+                              recorded, json.dumps(meta, ensure_ascii=False, default=str)))
+            if self.cur.fetchone():
+                new += 1
+        self.counts['consents_new'] = new
+        self.counts['consents_total'] = self.one("SELECT count(*) FROM consents WHERE idempotency_key LIKE %s", ('salebot:%s:%%' % PROJECT,))
+
+    # --- 3. Игры, туры, итоги
+    def games(self):
+        snap = {}
+        for r in self.rows('mg_round_snapshot'):
+            m = s(g(r, 'marathon'))
+            if m in GAMES:
+                snap.setdefault(m, []).append(r)
+            elif m:
+                self.issue('mg_round_snapshot', m, 'info', 'марафон не описан в GAMES — пропущен')
+        states = {}
+        for r in self.rows('mg_rating_rounds'):
+            states.setdefault((s(g(r, 'marathon')), integer(g(r, 'round_no'))), set()).add((s(g(r, 'state')) or '').lower())
+        self.events, self.rounds = {}, {}
+        for m, cfg in GAMES.items():
+            season = self.one('SELECT id::text FROM seasons WHERE season_no=%s', (cfg['season_no'],))
+            sc = SEASONS[cfg['season_no']]
+            if season:
+                self.ex('UPDATE seasons SET name=%s, status=%s WHERE id=%s::uuid', (sc['name'], sc['status'], season))
+            else:
+                season = self.one('INSERT INTO seasons (name, status, season_no) VALUES (%s, %s, %s) RETURNING id::text',
+                                  (sc['name'], sc['status'], cfg['season_no']))
+            starts = datetime.datetime.fromisoformat(cfg['starts']).replace(tzinfo=MSK)
+            ends = datetime.datetime.fromisoformat(cfg['ends']).replace(hour=23, minute=59, tzinfo=MSK)
+            title_i18n = json.dumps({'ru': cfg['title'], 'en': cfg['title_en']}, ensure_ascii=False)
+            ev = self.one('SELECT id::text FROM events WHERE season_id=%s::uuid AND game_no=%s', (season, cfg['game_no']))
+            if ev:
+                self.ex('''UPDATE events SET title=%s, title_i18n=%s::jsonb, status=%s, starts_at=%s, ends_at=%s,
+                             completion_deadline=%s WHERE id=%s::uuid''',
+                        (cfg['title'], title_i18n, cfg['status'], starts, ends, ends, ev))
+            else:
+                ev = self.one('''INSERT INTO events (season_id, event_type, status, title, title_i18n, starts_at, ends_at,
+                                   completion_deadline, official_timezone, affects_rating, has_diploma, game_no)
+                                 VALUES (%s::uuid, 'ranked_game', %s, %s, %s::jsonb, %s, %s, %s, 'Europe/Moscow', true, true, %s)
+                                 RETURNING id::text''',
+                              (season, cfg['status'], cfg['title'], title_i18n, starts, ends, ends, cfg['game_no']))
+            self.remember('salebot_marathon', m, 'events', ev)
+            self.events[m] = (ev, season)
+            rows = snap.get(m, [])
+            for no in range(1, cfg['rounds'] + 1):
+                has = any(integer(g(r, 'round_no')) == no for r in rows)
+                if (m, no) in self.published_override:
+                    published = True
+                else:
+                    published = bool(states.get((m, no), set()) & PUBLISHED_STATES)
+                status = 'published' if published and has else 'results_review' if has else 'scheduled'
+                ru, en = ROUND_TITLES.get(no, ('Тур %d' % no, 'Round %d' % no))
+                rid = self.one('SELECT id::text FROM rounds WHERE event_id=%s::uuid AND round_no=%s', (ev, no))
+                ti = json.dumps({'ru': ru, 'en': en}, ensure_ascii=False)
+                if rid:
+                    self.ex('UPDATE rounds SET title=%s, title_i18n=%s::jsonb, status=%s WHERE id=%s::uuid', (ru, ti, status, rid))
+                else:
+                    rid = self.one('''INSERT INTO rounds (event_id, round_no, title, title_i18n, status)
+                                      VALUES (%s::uuid, %s, %s, %s::jsonb, %s) RETURNING id::text''', (ev, no, ru, ti, status))
+                self.rounds[(m, no)] = (rid, status == 'published')
+            self.results(m, rows)
+
+    def results(self, m, rows):
+        ev, season = self.events[m]
+        r1 = {s(g(r, 'client_id')): league(g(r, 'league')) for r in rows if integer(g(r, 'round_no')) == 1}
+        bad = {str(g(r, 'league')) for r in rows if g(r, 'league') is not None and league(g(r, 'league')) is None
+               and str(g(r, 'league')).lower() != 'all'}
+        for b in sorted(bad):
+            self.issue('mg_round_snapshot', m, 'error', 'неизвестное значение лиги «%s» — лига не записана' % b[:20])
+        participants = {}
+        for r in rows:
+            cid = s(g(r, 'client_id'))
+            if not cid or (s(g(r, 'participant_status')) or '').lower() == 'jury':
+                continue
+            if cid in participants:
+                continue
+            lg = r1.get(cid)
+            r1id = self.rounds[(m, 1)][0] if lg else None
+            participants[cid] = self.one('''INSERT INTO event_participants (event_id, user_id, registration_status, eligibility_status,
+                                              entry_league, entry_league_round_id, joined_at)
+                                            VALUES (%s::uuid, %s::uuid, 'participating', 'eligible', %s, %s::uuid, %s)
+                                            ON CONFLICT (event_id, user_id) DO UPDATE
+                                            SET entry_league=EXCLUDED.entry_league, entry_league_round_id=EXCLUDED.entry_league_round_id
+                                            RETURNING id::text''',
+                                         (ev, self.users[cid], lg, r1id, None))
+            self.remember('salebot_participant', '%s:%s' % (m, cid), 'event_participants', participants[cid])
+        self.participants = getattr(self, 'participants', {})
+        self.participants.update({(m, c): p for c, p in participants.items()})
+        self.count('event_participants', len(participants))
+        for r in rows:
+            cid, no = s(g(r, 'client_id')), integer(g(r, 'round_no'))
+            if (s(g(r, 'participant_status')) or '').lower() != 'valid' or cid not in participants or (m, no) not in self.rounds:
+                self.count('results_skipped')
+                continue
+            rid, published = self.rounds[(m, no)]
+            score = num(g(r, 'display_score'))
+            if score is not None and not (0 <= score <= 100):
+                self.issue('mg_round_snapshot', '%s:%s:%s' % (m, no, cid), 'error', 'балл вне 0–100 — не записан')
+                score = None
+            place, pool = integer(g(r, 'place')), integer(g(r, 'pool_size'))
+            top = bool(integer(g(r, 'top_work')))
+            snap = {k: r.get(k) for k in ('metric_type', 'metric_raw', 'metric_max', 'display_formula_version', 'rules_version',
+                                          'participant_status', 'rating_before', 'calibration_before')}
+            snap.update(source='salebot', place_overall=place if no == 1 else None, pool='all' if no == 1 else 'league')
+            lg = league(g(r, 'league')) or r1.get(cid)
+            league_rank = place if no > 1 else None
+            if league_rank and pool and league_rank > pool:
+                league_rank = None
+            avg = num(g(r, 'average_place'))
+            tie = integer(g(r, 'tie_group_size'))
+            out = self.one('''INSERT INTO round_results (event_id, round_id, event_participant_id, version_no, is_current, status,
+                                display_score, league, pool_size, league_rank, average_place, tie_group_size, top_work,
+                                top_work_rule_version, calculation_snapshot, published_at)
+                              VALUES (%s::uuid, %s::uuid, %s::uuid, 1, true, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb,
+                                      CASE WHEN %s THEN now() END)
+                              ON CONFLICT (round_id, event_participant_id, version_no) DO UPDATE SET
+                                status=EXCLUDED.status, display_score=EXCLUDED.display_score, league=EXCLUDED.league,
+                                pool_size=EXCLUDED.pool_size, league_rank=EXCLUDED.league_rank, average_place=EXCLUDED.average_place,
+                                tie_group_size=EXCLUDED.tie_group_size, top_work=EXCLUDED.top_work,
+                                top_work_rule_version=EXCLUDED.top_work_rule_version,
+                                calculation_snapshot=EXCLUDED.calculation_snapshot,
+                                published_at=CASE WHEN EXCLUDED.status='published' THEN coalesce(round_results.published_at, now()) END
+                              RETURNING id::text''',
+                           (ev, rid, participants[cid], 'published' if published else 'draft', score, lg,
+                            pool if pool and pool > 0 else None, league_rank, avg if avg and avg > 0 else None,
+                            tie if tie and tie > 0 else None, top, TOPWORK_RULE if top else None,
+                            json.dumps(snap, ensure_ascii=False, default=str), published))
+            self.remember('mg_round_snapshot', '%s:%s:%s' % (m, no, cid), 'round_results', out, r)
+            self.count('round_results')
+            if top and published:
+                self.count('top_work_published')
+
+    # --- 4. рейтинг
+    def rating(self):
+        events = []
+        for r in self.rows('mg_rating_events'):
+            m, cid, batch = s(g(r, 'marathon')), s(g(r, 'client_id')), s(g(r, 'batch_id'))
+            if m not in GAMES or not cid or not batch:
+                self.issue('mg_rating_events', g(r, 'event_id'), 'info', 'событие вне описанных Игр или без батча — пропущено')
+                continue
+            events.append(r)
+        keys = {'salebot:%s:rating:%s:%s' % (PROJECT, s(g(r, 'batch_id')), s(g(r, 'client_id'))) for r in events}
+        # батчи, отменённые в боте, гасятся до записи новых (одно активное стартовое распределение на человека)
+        self.cur.execute('''UPDATE rating_transactions SET status='void'
+                            WHERE idempotency_key LIKE %s AND status='active' AND NOT (idempotency_key = ANY(%s::text[]))''',
+                         ('salebot:%s:rating:%%' % PROJECT, list(keys)))
+        self.counts['rating_voided'] = self.cur.rowcount
+        for r in sorted(events, key=lambda r: integer(g(r, 'event_id')) or 0):
+            m, cid = s(g(r, 'marathon')), s(g(r, 'client_id'))
+            after = num(g(r, 'rating_after'))
+            method = RATING_METHOD.get((s(g(r, 'event_type')) or '').lower())
+            if after is None or not method:
+                self.issue('mg_rating_events', g(r, 'event_id'), 'warning', 'нет rating_after или неизвестный тип события — пропущено')
+                continue
+            no = integer(g(r, 'round_no'))
+            ev = self.events[m][0]
+            rid = self.rounds.get((m, no), (None,))[0] if no else None
+            cb, ca = integer(g(r, 'calibration_before')), integer(g(r, 'calibration_after'))
+            clamp = lambda v: None if v is None else max(0, min(3, v))
+            calib_no = ca if ca is not None and 1 <= ca <= 3 and (cb is None or ca > cb) else None
+            snap = {k: r.get(k) for k in ('expected', 'scored', 'comparisons', 'league', 'batch_id', 'reason', 'event_type', 'event_id')}
+            snap['source'] = 'salebot'
+            key = 'salebot:%s:rating:%s:%s' % (PROJECT, s(g(r, 'batch_id')), cid)
+            tid = self.one('''INSERT INTO rating_transactions (user_id, event_id, round_id, method, formula_version, rating_before,
+                                delta_after_cap, rating_after, k_used, cap_used, calibration_round_no,
+                                calibration_rounds_completed_before, calibration_rounds_completed_after, calculation_snapshot,
+                                status, idempotency_key, applied_at)
+                              VALUES (%s::uuid, %s::uuid, %s::uuid, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, 'active', %s,
+                                      coalesce(%s, now()))
+                              ON CONFLICT (idempotency_key) DO UPDATE SET
+                                method=EXCLUDED.method, formula_version=EXCLUDED.formula_version, rating_before=EXCLUDED.rating_before,
+                                delta_after_cap=EXCLUDED.delta_after_cap, rating_after=EXCLUDED.rating_after, k_used=EXCLUDED.k_used,
+                                cap_used=EXCLUDED.cap_used, calibration_round_no=EXCLUDED.calibration_round_no,
+                                calibration_rounds_completed_before=EXCLUDED.calibration_rounds_completed_before,
+                                calibration_rounds_completed_after=EXCLUDED.calibration_rounds_completed_after,
+                                calculation_snapshot=EXCLUDED.calculation_snapshot, status='active'
+                              RETURNING id::text''',
+                           (self.users[cid], ev, rid, method, s(g(r, 'formula_version')) or 'unknown', num(g(r, 'rating_before')),
+                            num(g(r, 'delta')), after, num(g(r, 'k_factor')), num(g(r, 'cap')), calib_no, clamp(cb), clamp(ca),
+                            json.dumps(snap, ensure_ascii=False, default=str), key, ts(g(r, 'created_at'))))
+            self.remember('mg_rating_events', key, 'rating_transactions', tid, r)
+            self.count('rating_transactions')
+
+        # профиль рейтинга и лига сезона
+        entry = {}
+        for (m, cid), ep in getattr(self, 'participants', {}).items():
+            lg = self.one('SELECT entry_league FROM event_participants WHERE id=%s::uuid', (ep,))
+            if lg:
+                entry[cid] = (GAMES[m]['season_no'], lg)
+        seasons = {no: self.one('SELECT id::text FROM seasons WHERE season_no=%s', (no,)) for no in SEASONS}
+        players = 0
+        for r in self.rows('mg_rating_players'):
+            cid = s(g(r, 'client_id'))
+            if cid not in self.users:
+                continue
+            uid = self.users[cid]
+            rating = num(g(r, 'rating_current'))
+            calib = max(0, min(3, integer(g(r, 'calibration_count')) or 0))
+            st = (s(g(r, 'rating_status')) or '').lower()
+            if rating is None:
+                status = 'unrated'
+            elif st == 'rated' and calib == 3:
+                status = 'established'
+            else:
+                status = 'calibrating'
+                if st == 'rated':
+                    self.issue('mg_rating_players', cid, 'warning', 'rated при калибровке < 3 — записано calibrating')
+            self.ex('''INSERT INTO participant_stats (user_id, current_rating, calibration_rounds_completed, rating_status)
+                       VALUES (%s::uuid, %s, %s, %s)
+                       ON CONFLICT (user_id) DO UPDATE SET current_rating=EXCLUDED.current_rating,
+                         calibration_rounds_completed=EXCLUDED.calibration_rounds_completed, rating_status=EXCLUDED.rating_status''',
+                    (uid, rating, calib, status))
+            players += 1
+            raw_lg = g(r, 'league_current')
+            lg = league(raw_lg)
+            if raw_lg is not None and lg is None:
+                self.issue('mg_rating_players', cid, 'warning', 'неизвестная лига «%s» — взята лига Игры' % str(raw_lg)[:20])
+            season_no, game_lg = entry.get(cid, (1, None))
+            lg = lg or game_lg
+            sid = seasons.get(season_no)
+            if sid and (lg or rating is not None):
+                self.ex('''INSERT INTO season_participants (season_id, user_id, league_at_start, current_league)
+                           VALUES (%s::uuid, %s::uuid, %s, %s)
+                           ON CONFLICT (season_id, user_id) DO UPDATE SET current_league=EXCLUDED.current_league,
+                             league_at_start=coalesce(season_participants.league_at_start, EXCLUDED.league_at_start)''',
+                        (sid, uid, game_lg or lg, lg))
+        self.counts['rating_players'] = players
+
+    def run(self):
+        self.people()
+        self.documents()
+        self.consents()
+        self.games()
+        self.rating()
+        for table, key, sev, msg in self.issues:
+            self.ex('INSERT INTO import_issues (batch_id, source_table, source_key, severity, message) VALUES (%s::uuid, %s, %s, %s, %s)',
+                    (self.batch, table, key, sev, msg))
+
+
+# ---------------------------------------------------------------- запуск
+def parse_published(args):
+    out = set()
+    for a in args:
+        m, _, rounds = a.partition(':')
+        for no in rounds.split(','):
+            if no.strip().isdigit():
+                out.add((m, int(no)))
+    return out
+
+
+def main(argv):
+    force = '--force' in argv
+    no_export = '--no-export' in argv
+    pub = [argv[i + 1] for i, a in enumerate(argv) if a == '--published' and i + 1 < len(argv)]
+    status_path = os.path.join(DATA, 'import-status.json')
+    try:
+        prev = json.load(open(status_path, encoding='utf-8'))
+    except Exception:
+        prev = {}
+    try:
+        manifest, data, digest = load_input()
+    except Waiting as w:
+        if prev.get('waiting') != str(w):
+            prev.update(updated_at=now_iso(), waiting=str(w))
+            write_json(status_path, prev)
+        return 0
+    conn = connect()
+    cur = conn.cursor()
+    cur.execute("SELECT 1 FROM import_batches WHERE snapshot_sha256=%s AND status='completed' LIMIT 1", (digest,))
+    if cur.fetchone() and not force:
+        conn.rollback()
+        return 0
+    started = now_iso()
+    try:
+        cur.execute('''INSERT INTO import_batches (source, source_project, snapshot_sha256, notes)
+                       VALUES ('salebot', %s, %s, %s) RETURNING id::text''',
+                    (PROJECT, digest, 'export_id=%s' % str(manifest.get('export_id'))[:100]))
+        batch = cur.fetchone()[0]
+        imp = Importer(cur, batch, data, parse_published(pub))
+        imp.run()
+        cur.execute("UPDATE import_batches SET status='completed', finished_at=now() WHERE id=%s::uuid", (batch,))
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        # в журнал — только тип ошибки и ограничение, без значений строк (там могут быть личные данные)
+        cname = getattr(getattr(e, 'diag', None), 'constraint_name', None) or ''
+        note = ('%s %s' % (type(e).__name__, cname)).strip()
+        cur.execute('''INSERT INTO import_batches (source, source_project, snapshot_sha256, status, finished_at, notes)
+                       VALUES ('salebot', %s, %s, 'failed', now(), %s)''', (PROJECT, digest, note))
+        conn.commit()
+        write_json(status_path, {'updated_at': now_iso(), 'status': 'failed', 'error': note,
+                                 'last_completed_at': prev.get('last_completed_at'), 'counts': prev.get('counts')})
+        print('fpl-db-import: ошибка: %s' % note, file=sys.stderr)
+        return 1
+    sev = {}
+    for _, _, sv, _ in imp.issues:
+        sev[sv] = sev.get(sv, 0) + 1
+    st = {'updated_at': now_iso(), 'status': 'completed', 'started_at': started, 'last_completed_at': now_iso(),
+          'tables': {k: len(v) for k, v in data.items()}, 'counts': imp.counts, 'issues': sev}
+    write_json(status_path, st)
+    print('fpl-db-import: готово %s' % json.dumps({'counts': imp.counts, 'issues': sev}, ensure_ascii=False))
+    if not no_export and os.path.exists(EXPORT):
+        subprocess.run([EXPORT], check=False)
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv[1:]))

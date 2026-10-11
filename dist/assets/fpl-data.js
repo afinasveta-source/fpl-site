@@ -7,13 +7,17 @@
     calib: 'Provisional rating: every artist has played {n} of 3 calibration rounds so far. Places can still change a lot.',
     updated: 'Updated {d}', none: 'No one found. Try another name.',
     rounds: 'rounds', masters: 'artists', leagueN: '{n} artists', range: '{a}–{b}',
-    tw: 'TOP WORK', prov: 'provisional', calibShort: 'calibration {n}/3', place: 'Place'
+    tw: 'TOP WORK', prov: 'provisional', calibShort: 'calibration {n}/3', place: 'Place',
+    afterRound: 'Rating after round {n}', roundShort: 'Round {n}', twCount: 'TOP WORK: {n}',
+    twHidden: '{n} more without a published name', twOf: 'TOP WORK, {r}:', twAll: 'all rounds'
   } : {
     empty: 'Рейтинг появится здесь, как только перенесём результаты туров из бота.',
     calib: 'Рейтинг предварительный: у всех пока {n} из 3 калибровочных туров. Места ещё могут заметно меняться.',
     updated: 'Обновлено {d}', none: 'Никого не нашли. Попробуйте другое имя.',
     rounds: 'туров', masters: 'мастеров', leagueN: '{n} мастеров', range: '{a}–{b}',
-    tw: 'TOP WORK', prov: 'предварительный', calibShort: 'калибровка {n}/3', place: 'Место'
+    tw: 'TOP WORK', prov: 'предварительный', calibShort: 'калибровка {n}/3', place: 'Место',
+    afterRound: 'Рейтинг после {n} тура', roundShort: '{n} тур', twCount: 'TOP WORK: {n}',
+    twHidden: 'ещё {n} — без публикации имени', twOf: 'TOP WORK, {r}:', twAll: 'все туры'
   };
   var LG = { gold: 'Gold', silver: 'Silver', bronze: 'Bronze' };
   function f(s, o) { return s.replace(/\{(\w+)\}/g, function (m, k) { return o[k]; }); }
@@ -27,6 +31,14 @@
     return fetch('/data/' + name + '.json', { cache: 'no-cache' }).then(function (r) { if (!r.ok) throw r.status; return r.json(); });
   }
   function season(data) { return (data && data.seasons && data.seasons[0]) || null; }
+
+  // Итоги туров (games.json): TOP WORK на главной и в «Играх», «Рейтинг после N тура»
+  var twRounds = document.querySelector('[data-fpl="tw-rounds"]');
+  var twHome = document.querySelector('[data-fpl="tw-home"]');
+  var afters = document.querySelectorAll('[data-fpl-after]');
+  if (twRounds || twHome || afters.length) {
+    load('games').then(renderGames).catch(function () {});
+  }
 
   // Главная: превью рейтинга
   var prev = document.querySelector('[data-fpl="rating-preview"]');
@@ -42,6 +54,37 @@
     if (prev) renderPreview([], null);
     if (rbody) renderPage(null, [], null);
   });
+
+  function renderGames(data) {
+    var game = ((data && data.games) || []).filter(function (g) { return g.season_no === 1 && g.game_no === 1; })[0];
+    if (!game) return;
+    var pub = (game.rounds || []).filter(function (r) { return r.published; });
+    if (!pub.length) return;
+    var last = Math.max.apply(null, pub.map(function (r) { return r.no; }));
+    afters.forEach(function (el) {
+      var arrow = /→\s*$/.test(el.textContent) ? ' →' : '';
+      el.textContent = el.getAttribute('data-fpl-after') === 'dd' ? f(T.roundShort, { n: last }) : f(T.afterRound, { n: last }) + arrow;
+    });
+    function title(r) { return (r.title_i18n && r.title_i18n[EN ? 'en' : 'ru']) || r.title; }
+    function names(r) { return (r.top_work || []).map(function (w) { return esc(w.name) + (w.league ? ' ' + lg(w.league) : ''); }); }
+    if (twRounds) {
+      var html = pub.filter(function (r) { return r.top_work_count > 0; }).map(function (r) {
+        var shown = r.top_work || [], hidden = r.top_work_count - shown.length;
+        return '<article class="tw-round"><h3>' + esc(title(r)) + '</h3><p class="meta">' + f(T.twCount, { n: r.top_work_count }) + '</p>' +
+          (shown.length ? '<ul class="tw-names">' + names(r).map(function (n) { return '<li>' + n + '</li>'; }).join('') + '</ul>' : '') +
+          (hidden > 0 ? '<p class="meta">' + f(T.twHidden, { n: hidden }) + '</p>' : '') + '</article>';
+      }).join('');
+      if (html) { twRounds.innerHTML = html; var sec = twRounds.closest('[data-fpl="tw-section"]'); if (sec) sec.hidden = false; }
+    }
+    if (twHome) {
+      var lr = pub.filter(function (r) { return r.no === last; })[0];
+      if (lr && lr.top_work && lr.top_work.length) {
+        twHome.innerHTML = '<b>' + esc(f(T.twOf, { r: title(lr) })) + '</b> ' + lr.top_work.map(function (w) { return esc(w.name); }).join(', ') +
+          ' · <a class="text-link" href="games.html#g01">' + T.twAll + '</a>';
+        twHome.hidden = false;
+      }
+    }
+  }
 
   function renderPreview(players, data) {
     var empty = document.querySelector('[data-fpl="rating-empty"]');

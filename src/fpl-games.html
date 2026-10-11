@@ -181,7 +181,7 @@
         <span class="st-status">Идёт</span>
         <h3>Игра 01</h3>
         <p>Первая Игра сезона, 30 сентября — 10 ноября. Участие бесплатное.</p>
-        <a class="st-link" href="fpl-rating.html">Рейтинг после 1 тура →</a>
+        <a class="st-link" href="fpl-rating.html" data-fpl-after="link">Рейтинг после 1 тура →</a>
       </li>
       <li class="st st--ch">
         <span class="st-dot" aria-hidden="true"></span>
@@ -215,6 +215,12 @@
         <p>Лучшие мастера сезона борются за кубок и денежный фонд.</p>
       </li>
     </ol>
+  </section>
+
+  <!-- ИГРА 01: TOP WORK ПО ТУРАМ (из базы, /data/games.json) -->
+  <section id="g01" aria-labelledby="g01Title" data-fpl="tw-section" hidden>
+    <div class="sec-head"><h2 class="h2" id="g01Title">Игра 01: <span class="a-pink">TOP WORK</span></h2><span class="sec-note">Лучшие работы туров, итоги которых уже объявлены. Баллы и места участниц не публикуются — свой результат каждая видит в боте.</span></div>
+    <div class="tw-rounds" data-fpl="tw-rounds"></div>
   </section>
 
   <!-- СЛЕДУЮЩАЯ ИГРА -->
@@ -358,5 +364,6 @@
   }
 })();
 </script>
+<script src="assets/fpl-data.js?v=2" defer></script>
 </body>
 </html>

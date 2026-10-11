@@ -5,7 +5,8 @@
 #  3) архив фото работ: /var/lib/fpl/archive, cron каждые 10 минут;
 #  4) база PostgreSQL сайта (схема 001→003 backend), публичные файлы /data/*.json, ночная копия;
 #  5) сводка состояния /data/server-status.json;
-#  6) копии базы в закрытый бакет в другом городе (доступ вводится на /admin/backup.html).
+#  6) копии базы в закрытый бакет в другом городе (доступ вводится на /admin/backup.html);
+#  7) перенос данных из SaleBot в базу (fpl-db-import, каждые 5 минут, если бот прислал новый снимок).
 # Если что-то упало — пакет будет применён заново при следующем запуске fpl-ops (через 5 минут).
 set -e
 cd "$(dirname "$0")"
@@ -52,8 +53,13 @@ if ! command -v psql >/dev/null || ! ls /usr/lib/postgresql/*/bin/postgres >/dev
   apt-get -o DPkg::Lock::Timeout=600 update -q
   apt-get -o DPkg::Lock::Timeout=600 install -y -q postgresql postgresql-contrib
 fi
+python3 -c 'import psycopg' 2>/dev/null || python3 -c 'import psycopg2' 2>/dev/null || \
+  apt-get -o DPkg::Lock::Timeout=600 install -y -q python3-psycopg || \
+  { apt-get -o DPkg::Lock::Timeout=600 update -q && apt-get -o DPkg::Lock::Timeout=600 install -y -q python3-psycopg; } || \
+  apt-get -o DPkg::Lock::Timeout=600 install -y -q python3-psycopg2 || \
+  echo "fpl-ops: ВНИМАНИЕ: нет драйвера PostgreSQL для Python — перенос из SaleBot не запустится"
 mkdir -p /opt/fpl/db && rm -rf /opt/fpl/db/schema && cp -r db/schema db/site_views.sql /opt/fpl/db/
-for f in fpl-db-setup fpl-db-export fpl-db-backup fpl-status; do install -m 0755 "db/$f" "/usr/local/bin/$f"; done
+for f in fpl-db-setup fpl-db-export fpl-db-backup fpl-db-import fpl-status; do install -m 0755 "db/$f" "/usr/local/bin/$f"; done
 /usr/local/bin/fpl-db-setup /opt/fpl/db
 grep -q fpl-db-export /etc/cron.d/fpl || \
   printf '*/10 * * * * root /usr/local/bin/fpl-db-export >> /var/log/fpl-db.log 2>&1\n17 3 * * * root /usr/local/bin/fpl-db-backup >> /var/log/fpl-db.log 2>&1\n' >> /etc/cron.d/fpl
@@ -61,6 +67,8 @@ grep -q offsite-if-missing /etc/cron.d/fpl || \
   printf '47 * * * * root /usr/local/bin/fpl-db-backup --offsite-if-missing >> /var/log/fpl-db.log 2>&1\n' >> /etc/cron.d/fpl
 grep -q fpl-status /etc/cron.d/fpl || \
   printf '*/10 * * * * root /usr/local/bin/fpl-status >/dev/null 2>&1\n' >> /etc/cron.d/fpl
+grep -q fpl-db-import /etc/cron.d/fpl || \
+  printf '3-59/5 * * * * root /usr/local/bin/fpl-db-import >> /var/log/fpl-db.log 2>&1\n' >> /etc/cron.d/fpl
 /usr/local/bin/fpl-db-export
 [ -f /var/backups/fpl/last-ok ] || /usr/local/bin/fpl-db-backup
 

@@ -16,3 +16,20 @@ PostgreSQL на сервере сайта (`fpl-site-2`), доступна то�
 - Если `apply.sh` упал: в статусе `ops: error … line N`, пакет применится заново через 5 минут.
 - Backend Codex в режиме PROD требует отдельный сервер базы с `sslmode=verify-full` — при запуске кабинета
   на этом сервере эту проверку нужно ослабить для локального подключения.
+
+## Перенос из SaleBot (fpl-db-import, с 11.10.2026)
+- Блок бота «Сайт: выгрузка в базу» (текст генерирует `server/salebot/make_blocks.py export`, сохраняет Светлана)
+  шлёт таблицы `mg_*` частями в закрытые наборы `private-sb-<таблица>` и последним — `private-sb-manifest`
+  (число строк каждой таблицы).
+- `fpl-db-import` (cron, каждые 5 минут) переносит снимок, только когда пришли все таблицы и число строк совпало,
+  и только новый снимок (sha256). Одна транзакция: всё или ничего; пакет и замечания — `import_batches`, `import_issues`.
+  Повтор не дублирует (`import_row_map`). После переноса сразу запускается `fpl-db-export`.
+- Правила переноса: лига Игры 01 А → gold, Б → silver; тур публикуется на сайте при состоянии
+  `confirmed / published / locked` в `mg_rating_rounds`; жюри не участник; согласие на публикацию —
+  последнее решение по `publication_consent`; батч рейтинга, удалённый в боте, гасится (`void`).
+- Сводка без имён: `/data/import-status.json`; в `server-status.json` — `import_status`, `last_import`.
+- На сайт по турам идут только размеры лиг и TOP WORK (имя — при согласии). Баллы и места других — нет (Правила 7.3).
+- Проверки: `python3 server/db/tests/test_import.py`, `python3 server/db/tests/test_e2e_salebot.py`
+  (нужны локальный PostgreSQL и `/etc/fpl-db.env`).
+- Перед первым запуском сверить колонки в `make_blocks.py` с живой схемой SaleBot (особенно `mg_client_channels`,
+  `mg_public_names`) и значения лиг в `mg_round_snapshot`.

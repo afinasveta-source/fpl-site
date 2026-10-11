@@ -68,7 +68,8 @@ CREATE OR REPLACE FUNCTION site_export_rating() RETURNS json LANGUAGE sql STABLE
       ) x), '[]'::json));
 $$;
 
--- Игры и опубликованные итоги туров.
+-- Игры и опубликованные итоги туров. По Правилам (п. 7.3) баллы и места других участников
+-- не публикуются: наружу идут только размеры лиг и TOP WORK (имя — при согласии на публикацию).
 CREATE OR REPLACE FUNCTION site_export_games() RETURNS json LANGUAGE sql STABLE AS $$
   SELECT json_build_object(
     'schema', 'fpl.public.games.v1',
@@ -88,15 +89,16 @@ CREATE OR REPLACE FUNCTION site_export_games() RETURNS json LANGUAGE sql STABLE 
                           SELECT rr.league, count(*) AS n FROM round_results rr
                           WHERE rr.round_id = r.id AND rr.is_current AND rr.status = 'published' AND rr.league IS NOT NULL
                           GROUP BY rr.league) l),
-            'results', coalesce((
-              SELECT json_agg(json_build_object(
-                'name', p.display_name, 'league', rr.league, 'score', round(rr.display_score)::int,
-                'league_rank', rr.league_rank, 'top_work', rr.top_work)
-                ORDER BY rr.league, rr.league_rank NULLS LAST, p.display_name)
+            'published', (r.status = 'published'),
+            'top_work_count', (SELECT count(*) FROM round_results rr
+                               WHERE rr.round_id = r.id AND rr.is_current AND rr.status = 'published' AND rr.top_work),
+            'top_work', coalesce((
+              SELECT json_agg(json_build_object('name', p.display_name, 'league', rr.league)
+                ORDER BY p.display_name)
               FROM round_results rr
               JOIN event_participants ep ON ep.id = rr.event_participant_id
               JOIN site_public_people p ON p.user_id = ep.user_id AND p.show_works
-              WHERE rr.round_id = r.id AND rr.is_current AND rr.status = 'published'), '[]'::json))
+              WHERE rr.round_id = r.id AND rr.is_current AND rr.status = 'published' AND rr.top_work), '[]'::json))
             ORDER BY r.round_no)
           FROM rounds r WHERE r.event_id = e.id AND r.status <> 'draft'), '[]'::json))
         ORDER BY s.season_no, e.game_no)

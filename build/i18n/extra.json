@@ -48,6 +48,9 @@
   "<b>Игра 01</b><span>идёт · финал 10 ноября</span>": "<b>Game 01</b><span>on now · final on 10 November</span>",
   "<i></i>Идёт сейчас": "<i></i>On now",
   "Поиск по имени": "Search by name",
-  "@Имя": "@Name"
+  "@Имя": "@Name",
+  "Игра 01: <span class=\"a-pink\">TOP WORK</span>": "Game 01: <span class=\"a-pink\">TOP WORK</span>",
+  "Лучшие работы туров, итоги которых уже объявлены. Баллы и места участниц не публикуются — свой результат каждая видит в боте.": "The best works of rounds whose results have been announced. Scores and places are not published — every artist sees her own result in the bot.",
+  "<a class=\"btnC\" data-en=\"Join the next Game →\" href=\"#how\">Участвовать в следующей Игре →</a>\n<a class=\"linkC\" data-fpl-after=\"link\" href=\"rating.html\">Рейтинг после 1 тура</a>": "<a class=\"btnC\" data-en=\"Join the next Game →\" href=\"#how\">Join the next Game →</a>\n<a class=\"linkC\" data-fpl-after=\"link\" href=\"rating.html\">Rating after round 1</a>"
  }
 }

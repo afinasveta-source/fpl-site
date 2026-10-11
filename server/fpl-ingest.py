@@ -34,12 +34,12 @@ def target_dir(name):
     return PRIVATE if name.startswith('private-') else DATA
 
 
-def write_atomic(path, obj):
+def write_atomic(path, obj, private=False):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path))
     with os.fdopen(fd, 'w', encoding='utf-8') as f:
         json.dump(obj, f, ensure_ascii=False, separators=(',', ':'))
-    os.chmod(tmp, 0o600 if path.startswith(PRIVATE) else 0o644)
+    os.chmod(tmp, 0o600 if private or path.startswith(PRIVATE) else 0o644)
     os.replace(tmp, path)
 
 
@@ -148,7 +148,8 @@ class H(BaseHTTPRequestHandler):
             p = os.path.join(d, f)
             if not f.startswith('%d-' % parts) or time.time() - os.path.getmtime(p) > 3600:
                 os.remove(p)
-        write_atomic(os.path.join(d, '%d-%03d.json' % (parts, part)), body)
+        os.chmod(d, 0o700)
+        write_atomic(os.path.join(d, '%d-%03d.json' % (parts, part)), body, private=name.startswith('private-'))
         got = sorted(f for f in os.listdir(d) if f.startswith('%d-' % parts))
         if len(got) < parts:
             return self.reply(200, {'ok': True, 'name': name, 'part': part, 'received': len(got), 'parts': parts})

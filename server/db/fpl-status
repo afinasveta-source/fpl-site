@@ -16,6 +16,8 @@ out, schema, tables, users, dbsize = sys.argv[1:6]
 def read(p):
     try: return open(p).read().strip()
     except Exception: return None
+try: imp = json.load(open(os.path.join(os.path.dirname(out), 'import-status.json')))
+except Exception: imp = {}
 mem = {}
 for line in open('/proc/meminfo'):
     k, v = line.split(':', 1); mem[k] = int(v.split()[0]) // 1024
@@ -31,6 +33,7 @@ st = {
   'last_offsite_backup': read('/var/backups/fpl/last-offsite-ok'),
   'offsite_error': read('/var/backups/fpl/last-offsite-error'),
   'ops': read('/var/lib/fpl/ops-status'),
+  'last_import': imp.get('last_completed_at'), 'import_status': imp.get('status') or ('waiting' if imp.get('waiting') else None),
   'disk_free_mb': shutil.disk_usage('/').free // 1048576,
   'disk_total_mb': shutil.disk_usage('/').total // 1048576,
   'mem_total_mb': mem.get('MemTotal'), 'mem_available_mb': mem.get('MemAvailable'),
