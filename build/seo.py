@@ -144,6 +144,8 @@ def assets():
     shutil.copy(O + '/assets/fpl-data.js', D + '/assets/fpl-data.js')
     shutil.copytree(O + '/assets/fonts', D + '/assets/fonts', dirs_exist_ok=True)
     if os.path.isdir(O + '/assets/img'): shutil.copytree(O + '/assets/img', D + '/assets/img', dirs_exist_ok=True)
+    # служебные страницы (не индексируются): /admin/
+    if os.path.isdir(O + '/admin'): shutil.copytree(O + '/admin', D + '/admin', dirs_exist_ok=True)
     # файлы подтверждения для Google Search Console / Яндекс Вебмастера — в корень сайта
     for f in os.listdir(O + '/assets/verify'): shutil.copy(O + '/assets/verify/' + f, D + '/' + f)
     open(D + '/assets/favicon.svg', 'w').write(
@@ -169,6 +171,7 @@ User-agent: *
 Allow: /
 Disallow: /api/
 Disallow: /account/
+Disallow: /admin/
 
 # Поисковые и ИИ-роботы: доступ открыт явно
 User-agent: Googlebot

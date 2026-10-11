@@ -10,8 +10,16 @@ POST /api/ingest?name=<набор>[&part=<i>&parts=<n>]
   Наборы с именем private-… сохраняются в /var/lib/fpl/private/ — сайт их НЕ отдаёт
   (например, private-photos: список фото работ для архива, см. fpl-photo-archive.py).
 GET /api/health -> {"ok": true}
+POST /api/settings/backup  (заголовок X-FPL-Key) {"bucket","pool","access_key","secret_key"}
+  Сохраняет доступ к закрытому бакету для копий (/var/lib/fpl/private/backup-s3.json, 0600)
+  только после успешной пробной записи check/ping-….txt. Секрет в ответе не возвращается.
 """
-import json, os, re, time, tempfile, urllib.parse
+import json, os, re, sys, time, tempfile, urllib.parse
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+try:
+    import fpl_s3
+except Exception:  # архив без модуля — настройка копий недоступна
+    fpl_s3 = None
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 DATA = os.environ.get('FPL_DATA', '/var/lib/fpl/data')
@@ -54,8 +62,45 @@ class H(BaseHTTPRequestHandler):
             return self.reply(200, {'ok': True})
         self.reply(404, {'ok': False})
 
+    def settings_backup(self):
+        n = int(self.headers.get('Content-Length') or 0)
+        if n > 4096:
+            return self.reply(413, {'ok': False, 'error': 'too_large'})
+        try:
+            body = json.loads(self.rfile.read(n).decode('utf-8'))
+        except Exception:
+            return self.reply(400, {'ok': False, 'error': 'bad_json'})
+        if not KEY or self.headers.get('X-FPL-Key') != KEY:
+            time.sleep(1)
+            return self.reply(403, {'ok': False, 'error': 'bad_key'})
+        if fpl_s3 is None:
+            return self.reply(500, {'ok': False, 'error': 'no_s3_module'})
+        cfg = {k: str(body.get(k) or '').strip() for k in ('bucket', 'pool', 'access_key', 'secret_key')}
+        checks = [('bucket', r'^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$'), ('pool', r'^(ru-1|ru-3|ru-6|ru-7|gis-1)$'),
+                  ('access_key', r'^[A-Za-z0-9]{8,128}$'), ('secret_key', r'^[A-Za-z0-9/+=_-]{16,256}$')]
+        for k, rx in checks:
+            if not re.match(rx, cfg[k]):
+                return self.reply(400, {'ok': False, 'error': 'bad_' + k})
+        stamp = time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())
+        code, mode, msg = fpl_s3.put_bytes(cfg, 'check/ping-%s.txt' % stamp, ('fpl ok ' + stamp).encode(), 'text/plain', timeout=30)
+        if not (200 <= code < 300):
+            return self.reply(502, {'ok': False, 'error': 'upload_failed', 'http': code, 'detail': msg})
+        cfg['addressing'] = mode
+        cfg['saved_at'] = stamp
+        path = os.path.join(PRIVATE, 'backup-s3.json')
+        write_atomic(path, cfg)
+        os.chmod(path, 0o600)
+        return self.reply(200, {'ok': True, 'bucket': cfg['bucket'], 'pool': cfg['pool'], 'addressing': mode,
+                                'warning': 'same_city' if cfg['pool'] in ('ru-1', 'ru-3') else None})
+
     def do_POST(self):
         u = urllib.parse.urlparse(self.path)
+        if u.path == '/api/settings/backup':
+            try:
+                return self.settings_backup()
+            except Exception as e:
+                print('settings_backup error: %s' % type(e).__name__, flush=True)
+                return self.reply(500, {'ok': False, 'error': 'server_error'})
         if u.path != '/api/ingest':
             return self.reply(404, {'ok': False})
         q = {k: v[0] for k, v in urllib.parse.parse_qs(u.query).items()}

@@ -1,13 +1,28 @@
 #!/bin/bash
-# fpl-db-backup: ночная копия базы (pg_dump, сжатый формат). Хранится 14 последних.
-# Позже: копирование в закрытый бакет S3 (нужен ключ доступа, вписывается на сервере).
+# fpl-db-backup: копия базы (pg_dump, сжатый формат). На сервере хранятся 14 последних.
+# Если настроен закрытый бакет (/var/lib/fpl/private/backup-s3.json, вводится на /admin/backup.html),
+# копия отправляется туда же: db/<имя файла>. В бакете копии не удаляются.
+#   --offsite-if-missing : запуститься, только если копии в бакете ещё не было (cron раз в час)
 set -euo pipefail
+D=/var/backups/fpl
+CFG=/var/lib/fpl/private/backup-s3.json
+if [ "${1:-}" = "--offsite-if-missing" ]; then
+  [ -s "$CFG" ] && [ ! -f "$D/last-offsite-ok" ] || exit 0
+fi
 . /etc/fpl-db.env
 export PGPASSWORD="$FPL_DB_PASSWORD"
-D=/var/backups/fpl
 mkdir -p "$D" && chmod 700 "$D"
+rm -f "$D"/*.tmp
 f="$D/fpl-$(date +%Y%m%d-%H%M).dump"
 pg_dump -h 127.0.0.1 -U "$FPL_DB_USER" -d "$FPL_DB_NAME" -Fc -f "$f.tmp"
 mv "$f.tmp" "$f" && chmod 600 "$f"
 ls -1t "$D"/fpl-*.dump | tail -n +15 | xargs -r rm -f
 date -u +%Y-%m-%dT%H:%M:%SZ > "$D/last-ok"
+if [ -s "$CFG" ]; then
+  if res=$(python3 /opt/fpl/fpl_s3.py put "$f" "db/$(basename "$f")" 2>&1); then
+    date -u +%Y-%m-%dT%H:%M:%SZ > "$D/last-offsite-ok"; rm -f "$D/last-offsite-error"
+  else
+    echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) $res" | head -c 300 > "$D/last-offsite-error"
+    echo "fpl-db-backup: отправка в бакет не удалась: $res" >&2
+  fi
+fi

@@ -4,7 +4,8 @@
 #  2) приёмник данных из бота понимает закрытые наборы private-… (не публикуются);
 #  3) архив фото работ: /var/lib/fpl/archive, cron каждые 10 минут;
 #  4) база PostgreSQL сайта (схема 001→003 backend), публичные файлы /data/*.json, ночная копия;
-#  5) сводка состояния /data/server-status.json.
+#  5) сводка состояния /data/server-status.json;
+#  6) копии базы в закрытый бакет в другом городе (доступ вводится на /admin/backup.html).
 # Если что-то упало — пакет будет применён заново при следующем запуске fpl-ops (через 5 минут).
 set -e
 cd "$(dirname "$0")"
@@ -29,7 +30,8 @@ fi
 
 # 2. Приёмник: закрытые наборы
 mkdir -p /var/lib/fpl/private && chown www-data:www-data /var/lib/fpl/private && chmod 700 /var/lib/fpl/private
-if ! cmp -s fpl-ingest.py /opt/fpl/fpl-ingest.py; then
+if ! cmp -s fpl-ingest.py /opt/fpl/fpl-ingest.py || ! cmp -s fpl_s3.py /opt/fpl/fpl_s3.py; then
+  install -m 0755 fpl_s3.py /opt/fpl/fpl_s3.py
   install -m 0755 fpl-ingest.py /opt/fpl/fpl-ingest.py
   grep -q 'FPL_PRIVATE=' /etc/systemd/system/fpl-ingest.service || \
     sed -i 's#^Environment=FPL_DATA=/var/lib/fpl/data#Environment=FPL_PRIVATE=/var/lib/fpl/private FPL_DATA=/var/lib/fpl/data#' /etc/systemd/system/fpl-ingest.service
@@ -55,6 +57,8 @@ for f in fpl-db-setup fpl-db-export fpl-db-backup fpl-status; do install -m 0755
 /usr/local/bin/fpl-db-setup /opt/fpl/db
 grep -q fpl-db-export /etc/cron.d/fpl || \
   printf '*/10 * * * * root /usr/local/bin/fpl-db-export >> /var/log/fpl-db.log 2>&1\n17 3 * * * root /usr/local/bin/fpl-db-backup >> /var/log/fpl-db.log 2>&1\n' >> /etc/cron.d/fpl
+grep -q offsite-if-missing /etc/cron.d/fpl || \
+  printf '47 * * * * root /usr/local/bin/fpl-db-backup --offsite-if-missing >> /var/log/fpl-db.log 2>&1\n' >> /etc/cron.d/fpl
 grep -q fpl-status /etc/cron.d/fpl || \
   printf '*/10 * * * * root /usr/local/bin/fpl-status >/dev/null 2>&1\n' >> /etc/cron.d/fpl
 /usr/local/bin/fpl-db-export

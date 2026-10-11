@@ -7,3 +7,4 @@ tests/last-report.json
 server/ops/fpl-ingest.py
 server/ops/fpl-photo-archive.py
 server/ops/db/
+server/ops/fpl_s3.py

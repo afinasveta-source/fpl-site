@@ -3,6 +3,7 @@ User-agent: *
 Allow: /
 Disallow: /api/
 Disallow: /account/
+Disallow: /admin/
 
 # Поисковые и ИИ-роботы: доступ открыт явно
 User-agent: Googlebot
