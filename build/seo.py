@@ -121,6 +121,7 @@ def process(path, lang, p):
     else:
         s = s.replace(f'data-href="en/{p}.html"', f'data-href="../{p}.html"')
         s = s.replace('href="assets/', 'href="../assets/')
+        s = s.replace('src="assets/', 'src="../assets/')
     # плашка cookie + Яндекс Метрика (после согласия)
     if 'consent.js' not in s:
         s = s.replace('</body>', f'<script src="{"../" if lang=="ru" else ""}assets/consent.js?v=1" defer></script>\n</body>', 1)
@@ -141,6 +142,7 @@ def assets():
     shutil.copy(O + '/assets/site.css', D + '/assets/site.css')
     shutil.copy(O + '/assets/consent.js', D + '/assets/consent.js')
     shutil.copytree(O + '/assets/fonts', D + '/assets/fonts', dirs_exist_ok=True)
+    if os.path.isdir(O + '/assets/img'): shutil.copytree(O + '/assets/img', D + '/assets/img', dirs_exist_ok=True)
     # файлы подтверждения для Google Search Console / Яндекс Вебмастера — в корень сайта
     for f in os.listdir(O + '/assets/verify'): shutil.copy(O + '/assets/verify/' + f, D + '/' + f)
     open(D + '/assets/favicon.svg', 'w').write(
