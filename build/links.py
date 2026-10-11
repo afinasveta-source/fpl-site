@@ -22,6 +22,8 @@ def fix(s, en):
         if re.match(r'(Следить за лигой|Следить|Follow the league|Follow)$', text):
             label = ('Follow on Instagram*' if 'league' in text or 'wide' in attrs and 'mm-' in attrs else 'Instagram*') if en else ('Следить в Instagram*' if 'лигой' in text else 'Instagram*')
             return f'<a{attrs} href="{IG}"{EXT}>{label}</a>'
+        if re.match(r'(Задать вопрос|Ask a question)$', text):
+            return f'<a{attrs} href="{JOIN}"{EXT}>{text}</a>'
         return m.group(0)
     s = re.sub(r'<button((?:\s+(?:class|style|type)="[^"]*")*)>\s*([^<]*?)\s*</button>', btn, s)
     # соцсети

@@ -26,23 +26,22 @@
       <div>
         <span class="eyebrow">Face Painting League · сезон 1</span>
         <h1 id="rtitle">Рейтинг <span>мастеров</span></h1>
-        <p class="lead">Официальный рейтинг FPL. Обновляется после каждой Игры с учётом силы соперников.</p>
+        <p class="lead">Рейтинг FPL меняется после каждого тура с учётом силы соперников. Пока идёт калибровка, он предварительный.</p>
       </div>
       <dl class="rstats">
         <div><dt>В рейтинге</dt><dd id="rsCount">—</dd><span>мастеров</span></div>
-        <div data-stat="countries"><dt>Стран</dt><dd>—</dd><span>в рейтинге</span></div>
-        <div><dt>Обновлён</dt><dd data-fpl-after="dd">1 тур</dd><span>Игра 01</span></div>
+        <div><dt>Обновлён</dt><dd data-fpl-after="dd">—</dd><span>Игра 01</span></div>
       </dl>
     </div>
-    <div class="rleagues" aria-label="Пороги лиг">
-      <div class="rl rl--gold"><span class="league-badge">Gold</span><b>—</b><span></span></div>
-      <div class="rl rl--silver"><span class="league-badge">Silver</span><b>—</b><span></span></div>
-      <div class="rl rl--bronze"><span class="league-badge">Bronze</span><b>—</b><span></span></div>
+    <div class="rleagues" aria-label="Лиги" hidden>
+      <div class="rl rl--gold" hidden><span class="league-badge">Gold</span><b>—</b><span></span></div>
+      <div class="rl rl--silver" hidden><span class="league-badge">Silver</span><b>—</b><span></span></div>
+      <div class="rl rl--bronze" hidden><span class="league-badge">Bronze</span><b>—</b><span></span></div>
     </div>
   </section>
 
   <!-- ТОП-3 -->
-  <section aria-labelledby="podiumTitle">
+  <section aria-labelledby="podiumTitle" id="podiumSec" hidden>
     <h2 class="h2" id="podiumTitle" style="margin-bottom:24px">Лидеры <span class="a-pink">сезона</span></h2>
     <div class="podium3" id="podium"></div>
   </section>
@@ -54,19 +53,16 @@
       <p class="rnote" id="rnote"></p>
     </div>
 
-    <div class="rcontrols">
+    <div class="rcontrols" hidden>
       <div class="tabs" role="tablist" aria-label="Лига">
         <button role="tab" aria-selected="true" data-league="all">Все</button>
         <button role="tab" aria-selected="false" data-league="Gold">Gold</button>
         <button role="tab" aria-selected="false" data-league="Silver">Silver</button>
         <button role="tab" aria-selected="false" data-league="Bronze">Bronze</button>
-        <button role="tab" aria-selected="false" data-league="cal">В калибровке</button>
       </div>
       <div class="rfilters">
         <label class="sr" for="rsearch">Поиск по имени</label>
         <input id="rsearch" type="search" placeholder="Имя" autocomplete="off">
-        <label class="sr" for="rcountry">Страна</label>
-        <select id="rcountry"><option value="all">Все страны</option></select>
       </div>
     </div>
 
@@ -74,10 +70,10 @@
 
     <div class="rtable-wrap">
       <table class="rtable" id="rtable">
-        <thead><tr><th scope="col">Место</th><th scope="col">Мастер</th><th scope="col">Лига</th><th scope="col" class="num">Рейтинг</th><th scope="col" class="num">За Игру</th><th scope="col" class="num">Игр</th><th scope="col">Награды</th><th scope="col"><span class="sr">Профиль</span></th></tr></thead>
+        <thead><tr><th scope="col">Место</th><th scope="col">Мастер</th><th scope="col">Лига</th><th scope="col" class="num">Рейтинг</th><th scope="col">Награды</th></tr></thead>
         <tbody id="rbody"></tbody>
       </table>
-      <p class="rempty" id="rempty" hidden>Никого не нашли. Попробуйте другое имя или город.</p>
+      <p class="rempty" id="rempty" hidden>Никого не нашли. Попробуйте другое имя.</p>
     </div>
   </section>
 
@@ -86,7 +82,7 @@
     <h2 class="h2" id="howTitle" style="margin-bottom:24px">Как устроен <span class="a-pink">рейтинг</span></h2>
     <div class="rhow">
       <article><h3>Рейтинг FPL</h3><p>Растёт и падает после каждого тура. Победа над сильной работой даёт больше, чем над слабой.</p></article>
-      <article><h3>Лига</h3><p>Определяется рейтингом перед началом Игры и не меняется до её конца. Пороги лиг фиксированы на весь сезон.</p></article>
+      <article><h3>Лига</h3><p>В Игре 01 — Лига А и Лига Б по итогам первого тура (для достижений А = Gold, Б = Silver). С Игры 02 лига Bronze, Silver или Gold определяется рейтингом перед Игрой и не меняется до её конца.</p></article>
       <article><h3>Калибровка</h3><p>Новичку нужно три результата, чтобы рейтинг стал точным. До этого он отмечен как предварительный.</p></article>
       <article><h3>Очки FPL</h3><p>Отдельно от рейтинга: копятся за участие и награды и никогда не сгорают.</p></article>
     </div>
@@ -148,15 +144,6 @@
 </script>
 <script>
 (function(){
-  // проверка диплома (в прототипе — один пример)
-  var f=document.getElementById('verifyForm'); if(f){
-    f.addEventListener('submit',function(e){ e.preventDefault();
-      var v=(document.getElementById('dipNo').value||'').trim().toUpperCase(), r=document.getElementById('verifyResult');
-      r.hidden=false;
-      if(v==='FPL-S1-01-0247'){ r.className='verify-result ok'; r.innerHTML='<b>✓ Диплом подтверждён</b><br>Анна Петрова · Игра 01, сезон 1 · лига Silver<br>Все работы сданы в срок · <a href="#players">профиль мастера</a> <span style="color:#6E6560">(пример)</span>'; }
-      else { r.className='verify-result'; r.textContent=v?'Диплом с номером '+v+' не найден. Проверьте номер на дипломе.':'Введите номер диплома.'; }
-    });
-  }
   // переключатель языка (в прототипе переведены первый экран и полоса доверия)
   var els=[].slice.call(document.querySelectorAll('[data-en]'));
   els.forEach(function(el){ el.setAttribute('data-ru', el.innerHTML); });

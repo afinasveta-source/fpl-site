@@ -72,6 +72,14 @@ grep -q fpl-db-import /etc/cron.d/fpl || \
 /usr/local/bin/fpl-db-export
 [ -f /var/backups/fpl/last-ok ] || /usr/local/bin/fpl-db-backup
 
+# 8. nginx: своя страница 404 вместо главной (с проверкой конфигурации и откатом)
+NG=/etc/nginx/sites-available/fpl
+if [ -f "$NG" ] && grep -q 'error_page 404 /index.html;' "$NG"; then
+  cp "$NG" "$NG.bak-404"
+  sed -i 's#error_page 404 /index.html;#error_page 404 /404.html;#g' "$NG"
+  if nginx -t >/dev/null 2>&1; then systemctl reload nginx; echo "nginx: страница 404"; else cp "$NG.bak-404" "$NG"; echo "nginx: правка 404 откатана"; fi
+fi
+
 /usr/local/bin/fpl-sync || true
 /usr/local/bin/fpl-photo-archive || true
 echo "ok $(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$STATUS"

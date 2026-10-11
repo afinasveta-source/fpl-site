@@ -3,8 +3,9 @@
 <html lang="en">
 <head>
 <!-- SEO -->
+<meta charset="utf-8">
 <title>Face painter rankings — FPL Rating</title>
-<meta name="description" content="The official FPL Rating of face painters, updated after every Game. It weighs opponent strength and sets the Bronze, Silver and Gold leagues.">
+<meta name="description" content="The FPL Rating of face painters. It changes after every round and weighs opponent strength; it stays provisional during calibration.">
 <link rel="canonical" href="https://facepaintingleague.com/rating.html">
 <link rel="alternate" hreflang="en" href="https://facepaintingleague.com/rating.html">
 <link rel="alternate" hreflang="ru" href="https://facepaintingleague.com/ru/rating.html">
@@ -15,7 +16,7 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Face Painting League">
 <meta property="og:title" content="Face painter rankings — FPL Rating">
-<meta property="og:description" content="The official FPL Rating of face painters, updated after every Game. It weighs opponent strength and sets the Bronze, Silver and Gold leagues.">
+<meta property="og:description" content="The FPL Rating of face painters. It changes after every round and weighs opponent strength; it stays provisional during calibration.">
 <meta property="og:url" content="https://facepaintingleague.com/rating.html">
 <meta property="og:image" content="https://facepaintingleague.com/assets/og-en.png">
 <meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
@@ -23,7 +24,7 @@
 <meta property="og:locale:alternate" content="ru_RU">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Face painter rankings — FPL Rating">
-<meta name="twitter:description" content="The official FPL Rating of face painters, updated after every Game. It weighs opponent strength and sets the Bronze, Silver and Gold leagues.">
+<meta name="twitter:description" content="The FPL Rating of face painters. It changes after every round and weighs opponent strength; it stays provisional during calibration.">
 <meta name="twitter:image" content="https://facepaintingleague.com/assets/og-en.png">
 <script type="application/ld+json">
 {
@@ -35,7 +36,7 @@
    "name": "Face Painting League",
    "alternateName": "FPL",
    "url": "https://facepaintingleague.com/",
-   "logo": "https://facepaintingleague.com/assets/logo-fpl.png",
+   "logo": "https://facepaintingleague.com/assets/favicon.svg",
    "brand": {
     "@type": "Brand",
     "name": "MAGFACE"
@@ -47,7 +48,7 @@
    "@id": "https://facepaintingleague.com/rating.html#page",
    "url": "https://facepaintingleague.com/rating.html",
    "name": "Face painter rankings — FPL Rating",
-   "description": "The official FPL Rating of face painters, updated after every Game. It weighs opponent strength and sets the Bronze, Silver and Gold leagues.",
+   "description": "The FPL Rating of face painters. It changes after every round and weighs opponent strength; it stays provisional during calibration.",
    "inLanguage": "en",
    "isPartOf": {
     "@id": "https://facepaintingleague.com/#site"
@@ -80,7 +81,7 @@
 
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1" name="viewport"/>
-<link href="assets/site.css" rel="stylesheet"/>
+<link href="assets/site.css?v=e051b65435" rel="stylesheet"/>
 <style>
 /* размер цифр в шапке рейтинга */
 @media (min-width:641px){ .rstats dd{font-size:clamp(18px,1.6vw,22px)} }
@@ -103,22 +104,21 @@
 <div>
 <span class="eyebrow">Face Painting League · Season 1</span>
 <h1 id="rtitle">Artist <span>rankings</span></h1>
-<p class="lead">The official FPL Rating. Updated after every Game, taking opponents' strength into account.</p>
+<p class="lead">The FPL Rating changes after every round and weighs opponent strength. It stays provisional during calibration.</p>
 </div>
 <dl class="rstats">
 <div><dt>In the rating</dt><dd id="rsCount">—</dd><span>artists</span></div>
-<div data-stat="countries"><dt>Countries</dt><dd>—</dd><span>in the rating</span></div>
-<div><dt>Updated</dt><dd data-fpl-after="dd">Round 1</dd><span>Game 01</span></div>
+<div><dt>Updated</dt><dd data-fpl-after="dd">—</dd><span>Game 01</span></div>
 </dl>
 </div>
-<div aria-label="League thresholds" class="rleagues">
-<div class="rl rl--gold"><span class="league-badge">Gold</span><b>—</b><span></span></div>
-<div class="rl rl--silver"><span class="league-badge">Silver</span><b>—</b><span></span></div>
-<div class="rl rl--bronze"><span class="league-badge">Bronze</span><b>—</b><span></span></div>
+<div aria-label="Leagues" class="rleagues" hidden="">
+<div class="rl rl--gold" hidden=""><span class="league-badge">Gold</span><b>—</b><span></span></div>
+<div class="rl rl--silver" hidden=""><span class="league-badge">Silver</span><b>—</b><span></span></div>
+<div class="rl rl--bronze" hidden=""><span class="league-badge">Bronze</span><b>—</b><span></span></div>
 </div>
 </section>
 <!-- ТОП-3 -->
-<section aria-labelledby="podiumTitle">
+<section aria-labelledby="podiumTitle" hidden="" id="podiumSec">
 <h2 class="h2" id="podiumTitle" style="margin-bottom:24px">Season <span class="a-pink">leaders</span></h2>
 <div class="podium3" id="podium"></div>
 </section>
@@ -128,28 +128,25 @@
 <h2 class="h2" id="tableTitle">All <span class="a-indigo">artists</span></h2>
 <p class="rnote" id="rnote"></p>
 </div>
-<div class="rcontrols">
+<div class="rcontrols" hidden="">
 <div aria-label="League" class="tabs" role="tablist">
 <button aria-selected="true" data-league="all" role="tab">All</button>
 <button aria-selected="false" data-league="Gold" role="tab">Gold</button>
 <button aria-selected="false" data-league="Silver" role="tab">Silver</button>
 <button aria-selected="false" data-league="Bronze" role="tab">Bronze</button>
-<button aria-selected="false" data-league="cal" role="tab">In calibration</button>
 </div>
 <div class="rfilters">
 <label class="sr" for="rsearch">Search by name</label>
 <input autocomplete="off" id="rsearch" placeholder="Name" type="search"/>
-<label class="sr" for="rcountry">Country</label>
-<select id="rcountry"><option value="all">All countries</option></select>
 </div>
 </div>
 <p class="cal-note" hidden="" id="calNote">Artists with fewer than three results so far. Their rating is provisional, so they are not in the overall standings. They will appear in the rating after three results.</p>
 <div class="rtable-wrap">
 <table class="rtable" id="rtable">
-<thead><tr><th scope="col">Place</th><th scope="col">Artist</th><th scope="col">League</th><th class="num" scope="col">Rating</th><th class="num" scope="col">This Game</th><th class="num" scope="col">Games</th><th scope="col">Awards</th><th scope="col"><span class="sr">Profile</span></th></tr></thead>
+<thead><tr><th scope="col">Place</th><th scope="col">Artist</th><th scope="col">League</th><th class="num" scope="col">Rating</th><th scope="col">Awards</th></tr></thead>
 <tbody id="rbody"></tbody>
 </table>
-<p class="rempty" hidden="" id="rempty">No one found. Try another name or city.</p>
+<p class="rempty" hidden="" id="rempty">No one found. Try another name.</p>
 </div>
 </section>
 <!-- КАК УСТРОЕН РЕЙТИНГ -->
@@ -157,7 +154,7 @@
 <h2 class="h2" id="howTitle" style="margin-bottom:24px">How the <span class="a-pink">rating works</span></h2>
 <div class="rhow">
 <article><h3>FPL Rating</h3><p>Goes up and down after every round. Beating a strong work earns more than beating a weak one.</p></article>
-<article><h3>League</h3><p>Set by your rating before the Game starts and stays the same until it ends. League thresholds are fixed for the whole season.</p></article>
+<article><h3>League</h3><p>In Game 01 — League A and League B, set by round 1 (for awards, A = Gold, B = Silver). From Game 02 the Bronze, Silver or Gold league is set by rating before the Game and does not change until it ends.</p></article>
 <article><h3>Calibration</h3><p>A newcomer needs three results for the rating to become accurate. Until then it is marked as provisional.</p></article>
 <article><h3>FPL Points</h3><p>Separate from the rating: earned for taking part and for awards, and they never expire.</p></article>
 </div>
@@ -233,13 +230,13 @@
   }
 })();
 </script>
-<script defer="" src="assets/fpl-data.js?v=2"></script>
+<script defer="" src="assets/fpl-data.js?v=37ad9d9ad3"></script>
 <script>
 (function(){ var l=document.querySelector('.lang-list'); if(!l) return;
   l.addEventListener('click',function(e){ var b=e.target.closest('button'); if(!b) return; e.stopPropagation();
     if(b.disabled) return; var h=b.getAttribute('data-href'); if(h && !b.classList.contains('on')) location.href=h; else l.hidden=true; },true);
 })();
 </script>
-<script src="assets/consent.js?v=1" defer></script>
+<script src="assets/consent.js?v=11b51da9f6" defer></script>
 </body>
 </html>

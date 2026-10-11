@@ -150,7 +150,7 @@
     <div class="soon">
       <span class="gcard-tag">Скоро</span>
       <h2 class="h2" id="fdSoon">Каталог откроется <span class="a-pink">после финала Игры 01</span></h2>
-      <p>После финала участницы смогут включить в боте приём заказов, указать город и контакт. В каталоге появятся только те, кто сам это включит.</p>
+      <p>После финала участники смогут включить в боте приём заказов, указать город и контакт. В каталоге появятся только те, кто сам это включит.</p>
       <p><a class="text-link" href="fpl-rating.html">Пока — рейтинг мастеров лиги</a></p>
     </div>
   </section>
@@ -196,7 +196,7 @@
     <a href="fpl-games.html">Игры и календарь <small>сезон 1 · Игры сезона</small></a>
     <a href="fpl-rating.html">Рейтинг <small>лиги Bronze · Silver · Gold</small></a>
     <a href="fpl-gallery.html">Галерея работ <small>лучшие работы сезона</small></a>
-    <a href="fpl-find.html">Найти мастера <small>мастера лиги, которые принимают заказы</small></a>
+    <a href="fpl-find.html" aria-current="page">Найти мастера <small>мастера лиги, которые принимают заказы</small></a>
     <a href="fpl-about.html">О лиге <small>как всё устроено, судьи, награды</small></a>
     <a href="fpl-rules.html">Правила и вопросы</a>
   </nav>
@@ -219,15 +219,6 @@
 </script>
 <script>
 (function(){
-  // проверка диплома (в прототипе — один пример)
-  var f=document.getElementById('verifyForm'); if(f){
-    f.addEventListener('submit',function(e){ e.preventDefault();
-      var v=(document.getElementById('dipNo').value||'').trim().toUpperCase(), r=document.getElementById('verifyResult');
-      r.hidden=false;
-      if(v==='FPL-S1-01-0247'){ r.className='verify-result ok'; r.innerHTML='<b>✓ Диплом подтверждён</b><br>Анна Петрова · Игра 01, сезон 1 · лига Silver<br>Все работы сданы в срок · <a href="#players">профиль мастера</a> <span style="color:#6E6560">(пример)</span>'; }
-      else { r.className='verify-result'; r.textContent=v?'Диплом с номером '+v+' не найден. Проверьте номер на дипломе.':'Введите номер диплома.'; }
-    });
-  }
   // переключатель языка (в прототипе переведены первый экран и полоса доверия)
   var els=[].slice.call(document.querySelectorAll('[data-en]'));
   els.forEach(function(el){ el.setAttribute('data-ru', el.innerHTML); });

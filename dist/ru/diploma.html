@@ -2,6 +2,7 @@
 <html lang="ru">
 <head>
 <!-- SEO -->
+<meta charset="utf-8">
 <title>Проверка диплома — Face Painting League</title>
 <meta name="description" content="Проверьте диплом Face Painting League по номеру (FPL-S1-01-0247) или QR-коду: кому, за какую Игру и с каким результатом он выдан.">
 <link rel="canonical" href="https://facepaintingleague.com/ru/diploma.html">
@@ -34,12 +35,12 @@
    "name": "Face Painting League",
    "alternateName": "FPL",
    "url": "https://facepaintingleague.com/",
-   "logo": "https://facepaintingleague.com/assets/logo-fpl.png",
+   "logo": "https://facepaintingleague.com/assets/favicon.svg",
    "brand": {
     "@type": "Brand",
     "name": "MAGFACE"
    },
-   "description": "Online league for face painters by MAGFACE: Games with judged rounds, leagues, an FPL Rating and verifiable certificates."
+   "description": "Онлайн-лига аквагримёров от MAGFACE: Игры с оценкой жюри, лиги, рейтинг FPL и проверяемые дипломы."
   },
   {
    "@type": "WebPage",
@@ -77,9 +78,8 @@
 </script>
 <!-- /SEO -->
 
-<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/site.css?v=e051b65435">
 <style>
 /* =========================================================
    ПРОВЕРКА ДИПЛОМА
@@ -249,7 +249,7 @@
     <div class="dwho">
       <article>
         <h3 id="whoTitle">Кому выдаётся диплом</h3>
-        <p>Каждому, кто сдал все работы Игры в установленные сроки. Диплом выдаётся и тем, кто выбыл по итогам судейства, если все работы были сданы вовремя (п. 7.8 Правил лиги).</p>
+        <p>Каждому, кто сдал все работы Игры до её окончания — в том числе вне конкурса и тем, кто выбыл по итогам судейства. Опоздание лишает только зачёта Игры в сезон.</p>
       </article>
       <article>
         <h3>Для заказчиков и работодателей</h3>
@@ -323,12 +323,18 @@
 </script>
 <script>
 (function(){
-  // База дипломов — /data/certificates.json: выгружается из базы лиги, только выданные и неотозванные.
-  var DB=null;
-  function getDB(cb){
-    if(DB) return cb(DB);
-    fetch('/data/certificates.json',{cache:'no-cache'}).then(function(r){ return r.ok?r.json():{}; }).catch(function(){ return {}; })
-      .then(function(j){ DB=(j&&j.certificates)||{}; cb(DB); });
+  // Диплом ищется по одному: /data/cert/<sha256 номера>.json (выгружается из базы лиги, только выданные и неотозванные).
+  // Общего списка дипломов на сайте нет. 404 — диплома нет; другая ошибка — проверка временно недоступна.
+  function hex(buf){ return Array.prototype.map.call(new Uint8Array(buf),function(b){ return ('0'+b.toString(16)).slice(-2); }).join(''); }
+  function lookup(n, cb){
+    if(!(window.crypto&&crypto.subtle&&window.TextEncoder)) return cb('err');
+    crypto.subtle.digest('SHA-256', new TextEncoder().encode(n)).then(function(h){
+      return fetch('/data/cert/'+hex(h)+'.json',{cache:'no-cache'});
+    }).then(function(r){
+      if(r.status===404) return cb(null);
+      if(!r.ok) return cb('err');
+      return r.json().then(function(d){ cb(d); });
+    }).catch(function(){ cb('err'); });
   }
   var form=document.getElementById('dform'), inp=document.getElementById('dno'), out=document.getElementById('dres');
   function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
@@ -351,12 +357,14 @@
       return;
     }
     inp.value=n;
-    getDB(function(db){ render(n, db[n]); });
+    lookup(n, function(d){ render(n, d); });
     if(!fromUrl){ try{ history.replaceState(null,'','?n='+n); }catch(e){} }
     if(fromUrl||window.innerWidth<640){ out.scrollIntoView({behavior:'smooth', block:'start'}); }
   }
   function render(n, d){
-    if(d){
+    if(d==='err'){
+      out.innerHTML='<div class="dres dres--no"><span class="dres-ic">!</span><div><span class="dres-status">Проверка недоступна</span><h2>Не удалось проверить номер</h2><p class="dres-text">Похоже, нет связи с сайтом. Попробуйте ещё раз через минуту.</p></div></div>';
+    } else if(d){
       var rows=[['Игра',d.game],['Лига',d.league],['Результат',d.result]].filter(function(x){ return x[1]; });
       out.innerHTML='<div class="dres dres--ok"><span class="dres-ic">✓</span><div><span class="dres-status">Диплом подтверждён</span><h2>'+esc(d.name)+'</h2><p class="dres-sub"><span style="white-space:nowrap">диплом '+n+'</span></p>'+
       '<dl>'+rows.map(function(x){ return '<div><dt>'+x[0]+'</dt><dd>'+esc(x[1])+'</dd></div>'; }).join('')+'</dl>'+
@@ -367,8 +375,9 @@
   }
   form.addEventListener('submit',function(e){ e.preventDefault(); show(inp.value,false); });
   // номер из ссылки QR: ?n=FPL-S1-01-0247 или #FPL-S1-01-0247
-  var q=(location.search.match(/[?&]n=([^&]+)/)||[])[1] || location.hash.slice(1);
-  if(q){ show(decodeURIComponent(q),true); }
+  var q=(location.search.match(/[?&]n=([^&]+)/)||[])[1];
+  if(!q && /^#(FPL|ФПЛ|%D0%A4)/i.test(location.hash)) q=location.hash.slice(1);
+  if(q){ try{ q=decodeURIComponent(q); }catch(e){} show(q,true); }
 })();
 </script>
 
@@ -378,6 +387,6 @@
     if(b.disabled) return; var h=b.getAttribute('data-href'); if(h && !b.classList.contains('on')) location.href=h; else l.hidden=true; },true);
 })();
 </script>
-<script src="../assets/consent.js?v=1" defer></script>
+<script src="../assets/consent.js?v=11b51da9f6" defer></script>
 </body>
 </html>

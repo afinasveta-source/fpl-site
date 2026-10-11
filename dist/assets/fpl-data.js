@@ -20,6 +20,11 @@
     twHidden: 'ещё {n} — без публикации имени', twOf: 'TOP WORK, {r}:', twAll: 'все туры'
   };
   var LG = { gold: 'Gold', silver: 'Silver', bronze: 'Bronze' };
+  function masters(n) {
+    if (EN) return n + (n === 1 ? ' artist' : ' artists');
+    var m10 = n % 10, m100 = n % 100;
+    return n + (m10 === 1 && m100 !== 11 ? ' мастер' : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? ' мастера' : ' мастеров');
+  }
   function f(s, o) { return s.replace(/\{(\w+)\}/g, function (m, k) { return o[k]; }); }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function lg(l) { return l ? '<span class="lgb lgb--' + LG[l] + '">' + LG[l] + '</span>' : '<span class="lgb">—</span>'; }
@@ -105,18 +110,19 @@
     var calNote = document.getElementById('calNote');
     var set = function (id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
     var hide = function (sel) { document.querySelectorAll(sel).forEach(function (el) { el.hidden = true; el.style.display = 'none'; }); };
+    var show = function (el) { if (el) { el.hidden = false; el.style.display = ''; } };
     if (note) note.textContent = data && data.generated_at ? f(T.updated, { d: date(data.generated_at) }) : '';
-    hide('[data-league="cal"]'); hide('.rfilters select, label[for="rcountry"]');
     set('rsCount', s ? s.rated : '—');
-    hide('[data-stat="countries"]');
+    if (players.length) { show(document.querySelector('.rleagues')); show(document.querySelector('.rcontrols')); }
     // лиги: сколько мастеров и какой разброс рейтинга
     ['gold', 'silver', 'bronze'].forEach(function (l) {
       var box = document.querySelector('.rl--' + l), xs = players.filter(function (p) { return p.league === l; });
       if (!box) return;
-      if (!xs.length) { box.hidden = true; box.style.display = 'none'; var t = document.querySelector('[data-league="' + LG[l] + '"]'); if (t) { t.hidden = true; t.style.display = 'none'; } return; }
+      if (!xs.length) { box.hidden = true; var t = document.querySelector('[data-league="' + LG[l] + '"]'); if (t) { t.hidden = true; t.style.display = 'none'; } return; }
       var r = xs.map(function (p) { return p.rating; });
       box.querySelector('b').textContent = f(T.range, { a: Math.min.apply(null, r), b: Math.max.apply(null, r) });
-      box.querySelector('span:last-child').textContent = f(T.leagueN, { n: xs.length });
+      box.querySelector('span:last-child').textContent = masters(xs.length);
+      show(box);
     });
     var cal = players.filter(function (p) { return p.status === 'calibrating'; });
     if (calNote && cal.length) { calNote.textContent = f(T.calib, { n: Math.max.apply(null, cal.map(function (p) { return p.calibration || 1; })) }); calNote.hidden = false; }
@@ -125,12 +131,13 @@
     var pod = document.getElementById('podium');
     if (pod) {
       if (players.length >= 3) {
+        show(document.getElementById('podiumSec'));
         var order = [players[1], players[0], players[2]], cls = ['pod--2', 'pod--1', 'pod--3'];
         pod.innerHTML = order.map(function (p, i) {
           return '<article class="pod ' + cls[i] + '"><div class="pod-ph"><span class="pod-ini">' + esc((p.name || '?').trim().charAt(0)) + '</span><span class="pod-place">' + p.place + '</span></div>' +
             '<div class="pod-body"><h3>' + esc(p.name) + '</h3><span class="meta">' + lg(p.league) + '</span><div class="pod-row"><span class="rt">' + p.rating + '</span></div></div></article>';
         }).join('');
-      } else { var sec = pod.closest('section'); if (sec) { sec.hidden = true; sec.style.display = 'none'; } }
+      }
     }
 
     var state = { league: 'all', q: '' };
@@ -143,8 +150,8 @@
         var games = p.status === 'calibrating' ? f(T.calibShort, { n: p.calibration || 1 }) : '';
         return '<tr><td class="c-pl"><span class="place">' + p.place + '</span></td>' +
           '<td class="c-who"><div class="who"><span class="ava">' + esc((p.name || '?').trim().charAt(0)) + '</span><div><b>' + esc(p.name) + '</b><span>' + games + '</span></div></div></td>' +
-          '<td class="c-lg">' + lg(p.league) + '</td><td class="c-rt num">' + rt + '</td><td class="c-dl num"><span class="dl">—</span></td>' +
-          '<td class="c-g num">1</td><td class="c-aw"><div class="awards">' + aw + '</div></td><td class="c-go"></td></tr>';
+          '<td class="c-lg">' + lg(p.league) + '</td><td class="c-rt num">' + rt + '</td>' +
+          '<td class="c-aw"><div class="awards">' + aw + '</div></td></tr>';
       }).join('');
       if (empty) { empty.textContent = players.length ? T.none : T.empty; empty.hidden = rows.length > 0; }
     }

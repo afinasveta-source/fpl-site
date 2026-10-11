@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Анна Петрова · мастер FPL</title>
+<title>Страницы мастеров · FPL</title>
 <link rel="stylesheet" href="assets/site.css">
 <style>
 /* =========================================================
@@ -228,7 +228,7 @@
     <p>Telegram-бот · ВКонтакте · Instagram*</p>
   </div>
 </div>
-<div class="mbar"><a class="btn-wide" href="#contact" style="text-align:center;text-decoration:none">Написать</a><button class="btn-wide" type="button" data-share>Поделиться</button></div>
+<div class="mbar"><button class="btn-wide">Участвовать</button><button class="btn-wide">Следить</button></div>
 <script>
 (function(){
   var menu=document.getElementById('mmenu'); if(!menu) return;
@@ -241,15 +241,6 @@
 </script>
 <script>
 (function(){
-  // проверка диплома (в прототипе — один пример)
-  var f=document.getElementById('verifyForm'); if(f){
-    f.addEventListener('submit',function(e){ e.preventDefault();
-      var v=(document.getElementById('dipNo').value||'').trim().toUpperCase(), r=document.getElementById('verifyResult');
-      r.hidden=false;
-      if(v==='FPL-S1-01-0247'){ r.className='verify-result ok'; r.innerHTML='<b>✓ Диплом подтверждён</b><br>Анна Петрова · Игра 01, сезон 1 · лига Silver<br>Все работы сданы в срок · <a href="#players">профиль мастера</a> <span style="color:#6E6560">(пример)</span>'; }
-      else { r.className='verify-result'; r.textContent=v?'Диплом с номером '+v+' не найден. Проверьте номер на дипломе.':'Введите номер диплома.'; }
-    });
-  }
   // переключатель языка (в прототипе переведены первый экран и полоса доверия)
   var els=[].slice.call(document.querySelectorAll('[data-en]'));
   els.forEach(function(el){ el.setAttribute('data-ru', el.innerHTML); });

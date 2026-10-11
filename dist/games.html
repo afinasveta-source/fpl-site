@@ -3,6 +3,7 @@
 <html lang="en">
 <head>
 <!-- SEO -->
+<meta charset="utf-8">
 <title>Games &amp; calendar — Face Painting League</title>
 <meta name="description" content="Season 1 of Face Painting League: three Games and a Super Final, with short challenges in between. See what is inside the next Game and how to join.">
 <link rel="canonical" href="https://facepaintingleague.com/games.html">
@@ -35,7 +36,7 @@
    "name": "Face Painting League",
    "alternateName": "FPL",
    "url": "https://facepaintingleague.com/",
-   "logo": "https://facepaintingleague.com/assets/logo-fpl.png",
+   "logo": "https://facepaintingleague.com/assets/favicon.svg",
    "brand": {
     "@type": "Brand",
     "name": "MAGFACE"
@@ -80,7 +81,7 @@
 
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1" name="viewport"/>
-<link href="assets/site.css" rel="stylesheet"/>
+<link href="assets/site.css?v=e051b65435" rel="stylesheet"/>
 <style>
 /* =========================================================
    СТРАНИЦА ИГР
@@ -294,7 +295,7 @@
 </section>
 <!-- ИГРА 01: TOP WORK ПО ТУРАМ (из базы, /data/games.json) -->
 <section aria-labelledby="g01Title" data-fpl="tw-section" hidden="" id="g01">
-<div class="sec-head"><h2 class="h2" id="g01Title">Game 01: <span class="a-pink">TOP WORK</span></h2><span class="sec-note">The best works of rounds whose results have been announced. Scores and places are not published — every artist sees her own result in the bot.</span></div>
+<div class="sec-head"><h2 class="h2" id="g01Title">Game 01: <span class="a-pink">TOP WORK</span></h2><span class="sec-note">The best works of rounds whose results have been announced. Scores and places are not published — every artist sees their own result in the bot.</span></div>
 <div class="tw-rounds" data-fpl="tw-rounds"></div>
 </section>
 <!-- СЛЕДУЮЩАЯ ИГРА -->
@@ -316,10 +317,10 @@
 <aside class="gprize">
 <h3>What you can win</h3>
 <ul>
-<li><span class="gp-ic gp-ic--p">★</span><div><b>Prizes for winners</b><span>art supplies and cash prizes — announced before the start</span></div></li>
+<li><span class="gp-ic gp-ic--p">★</span><div><b>Prizes for winners</b><span>announced before the Game starts</span></div></li>
 <li><span class="gp-ic gp-ic--m">1</span><div><b>Medals</b><span>for 1st–3rd place in each league</span></div></li>
 <li><span class="gp-ic gp-ic--tw">TOP<br/>WORK</span><div><b>TOP WORK</b><span>best works of each round</span></div></li>
-<li><span class="gp-ic gp-ic--d">✓</span><div><b>Numbered certificate</b><span>for everyone who submits all rounds</span></div></li>
+<li><span class="gp-ic gp-ic--d">✓</span><div><b>Numbered certificate</b><span>for everyone who submits all works by the end of the Game</span></div></li>
 <li><span class="gp-ic gp-ic--s">%</span><div><b>MAGFACE discount</b><span>for everyone who makes it to the end</span></div></li>
 </ul>
 </aside>
@@ -346,7 +347,7 @@
 <article class="gcard gcard--final">
 <span class="gcard-tag">Season final</span>
 <h3>Super Final</h3>
-<p>Closes the season. The best artists from the three Games meet here and compete for the season cup and a cash prize pool.</p>
+<p>Closes the season. Game medalists and the best artists of the season compete for the season cup and a prize fund.</p>
 <p class="gcard-note">Qualification rules are in the League Rules.</p>
 </article>
 </div>
@@ -354,7 +355,7 @@
 <!-- АРХИВ -->
 <section aria-labelledby="archTitle" id="archive">
 <div class="sec-head"><h2 class="h2" id="archTitle">Past <span class="a-pink">Games</span></h2></div>
-<p class="tile-text" style="font-size:17px">Game 01 results — league winners, the final table and the winning works — will appear here after the final on 10 November.</p>
+<p class="tile-text" style="font-size:17px">Game 01 results — winners of League A and League B and the winners’ works — will appear here after the final on 10 November.</p>
 </section>
 <!-- УЗНАТЬ О СТАРТЕ -->
 <section class="tile tile--indigo cta-strong" style="padding:48px">
@@ -422,13 +423,13 @@
   }
 })();
 </script>
-<script defer="" src="assets/fpl-data.js?v=2"></script>
+<script defer="" src="assets/fpl-data.js?v=37ad9d9ad3"></script>
 <script>
 (function(){ var l=document.querySelector('.lang-list'); if(!l) return;
   l.addEventListener('click',function(e){ var b=e.target.closest('button'); if(!b) return; e.stopPropagation();
     if(b.disabled) return; var h=b.getAttribute('data-href'); if(h && !b.classList.contains('on')) location.href=h; else l.hidden=true; },true);
 })();
 </script>
-<script src="assets/consent.js?v=1" defer></script>
+<script src="assets/consent.js?v=11b51da9f6" defer></script>
 </body>
 </html>

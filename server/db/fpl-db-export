@@ -1,17 +1,51 @@
 #!/bin/bash
 # fpl-db-export: публичные файлы сайта из базы (только данные с согласием).
-# /var/lib/fpl/data/{rating,games,certificates,masters}.json — сайт отдаёт их как /data/<имя>.json.
+# /var/lib/fpl/data/{rating,games,masters}.json — сайт отдаёт их как /data/<имя>.json.
+# Дипломы: общий список наружу не отдаётся. Каждый диплом — отдельный файл /data/cert/<sha256 номера>.json
+# (страница проверки считает sha256 введённого номера), а certificates.json содержит только число дипломов.
 set -euo pipefail
 . /etc/fpl-db.env
 export PGPASSWORD="$FPL_DB_PASSWORD"
 OUT=${FPL_DATA:-/var/lib/fpl/data}
 mkdir -p "$OUT"
-for name in rating games certificates masters; do
+q() { psql -h 127.0.0.1 -U "$FPL_DB_USER" -d "$FPL_DB_NAME" -v ON_ERROR_STOP=1 -tAq -c "$1"; }
+for name in rating games masters; do
   tmp=$(mktemp "$OUT/.$name.XXXXXX")
-  psql -h 127.0.0.1 -U "$FPL_DB_USER" -d "$FPL_DB_NAME" -v ON_ERROR_STOP=1 -tAq -c "SELECT site_export_$name()" > "$tmp"
+  q "SELECT site_export_$name()" > "$tmp"
   if python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$tmp"; then
     chmod 644 "$tmp"; mv -f "$tmp" "$OUT/$name.json"
   else
     rm -f "$tmp"; echo "export $name: неверный JSON" >&2; exit 1
   fi
 done
+tmp=$(mktemp)
+q "SELECT site_export_certificates()" > "$tmp"
+python3 - "$tmp" "$OUT" <<'P'
+import hashlib, json, os, shutil, sys, tempfile
+src, out = sys.argv[1], sys.argv[2]
+data = json.load(open(src, encoding='utf-8'))
+certs = data.get('certificates') or {}
+new = tempfile.mkdtemp(dir=out, prefix='.cert.')
+for number, c in certs.items():
+    h = hashlib.sha256(number.strip().upper().encode()).hexdigest()
+    with open(os.path.join(new, h + '.json'), 'w', encoding='utf-8') as f:
+        json.dump(dict(c, number=number), f, ensure_ascii=False)
+    os.chmod(os.path.join(new, h + '.json'), 0o644)
+os.chmod(new, 0o755)
+old = os.path.join(out, 'cert')
+if os.path.isdir(old):
+    trash = old + '.old'
+    shutil.rmtree(trash, ignore_errors=True)
+    os.rename(old, trash)
+    os.rename(new, old)
+    shutil.rmtree(trash, ignore_errors=True)
+else:
+    os.rename(new, old)
+summary = {'schema': 'fpl.public.certificates.v2', 'generated_at': data.get('generated_at'), 'count': len(certs),
+           'lookup': '/data/cert/<sha256 номера в верхнем регистре>.json'}
+tmp = os.path.join(out, '.certificates.json.tmp')
+json.dump(summary, open(tmp, 'w', encoding='utf-8'), ensure_ascii=False)
+os.chmod(tmp, 0o644)
+os.replace(tmp, os.path.join(out, 'certificates.json'))
+P
+rm -f "$tmp"

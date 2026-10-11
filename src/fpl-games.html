@@ -219,7 +219,7 @@
 
   <!-- ИГРА 01: TOP WORK ПО ТУРАМ (из базы, /data/games.json) -->
   <section id="g01" aria-labelledby="g01Title" data-fpl="tw-section" hidden>
-    <div class="sec-head"><h2 class="h2" id="g01Title">Игра 01: <span class="a-pink">TOP WORK</span></h2><span class="sec-note">Лучшие работы туров, итоги которых уже объявлены. Баллы и места участниц не публикуются — свой результат каждая видит в боте.</span></div>
+    <div class="sec-head"><h2 class="h2" id="g01Title">Игра 01: <span class="a-pink">TOP WORK</span></h2><span class="sec-note">Лучшие работы туров, итоги которых уже объявлены. Баллы и места участников не публикуются — свой результат каждый видит в боте.</span></div>
     <div class="tw-rounds" data-fpl="tw-rounds"></div>
   </section>
 
@@ -242,10 +242,10 @@
       <aside class="gprize">
         <h3>Что можно получить</h3>
         <ul>
-          <li><span class="gp-ic gp-ic--p">★</span><div><b>Призы победителям</b><span>материалы и денежные призы — состав объявим до старта</span></div></li>
+          <li><span class="gp-ic gp-ic--p">★</span><div><b>Призы победителям</b><span>состав призов объявим до старта Игры</span></div></li>
           <li><span class="gp-ic gp-ic--m">1</span><div><b>Медали</b><span>за 1–3 место в каждой лиге</span></div></li>
           <li><span class="gp-ic gp-ic--tw">TOP<br>WORK</span><div><b>TOP WORK</b><span>лучшие работы туров</span></div></li>
-          <li><span class="gp-ic gp-ic--d">✓</span><div><b>Диплом с номером</b><span>всем, кто сдал все туры</span></div></li>
+          <li><span class="gp-ic gp-ic--d">✓</span><div><b>Диплом с номером</b><span>всем, кто сдал все работы до конца Игры</span></div></li>
           <li><span class="gp-ic gp-ic--s">%</span><div><b>Скидка на MAGFACE</b><span>всем, кто дошёл до конца</span></div></li>
         </ul>
       </aside>
@@ -274,7 +274,7 @@
       <article class="gcard gcard--final">
         <span class="gcard-tag">Финал сезона</span>
         <h3>Суперфинал</h3>
-        <p>Завершает сезон. В нём встречаются лучшие мастера по итогам трёх Игр и борются за кубок сезона и денежный фонд.</p>
+        <p>Завершает сезон. В нём встречаются призёры Игр и лучшие мастера сезона и борются за кубок сезона и денежный фонд.</p>
         <p class="gcard-note">Условия отбора — в Правилах лиги.</p>
       </article>
     </div>
@@ -283,7 +283,7 @@
   <!-- АРХИВ -->
   <section id="archive" aria-labelledby="archTitle">
     <div class="sec-head"><h2 class="h2" id="archTitle">Прошедшие <span class="a-pink">Игры</span></h2></div>
-    <p class="tile-text" style="font-size:17px">Итоги Игры 01 — победители лиг, итоговая таблица и работы призёров — появятся здесь после финала 10 ноября.</p>
+    <p class="tile-text" style="font-size:17px">Итоги Игры 01 — победители Лиги А и Лиги Б и работы призёров — появятся здесь после финала 10 ноября.</p>
   </section>
 
   <!-- УЗНАТЬ О СТАРТЕ -->
@@ -335,15 +335,6 @@
 </script>
 <script>
 (function(){
-  // проверка диплома (в прототипе — один пример)
-  var f=document.getElementById('verifyForm'); if(f){
-    f.addEventListener('submit',function(e){ e.preventDefault();
-      var v=(document.getElementById('dipNo').value||'').trim().toUpperCase(), r=document.getElementById('verifyResult');
-      r.hidden=false;
-      if(v==='FPL-S1-01-0247'){ r.className='verify-result ok'; r.innerHTML='<b>✓ Диплом подтверждён</b><br>Анна Петрова · Игра 01, сезон 1 · лига Silver<br>Все работы сданы в срок · <a href="#players">профиль мастера</a> <span style="color:#6E6560">(пример)</span>'; }
-      else { r.className='verify-result'; r.textContent=v?'Диплом с номером '+v+' не найден. Проверьте номер на дипломе.':'Введите номер диплома.'; }
-    });
-  }
   // переключатель языка (в прототипе переведены первый экран и полоса доверия)
   var els=[].slice.call(document.querySelectorAll('[data-en]'));
   els.forEach(function(el){ el.setAttribute('data-ru', el.innerHTML); });

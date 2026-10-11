@@ -955,7 +955,7 @@ section.tile--lemon .h2{color:var(--ink)!important}
 .social-links a:hover{border-color:var(--indigo); color:var(--accent-text)}
 .social-links a.ig{background:var(--graphite); border-color:var(--graphite); color:var(--cream)}
 .social-links small{font:500 12px var(--f-body); opacity:.7}
-.f-note{grid-column:1/-1; margin:0; font:500 12px/1.5 var(--f-body); color:#8A8079}
+.f-note{grid-column:1/-1; margin:0; font:500 12px/1.5 var(--f-body); color:#6E6560}
 @media (max-width:640px){ .social{padding:20px} .social-links{width:100%} .social-links a{flex:1; justify-content:center} .social-links a.ig{flex-basis:100%} }
 
 /* лиги: кубки без подложки */
@@ -1015,6 +1015,21 @@ section.tile--lemon .h2{color:var(--ink)!important}
 .soon-hero{max-width:760px; padding:24px 0 8px}
 .soon-hero .lead{margin:16px 0 24px}
 @media (max-width:640px){ .soon{padding:26px 20px; border-radius:20px} .soon p{font-size:16px} }
+
+/* Жюри без фото: монограмма */
+.judge-ph.ini,.abj-ph.ini{aspect-ratio:auto; min-height:140px; font:700 46px/1 var(--f-display)!important; letter-spacing:.02em; color:#C2410C!important}
+.abj-ph.ini{min-height:120px}
+@media (max-width:640px){ .judge-ph.ini{min-height:110px; font-size:38px!important} .abj-ph.ini{min-height:90px; font-size:32px!important} }
+
+/* телефон: цели для пальца не меньше 40px */
+@media (max-width:640px){
+  .site-footer > div{gap:0} .site-footer a{padding:8px 0}
+  .lang-cur,.tabs button{min-height:40px}
+  .faq summary{min-height:40px; align-items:center}
+}
+
+/* скрытое атрибутом hidden не показывается, даже если у блока свой display */
+[hidden]{display:none!important}
 
 /* кнопки-ссылки */
 a.btn-wide,a.btn-outline{text-decoration:none; display:inline-flex; align-items:center; justify-content:center; text-align:center}

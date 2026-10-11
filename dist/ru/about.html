@@ -2,6 +2,7 @@
 <html lang="ru">
 <head>
 <!-- SEO -->
+<meta charset="utf-8">
 <title>О лиге — Face Painting League by MAGFACE</title>
 <meta name="description" content="Face Painting League — онлайн-лига аквагримёров от MAGFACE. Выросла из семи лет марафонов по аквагриму, в которых участвовали 1400+ мастеров.">
 <link rel="canonical" href="https://facepaintingleague.com/ru/about.html">
@@ -34,12 +35,12 @@
    "name": "Face Painting League",
    "alternateName": "FPL",
    "url": "https://facepaintingleague.com/",
-   "logo": "https://facepaintingleague.com/assets/logo-fpl.png",
+   "logo": "https://facepaintingleague.com/assets/favicon.svg",
    "brand": {
     "@type": "Brand",
     "name": "MAGFACE"
    },
-   "description": "Online league for face painters by MAGFACE: Games with judged rounds, leagues, an FPL Rating and verifiable certificates."
+   "description": "Онлайн-лига аквагримёров от MAGFACE: Игры с оценкой жюри, лиги, рейтинг FPL и проверяемые дипломы."
   },
   {
    "@type": "AboutPage",
@@ -80,9 +81,8 @@
 </script>
 <!-- /SEO -->
 
-<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/site.css?v=e051b65435">
 <style>
 /* =========================================================
    О ЛИГЕ
@@ -131,7 +131,7 @@
 .abcards p{margin:8px 0 0; font:500 15px/1.55 var(--f-body); color:#3A342F}
 .ab-badges{display:flex; gap:6px; margin-top:12px}
 
-.abjury{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px}
+.abjury{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px}
 .abj{background:#fff; border-radius:12px; padding:14px 14px 20px}
 .abj-ph{aspect-ratio:1/1; border-radius:8px; background:linear-gradient(160deg,#E9E3DB,#D8CFC4); display:grid; place-items:center; font:600 12px var(--f-body); color:#7A7069}
 .abj-c{display:inline-block; margin-top:14px; font:600 11px/1 var(--f-body); letter-spacing:.14em; text-transform:uppercase; color:var(--muted)}
@@ -161,9 +161,10 @@
 .abpress-a{display:flex; gap:20px; align-items:center; flex-wrap:wrap}
 .abpress-a span{font:500 14px var(--f-body); color:var(--muted)}
 
-@media (max-width:1180px){ .abjury,.abjudge{grid-template-columns:1fr 1fr} }
+@media (max-width:1180px){ .abjudge{grid-template-columns:1fr 1fr} }
+@media (max-width:760px){ .abjury{grid-template-columns:1fr} }
 @media (max-width:980px){
-  .abhero-body,.abhist,.abhow,.aborg{grid-template-columns:1fr}
+  .abhero-body,.abhist,.abhow,.aborg{grid-template-columns:minmax(0,1fr)}
   .abwhy{grid-template-columns:1fr}
 }
 @media (max-width:640px){
@@ -173,6 +174,7 @@
   .abstats{border-left:0} .abstats div:first-child{padding-left:0} .abstats div{padding:2px 10px}
   .abstats dt{font-size:17px}
   .abstats dd{font-size:12px}
+  .abstats{grid-template-columns:repeat(3,minmax(0,1fr))} .abstats div{min-width:0} .abstats dt{white-space:normal}
   .abwhy article,.aborg-main,.aborg-partner{padding:22px 20px}
   .abtext{font-size:15px}
   .abjury{gap:8px}
@@ -218,7 +220,7 @@
     <div class="abwhy">
       <article><span class="abwhy-n">01</span><h3>Расти</h3><p>Новое задание каждый тур выводит из привычных образов. Рейтинг показывает, как меняется твой уровень от Игры к Игре.</p></article>
       <article><span class="abwhy-n">02</span><h3>Соревноваться с равными</h3><p>Лиги Bronze, Silver и Gold собирают мастеров близкого уровня. Новичок не соревнуется с профи.</p></article>
-      <article><span class="abwhy-n">03</span><h3>Быть на виду</h3><p>Профиль мастера с рейтингом, наградами и работами из лиги. Дипломы с номером можно проверить на сайте.</p></article>
+      <article><span class="abwhy-n">03</span><h3>Быть на виду</h3><p>После финала Игры 01 — страница мастера с рейтингом, наградами и работами из лиги (с твоего согласия). Дипломы с номером можно проверить на сайте.</p></article>
     </div>
   </section>
 
@@ -249,7 +251,7 @@
         </div>
       </div>
       <div class="abcards">
-        <article><h3>Лиги</h3><p>Bronze, Silver и Gold. Лига определяется по рейтингу перед Игрой и не меняется до её конца.</p><div class="ab-badges"><span class="lgb lgb--Bronze">Bronze</span><span class="lgb lgb--Silver">Silver</span><span class="lgb lgb--Gold">Gold</span></div></article>
+        <article><h3>Лиги</h3><p>В Игре 01 — Лига А и Лига Б по итогам первого тура. С Игры 02 — Bronze, Silver и Gold: лига определяется по рейтингу перед Игрой и не меняется до её конца.</p><div class="ab-badges"><span class="lgb lgb--Bronze">Bronze</span><span class="lgb lgb--Silver">Silver</span><span class="lgb lgb--Gold">Gold</span></div></article>
         <article><h3>Рейтинг FPL</h3><p>Показывает текущий уровень. Меняется после каждого тура и учитывает силу соперников.</p></article>
         <article><h3>Очки и награды</h3><p>Медали, TOP WORK, кубки и очки FPL. Очки копятся и никогда не сгорают — это твоя история в лиге.</p></article>
       </div>
@@ -258,7 +260,12 @@
 
   <!-- ЖЮРИ -->
   <section id="jury" aria-labelledby="juryTitle">
-    <div class="sec-head"><h2 class="h2" id="juryTitle">Жюри <span class="a-indigo">сезона</span></h2><span class="sec-note">Практикующие мастера и преподаватели аквагрима и боди-арта. Судьи не участвуют в Играх.</span></div>
+    <div class="sec-head"><h2 class="h2" id="juryTitle">Жюри <span class="a-indigo">Игры 01</span></h2><span class="sec-note">Практикующие мастера и преподаватели аквагрима и фейс-арта. Судьи не участвуют в Играх.</span></div>
+    <div class="abjury">
+      <article class="abj"><div class="abj-ph ini" aria-hidden="true">МП</div><span class="abj-c">Фейс-арт · преподаватель</span><h3>Милена Потехина</h3><p class="abj-s">Художница фейс-арта с мировым именем, преподаёт декоративное мастерство в университете.</p><p>Победительница международных конкурсов. Проводит мастер-классы в разных странах, выпускает авторские трафареты, тренировочные наборы и обучающие курсы.</p></article>
+      <article class="abj"><div class="abj-ph ini" aria-hidden="true">СИ</div><span class="abj-c">Аквагрим · 20 лет</span><h3>Светлана Иванова</h3><p class="abj-s">Одна из самых техничных гримёров России.</p><p>Около 20 лет в аквагриме, одна из лучших мастеров аквагрима Санкт-Петербурга.</p></article>
+      <article class="abj"><div class="abj-ph ini" aria-hidden="true">СА</div><span class="abj-c">Аквагрим с 2008 года</span><h3>Светлана Афиногенова</h3><p class="abj-s">Основатель бренда MAGFACE, ведёт YouTube-канал с уроками аквагрима.</p><p>Победительница международного конкурса, публиковалась в журнале. Окончила архитектурный факультет и художественное училище.</p></article>
+    </div>
     <div class="abjudge">
       <div><b>Анонимно</b><p>Судьи оценивают работы без имён авторов.</p></div>
       <div><b>Попарно и по критериям</b><p>Способ оценки зависит от тура и указан в Правилах Игры.</p></div>
@@ -287,7 +294,7 @@
 
   <!-- ДЛЯ СМИ -->
   <section class="abpress" aria-label="Для СМИ и партнёров">
-    <div><h3>Для СМИ и партнёров</h3><p>Логотипы, фото работ и короткое описание лиги — одним архивом.</p></div>
+    <div><h3>Для СМИ и партнёров</h3><p>Логотипы, описание лиги и фото для публикаций — по запросу.</p></div>
     <div class="abpress-a"><a class="text-link" href="mailto:info@maskarad-grim.ru?subject=Пресс-кит">Запросить пресс-кит</a><span>info@maskarad-grim.ru</span></div>
   </section>
 
@@ -366,6 +373,6 @@
     if(b.disabled) return; var h=b.getAttribute('data-href'); if(h && !b.classList.contains('on')) location.href=h; else l.hidden=true; },true);
 })();
 </script>
-<script src="../assets/consent.js?v=1" defer></script>
+<script src="../assets/consent.js?v=11b51da9f6" defer></script>
 </body>
 </html>

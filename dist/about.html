@@ -3,6 +3,7 @@
 <html lang="en">
 <head>
 <!-- SEO -->
+<meta charset="utf-8">
 <title>About Face Painting League by MAGFACE</title>
 <meta name="description" content="Face Painting League is an online league for face painters by MAGFACE, grown out of seven years of face painting marathons with 1,400+ artists.">
 <link rel="canonical" href="https://facepaintingleague.com/about.html">
@@ -35,7 +36,7 @@
    "name": "Face Painting League",
    "alternateName": "FPL",
    "url": "https://facepaintingleague.com/",
-   "logo": "https://facepaintingleague.com/assets/logo-fpl.png",
+   "logo": "https://facepaintingleague.com/assets/favicon.svg",
    "brand": {
     "@type": "Brand",
     "name": "MAGFACE"
@@ -83,7 +84,7 @@
 
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1" name="viewport"/>
-<link href="assets/site.css" rel="stylesheet"/>
+<link href="assets/site.css?v=e051b65435" rel="stylesheet"/>
 <style>
 /* =========================================================
    О ЛИГЕ
@@ -132,7 +133,7 @@
 .abcards p{margin:8px 0 0; font:500 15px/1.55 var(--f-body); color:#3A342F}
 .ab-badges{display:flex; gap:6px; margin-top:12px}
 
-.abjury{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px}
+.abjury{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px}
 .abj{background:#fff; border-radius:12px; padding:14px 14px 20px}
 .abj-ph{aspect-ratio:1/1; border-radius:8px; background:linear-gradient(160deg,#E9E3DB,#D8CFC4); display:grid; place-items:center; font:600 12px var(--f-body); color:#7A7069}
 .abj-c{display:inline-block; margin-top:14px; font:600 11px/1 var(--f-body); letter-spacing:.14em; text-transform:uppercase; color:var(--muted)}
@@ -162,9 +163,10 @@
 .abpress-a{display:flex; gap:20px; align-items:center; flex-wrap:wrap}
 .abpress-a span{font:500 14px var(--f-body); color:var(--muted)}
 
-@media (max-width:1180px){ .abjury,.abjudge{grid-template-columns:1fr 1fr} }
+@media (max-width:1180px){ .abjudge{grid-template-columns:1fr 1fr} }
+@media (max-width:760px){ .abjury{grid-template-columns:1fr} }
 @media (max-width:980px){
-  .abhero-body,.abhist,.abhow,.aborg{grid-template-columns:1fr}
+  .abhero-body,.abhist,.abhow,.aborg{grid-template-columns:minmax(0,1fr)}
   .abwhy{grid-template-columns:1fr}
 }
 @media (max-width:640px){
@@ -174,6 +176,7 @@
   .abstats{border-left:0} .abstats div:first-child{padding-left:0} .abstats div{padding:2px 10px}
   .abstats dt{font-size:17px}
   .abstats dd{font-size:12px}
+  .abstats{grid-template-columns:repeat(3,minmax(0,1fr))} .abstats div{min-width:0} .abstats dt{white-space:normal}
   .abwhy article,.aborg-main,.aborg-partner{padding:22px 20px}
   .abtext{font-size:15px}
   .abjury{gap:8px}
@@ -218,7 +221,7 @@
 <div class="abwhy">
 <article><span class="abwhy-n">01</span><h3>Grow</h3><p>A new brief every round pushes you past familiar designs. Your rating shows how your level changes from Game to Game.</p></article>
 <article><span class="abwhy-n">02</span><h3>Compete with equals</h3><p>The Bronze, Silver and Gold leagues group artists of a similar level. Beginners don't compete with pros.</p></article>
-<article><span class="abwhy-n">03</span><h3>Be seen</h3><p>An artist profile with your rating, awards and League works. Numbered certificates can be verified on the website.</p></article>
+<article><span class="abwhy-n">03</span><h3>Be seen</h3><p>After the Game 01 final — an artist page with your rating, awards and League works (with your consent). Numbered certificates can be verified on the site.</p></article>
 </div>
 </section>
 <!-- ИСТОРИЯ -->
@@ -247,7 +250,7 @@
 </div>
 </div>
 <div class="abcards">
-<article><h3>Leagues</h3><p>Bronze, Silver and Gold. Your league is set by rating before a Game and doesn't change until it ends.</p><div class="ab-badges"><span class="lgb lgb--Bronze">Bronze</span><span class="lgb lgb--Silver">Silver</span><span class="lgb lgb--Gold">Gold</span></div></article>
+<article><h3>Leagues</h3><p>In Game 01 — League A and League B, set by round 1. From Game 02 — Bronze, Silver and Gold: the league is set by rating before the Game and does not change until it ends.</p><div class="ab-badges"><span class="lgb lgb--Bronze">Bronze</span><span class="lgb lgb--Silver">Silver</span><span class="lgb lgb--Gold">Gold</span></div></article>
 <article><h3>FPL Rating</h3><p>Shows your current level. Changes after each round and takes the strength of opponents into account.</p></article>
 <article><h3>Points and awards</h3><p>Medals, TOP WORK, trophies and FPL Points. Points add up and never expire: they're your history in the League.</p></article>
 </div>
@@ -255,7 +258,12 @@
 </section>
 <!-- ЖЮРИ -->
 <section aria-labelledby="juryTitle" id="jury">
-<div class="sec-head"><h2 class="h2" id="juryTitle">Season <span class="a-indigo">judges</span></h2><span class="sec-note">Working face and body painters and teachers. Judges don't take part in the Games.</span></div>
+<div class="sec-head"><h2 class="h2" id="juryTitle">Game 01 <span class="a-indigo">judges</span></h2><span class="sec-note">Practising face painters and teachers of face painting and face art. Judges do not compete in the Games.</span></div>
+<div class="abjury">
+<article class="abj"><div aria-hidden="true" class="abj-ph ini">MP</div><span class="abj-c">Face art · teacher</span><h3>Milena Potekhina</h3><p class="abj-s">A world-renowned face art artist who teaches decorative arts at a university.</p><p>Winner of international competitions. Gives masterclasses around the world and releases her own stencils, practice kits and courses.</p></article>
+<article class="abj"><div aria-hidden="true" class="abj-ph ini">SI</div><span class="abj-c">Face painting · 20 years</span><h3>Svetlana Ivanova</h3><p class="abj-s">One of the most technically skilled face painters in Russia.</p><p>About 20 years in face painting; one of the best face painters in Saint Petersburg.</p></article>
+<article class="abj"><div aria-hidden="true" class="abj-ph ini">SA</div><span class="abj-c">Face painting since 2008</span><h3>Svetlana Afinogenova</h3><p class="abj-s">Founder of the MAGFACE brand; runs a YouTube channel with face painting lessons.</p><p>Winner of an international competition, featured in a magazine. Studied architecture and graduated from an art college.</p></article>
+</div>
 <div class="abjudge">
 <div><b>Anonymous</b><p>Judges score works without the artists' names.</p></div>
 <div><b>Head-to-head and by criteria</b><p>The judging method depends on the round and is set out in the Game Rules.</p></div>
@@ -282,7 +290,7 @@
 </section>
 <!-- ДЛЯ СМИ -->
 <section aria-label="For media and partners" class="abpress">
-<div><h3>For media and partners</h3><p>Logos, photos of works and a short description of the League in one archive.</p></div>
+<div><h3>For media and partners</h3><p>Logos, a description of the League and photos for publication — on request.</p></div>
 <div class="abpress-a"><a class="text-link" href="mailto:info@maskarad-grim.ru?subject=Press%20kit">Request the press kit</a><span>info@maskarad-grim.ru</span></div>
 </section>
 <!-- ПРИЗЫВ -->
@@ -357,6 +365,6 @@
     if(b.disabled) return; var h=b.getAttribute('data-href'); if(h && !b.classList.contains('on')) location.href=h; else l.hidden=true; },true);
 })();
 </script>
-<script src="assets/consent.js?v=1" defer></script>
+<script src="assets/consent.js?v=11b51da9f6" defer></script>
 </body>
 </html>

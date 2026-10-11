@@ -2,8 +2,9 @@
 <html lang="ru">
 <head>
 <!-- SEO -->
+<meta charset="utf-8">
 <title>Рейтинг мастеров аквагрима — FPL Rating</title>
-<meta name="description" content="Официальный рейтинг FPL. Обновляется после каждой Игры с учётом силы соперников и распределяет мастеров по лигам Bronze, Silver и Gold.">
+<meta name="description" content="Рейтинг FPL мастеров аквагрима. Меняется после каждого тура с учётом силы соперников; пока идёт калибровка, он предварительный.">
 <link rel="canonical" href="https://facepaintingleague.com/ru/rating.html">
 <link rel="alternate" hreflang="en" href="https://facepaintingleague.com/rating.html">
 <link rel="alternate" hreflang="ru" href="https://facepaintingleague.com/ru/rating.html">
@@ -14,7 +15,7 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Face Painting League">
 <meta property="og:title" content="Рейтинг мастеров аквагрима — FPL Rating">
-<meta property="og:description" content="Официальный рейтинг FPL. Обновляется после каждой Игры с учётом силы соперников и распределяет мастеров по лигам Bronze, Silver и Gold.">
+<meta property="og:description" content="Рейтинг FPL мастеров аквагрима. Меняется после каждого тура с учётом силы соперников; пока идёт калибровка, он предварительный.">
 <meta property="og:url" content="https://facepaintingleague.com/ru/rating.html">
 <meta property="og:image" content="https://facepaintingleague.com/assets/og-ru.png">
 <meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
@@ -22,7 +23,7 @@
 <meta property="og:locale:alternate" content="en_US">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Рейтинг мастеров аквагрима — FPL Rating">
-<meta name="twitter:description" content="Официальный рейтинг FPL. Обновляется после каждой Игры с учётом силы соперников и распределяет мастеров по лигам Bronze, Silver и Gold.">
+<meta name="twitter:description" content="Рейтинг FPL мастеров аквагрима. Меняется после каждого тура с учётом силы соперников; пока идёт калибровка, он предварительный.">
 <meta name="twitter:image" content="https://facepaintingleague.com/assets/og-ru.png">
 <script type="application/ld+json">
 {
@@ -34,19 +35,19 @@
    "name": "Face Painting League",
    "alternateName": "FPL",
    "url": "https://facepaintingleague.com/",
-   "logo": "https://facepaintingleague.com/assets/logo-fpl.png",
+   "logo": "https://facepaintingleague.com/assets/favicon.svg",
    "brand": {
     "@type": "Brand",
     "name": "MAGFACE"
    },
-   "description": "Online league for face painters by MAGFACE: Games with judged rounds, leagues, an FPL Rating and verifiable certificates."
+   "description": "Онлайн-лига аквагримёров от MAGFACE: Игры с оценкой жюри, лиги, рейтинг FPL и проверяемые дипломы."
   },
   {
    "@type": "CollectionPage",
    "@id": "https://facepaintingleague.com/ru/rating.html#page",
    "url": "https://facepaintingleague.com/ru/rating.html",
    "name": "Рейтинг мастеров аквагрима — FPL Rating",
-   "description": "Официальный рейтинг FPL. Обновляется после каждой Игры с учётом силы соперников и распределяет мастеров по лигам Bronze, Silver и Gold.",
+   "description": "Рейтинг FPL мастеров аквагрима. Меняется после каждого тура с учётом силы соперников; пока идёт калибровка, он предварительный.",
    "inLanguage": "ru",
    "isPartOf": {
     "@id": "https://facepaintingleague.com/#site"
@@ -77,9 +78,8 @@
 </script>
 <!-- /SEO -->
 
-<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/site.css?v=e051b65435">
 <style>
 /* размер цифр в шапке рейтинга */
 @media (min-width:641px){ .rstats dd{font-size:clamp(18px,1.6vw,22px)} }
@@ -102,23 +102,22 @@
       <div>
         <span class="eyebrow">Face Painting League · сезон 1</span>
         <h1 id="rtitle">Рейтинг <span>мастеров</span></h1>
-        <p class="lead">Официальный рейтинг FPL. Обновляется после каждой Игры с учётом силы соперников.</p>
+        <p class="lead">Рейтинг FPL меняется после каждого тура с учётом силы соперников. Пока идёт калибровка, он предварительный.</p>
       </div>
       <dl class="rstats">
         <div><dt>В рейтинге</dt><dd id="rsCount">—</dd><span>мастеров</span></div>
-        <div data-stat="countries"><dt>Стран</dt><dd>—</dd><span>в рейтинге</span></div>
-        <div><dt>Обновлён</dt><dd data-fpl-after="dd">1 тур</dd><span>Игра 01</span></div>
+        <div><dt>Обновлён</dt><dd data-fpl-after="dd">—</dd><span>Игра 01</span></div>
       </dl>
     </div>
-    <div class="rleagues" aria-label="Пороги лиг">
-      <div class="rl rl--gold"><span class="league-badge">Gold</span><b>—</b><span></span></div>
-      <div class="rl rl--silver"><span class="league-badge">Silver</span><b>—</b><span></span></div>
-      <div class="rl rl--bronze"><span class="league-badge">Bronze</span><b>—</b><span></span></div>
+    <div class="rleagues" aria-label="Лиги" hidden>
+      <div class="rl rl--gold" hidden><span class="league-badge">Gold</span><b>—</b><span></span></div>
+      <div class="rl rl--silver" hidden><span class="league-badge">Silver</span><b>—</b><span></span></div>
+      <div class="rl rl--bronze" hidden><span class="league-badge">Bronze</span><b>—</b><span></span></div>
     </div>
   </section>
 
   <!-- ТОП-3 -->
-  <section aria-labelledby="podiumTitle">
+  <section aria-labelledby="podiumTitle" id="podiumSec" hidden>
     <h2 class="h2" id="podiumTitle" style="margin-bottom:24px">Лидеры <span class="a-pink">сезона</span></h2>
     <div class="podium3" id="podium"></div>
   </section>
@@ -130,19 +129,16 @@
       <p class="rnote" id="rnote"></p>
     </div>
 
-    <div class="rcontrols">
+    <div class="rcontrols" hidden>
       <div class="tabs" role="tablist" aria-label="Лига">
         <button role="tab" aria-selected="true" data-league="all">Все</button>
         <button role="tab" aria-selected="false" data-league="Gold">Gold</button>
         <button role="tab" aria-selected="false" data-league="Silver">Silver</button>
         <button role="tab" aria-selected="false" data-league="Bronze">Bronze</button>
-        <button role="tab" aria-selected="false" data-league="cal">В калибровке</button>
       </div>
       <div class="rfilters">
         <label class="sr" for="rsearch">Поиск по имени</label>
         <input id="rsearch" type="search" placeholder="Имя" autocomplete="off">
-        <label class="sr" for="rcountry">Страна</label>
-        <select id="rcountry"><option value="all">Все страны</option></select>
       </div>
     </div>
 
@@ -150,10 +146,10 @@
 
     <div class="rtable-wrap">
       <table class="rtable" id="rtable">
-        <thead><tr><th scope="col">Место</th><th scope="col">Мастер</th><th scope="col">Лига</th><th scope="col" class="num">Рейтинг</th><th scope="col" class="num">За Игру</th><th scope="col" class="num">Игр</th><th scope="col">Награды</th><th scope="col"><span class="sr">Профиль</span></th></tr></thead>
+        <thead><tr><th scope="col">Место</th><th scope="col">Мастер</th><th scope="col">Лига</th><th scope="col" class="num">Рейтинг</th><th scope="col">Награды</th></tr></thead>
         <tbody id="rbody"></tbody>
       </table>
-      <p class="rempty" id="rempty" hidden>Никого не нашли. Попробуйте другое имя или город.</p>
+      <p class="rempty" id="rempty" hidden>Никого не нашли. Попробуйте другое имя.</p>
     </div>
   </section>
 
@@ -162,7 +158,7 @@
     <h2 class="h2" id="howTitle" style="margin-bottom:24px">Как устроен <span class="a-pink">рейтинг</span></h2>
     <div class="rhow">
       <article><h3>Рейтинг FPL</h3><p>Растёт и падает после каждого тура. Победа над сильной работой даёт больше, чем над слабой.</p></article>
-      <article><h3>Лига</h3><p>Определяется рейтингом перед началом Игры и не меняется до её конца. Пороги лиг фиксированы на весь сезон.</p></article>
+      <article><h3>Лига</h3><p>В Игре 01 — Лига А и Лига Б по итогам первого тура (для достижений А = Gold, Б = Silver). С Игры 02 лига Bronze, Silver или Gold определяется рейтингом перед Игрой и не меняется до её конца.</p></article>
       <article><h3>Калибровка</h3><p>Новичку нужно три результата, чтобы рейтинг стал точным. До этого он отмечен как предварительный.</p></article>
       <article><h3>Очки FPL</h3><p>Отдельно от рейтинга: копятся за участие и награды и никогда не сгорают.</p></article>
     </div>
@@ -244,7 +240,7 @@
   }
 })();
 </script>
-<script src="../assets/fpl-data.js?v=2" defer></script>
+<script src="../assets/fpl-data.js?v=37ad9d9ad3" defer></script>
 
 <script>
 (function(){ var l=document.querySelector('.lang-list'); if(!l) return;
@@ -252,6 +248,6 @@
     if(b.disabled) return; var h=b.getAttribute('data-href'); if(h && !b.classList.contains('on')) location.href=h; else l.hidden=true; },true);
 })();
 </script>
-<script src="../assets/consent.js?v=1" defer></script>
+<script src="../assets/consent.js?v=11b51da9f6" defer></script>
 </body>
 </html>
