@@ -7,7 +7,11 @@ from paths import SRC, DIST, I18N, PRIVACY, OG
 O = SRC
 D = DIST
 import hashlib, datetime
-VER = {f: hashlib.sha256(open(os.path.join(SRC, 'assets', f), 'rb').read()).hexdigest()[:10] for f in ('site.css', 'consent.js', 'fpl-data.js')}
+VER = {f: hashlib.sha256(open(os.path.join(SRC, 'assets', f), 'rb').read()).hexdigest()[:10] for f in ('site.css', 'consent.js', 'fpl-data.js', 'a11y.js')}
+# шрифты первого экрана: грузятся сразу, чтобы текст не «прыгал» при подмене шрифта
+FONTS = {'ru': ['manrope-cyrillic-500', 'manrope-cyrillic-400', 'unbounded-cyrillic-400', 'unbounded-cyrillic-700'],
+         'en': ['manrope-latin-500', 'manrope-latin-400', 'unbounded-latin-400', 'unbounded-latin-700']}
+SKIP = {'ru': 'Перейти к содержанию', 'en': 'Skip to content'}
 TODAY = datetime.date.today().isoformat()
 DOMAIN = 'https://facepaintingleague.com'
 PAGES = ['index', 'games', 'rating', 'master', 'gallery', 'find', 'diploma', 'rules', 'about', 'privacy']
@@ -92,6 +96,7 @@ def head_block(lang, p, s):
      f'<link rel="canonical" href="{url(lang,p)}">', *alt,
      '<meta name="robots" content="%s">' % ('noindex,follow' if p in NOINDEX else 'index,follow,max-image-preview:large'),
      '<meta name="theme-color" content="#1E1B18">',
+     *[f'<link rel="preload" href="/assets/fonts/{f}-normal.woff2" as="font" type="font/woff2" crossorigin>' for f in FONTS[lang]],
      f'<link rel="icon" href="{"../" if lang=="ru" else ""}assets/favicon.svg" type="image/svg+xml">',
      '<meta property="og:type" content="website">',
      '<meta property="og:site_name" content="Face Painting League">',
@@ -126,7 +131,19 @@ def process(path, lang, p):
     # плашка cookie + Яндекс Метрика (после согласия)
     if 'consent.js' not in s:
         s = s.replace('</body>', f'<script src="{"../" if lang=="ru" else ""}assets/consent.js?v=1" defer></script>\n</body>', 1)
-    for f in ('site.css', 'consent.js', 'fpl-data.js'):
+    # клавиатура: меню не теряет фокус; ссылка «Перейти к содержанию» первой в странице
+    if 'a11y.js' not in s:
+        s = s.replace('</body>', f'<script src="{"../" if lang=="ru" else ""}assets/a11y.js?v=1" defer></script>\n</body>', 1)
+    if 'class="skip-link"' not in s:
+        nav_end = s.find('</nav>')
+        m = re.compile(r'<section(?P<a>[^>]*)>').search(s, nav_end if nav_end > 0 else 0)
+        if m:
+            idm = re.search(r'\bid="([^"]+)"', m.group('a'))
+            target = idm.group(1) if idm else 'content'
+            if not idm:
+                s = s[:m.start()] + '<section id="content"' + m.group('a') + '>' + s[m.end():]
+            s = re.sub(r'(<body[^>]*>)', lambda b: b.group(1) + f'\n<a class="skip-link" href="#{target}">{SKIP[lang]}</a>', s, count=1)
+    for f in ('site.css', 'consent.js', 'fpl-data.js', 'a11y.js'):
         s = re.sub(r'(assets/' + re.escape(f) + r')(\?v=[0-9a-z]+)?"', lambda m: m.group(1) + '?v=' + VER[f] + '"', s)
     open(path, 'w', encoding='utf-8').write(s)
 
@@ -145,6 +162,7 @@ def assets():
     shutil.copy(O + '/assets/site.css', D + '/assets/site.css')
     shutil.copy(O + '/assets/consent.js', D + '/assets/consent.js')
     shutil.copy(O + '/assets/fpl-data.js', D + '/assets/fpl-data.js')
+    shutil.copy(O + '/assets/a11y.js', D + '/assets/a11y.js')
     shutil.copytree(O + '/assets/fonts', D + '/assets/fonts', dirs_exist_ok=True)
     if os.path.isdir(O + '/assets/img'): shutil.copytree(O + '/assets/img', D + '/assets/img', dirs_exist_ok=True)
     # служебные страницы (не индексируются): /admin/

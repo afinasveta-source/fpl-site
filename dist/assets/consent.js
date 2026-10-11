@@ -44,10 +44,12 @@
     if (document.querySelector('.ckbar')) return;
     if (!document.getElementById('ckcss')) { var s = document.createElement('style'); s.id = 'ckcss'; s.textContent = css; document.head.appendChild(s); }
     var d = document.createElement('div');
-    d.className = 'ckbar'; d.setAttribute('role', 'dialog'); d.setAttribute('aria-label', T.settings);
+    d.className = 'ckbar'; d.setAttribute('role', 'region'); d.setAttribute('aria-label', T.settings);
     d.innerHTML = '<p>' + T.text + ' <a href="' + T.href + '">' + T.more + '</a></p>' +
       '<div class="ckbar-b"><button type="button" class="ck-no">' + T.no + '</button><button type="button" class="ck-yes">' + T.yes + '</button></div>';
-    document.body.appendChild(d);
+    // в начале страницы (сразу после «Перейти к содержанию»): с клавиатуры до плашки не нужно пролистывать весь сайт
+    var skip = document.querySelector('.skip-link');
+    document.body.insertBefore(d, skip ? skip.nextSibling : document.body.firstChild);
     d.querySelector('.ck-yes').addEventListener('click', function () { set('yes'); d.remove(); loadMetrika(); });
     d.querySelector('.ck-no').addEventListener('click', function () {
       var was = get() === 'yes'; set('no'); d.remove(); dropMetrikaCookies(); if (was) location.reload();
