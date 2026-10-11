@@ -1,9 +1,11 @@
 # SEO-слой сайта FPL: английский — основная версия в корне, русский — в /ru/.
 # Запускать после build_site.py и i18n/build_en.py.
-import os, re, json, shutil, html, zipfile
+import os, re, json, shutil, html
+import sys, os; sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # build/
+from paths import SRC, DIST, I18N, PRIVACY, OG
 
-O = '/mnt/user-data/outputs'
-D = O + '/fpl-site'
+O = SRC
+D = DIST
 DOMAIN = 'https://facepaintingleague.com'
 PAGES = ['index', 'games', 'rating', 'master', 'gallery', 'find', 'diploma', 'rules', 'about', 'privacy']
 
@@ -145,7 +147,7 @@ def assets():
         '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#1E1B18"/>'
         '<text x="32" y="41" text-anchor="middle" font-family="Arial Black,Arial,sans-serif" font-weight="900" font-size="22" fill="#F2601F">FPL</text></svg>')
     for f in ('og-en.png', 'og-ru.png'):
-        src = '/tmp/claude-0/-home-claude/d727aedf-8651-581c-b2f6-7103a986585f/scratchpad/' + f
+        src = os.path.join(OG, f)
         if os.path.exists(src): shutil.copy(src, D + '/assets/' + f)
 
 def crawler_files():
@@ -222,8 +224,4 @@ if __name__ == '__main__':
         process(f'{D}/{p}.html', 'en', p)
         process(f'{D}/ru/{p}.html', 'ru', p)
     assets(); crawler_files()
-    with zipfile.ZipFile(O + '/fpl-site.zip', 'w', zipfile.ZIP_DEFLATED) as z:
-        for root, _, fs in os.walk(D):
-            for f in sorted(fs):
-                full = os.path.join(root, f); z.write(full, 'fpl-site/' + os.path.relpath(full, D))
     print('ok', sorted(os.listdir(D)))

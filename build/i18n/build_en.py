@@ -1,7 +1,9 @@
 import re,json,os
+import sys, os; sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # build/
+from paths import SRC, DIST, I18N, PRIVACY, OG
 from bs4 import BeautifulSoup
-I='/tmp/claude-0/-home-claude/d727aedf-8651-581c-b2f6-7103a986585f/scratchpad/i18n'
-D='/mnt/user-data/outputs/fpl-site'
+I=I18N
+D=DIST
 PAGES=['index','games','rating','master','gallery','find','diploma','rules','about','privacy']
 CY=re.compile('[А-Яа-яЁё]')
 T={}
@@ -42,7 +44,7 @@ def build():
     miss=[]
     for p in PAGES:
         if p=='privacy':
-            import sys; sys.path.insert(0,'/tmp/claude-0/-home-claude/d727aedf-8651-581c-b2f6-7103a986585f/scratchpad/privacy')
+            sys.path.insert(0,PRIVACY)
             import assemble
             ru=lang_menu(open(f'{D}/privacy.html',encoding='utf-8').read(),p,False); open(f'{D}/privacy.html','w',encoding='utf-8').write(ru)
             sh=open(f'{D}/en/about.html',encoding='utf-8').read()
@@ -85,8 +87,3 @@ def build():
         if left or vis: print('LEFT',p,'js:',left[:8],'html:',[v.strip()[:60] for v in vis][:8])
     print('missing',len(miss)); [print(m) for m in miss[:20]]
 build()
-import zipfile
-O='/mnt/user-data/outputs'
-with zipfile.ZipFile(O+'/fpl-site.zip','w',zipfile.ZIP_DEFLATED) as z:
-    for root,_,fs in os.walk(D):
-        for f in sorted(fs): full=os.path.join(root,f); z.write(full,'fpl-site/'+os.path.relpath(full,D))

@@ -1,5 +1,7 @@
 import re
-O='/mnt/user-data/outputs'; P='/tmp/claude-0/-home-claude/d727aedf-8651-581c-b2f6-7103a986585f/scratchpad/privacy'
+import sys, os; sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # build/
+from paths import SRC, DIST, I18N, PRIVACY, OG
+O=SRC; P=PRIVACY
 css=open(P+'/style.css').read()
 def make(shell, body, title):
     s=re.sub(r'<style>.*?</style>','<style>\n'+css+'\n</style>',shell,count=1,flags=re.S)

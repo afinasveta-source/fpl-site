@@ -1,0 +1,45 @@
+#!/bin/bash
+# fpl-sync (cron, каждые 5 мин): забрать сайт и подменить папку сайта, если он изменился.
+# Источник — /etc/fpl.env:
+#   ZIP_URL   архив (GitHub: https://codeload.github.com/afinasveta-source/fpl-site/zip/refs/heads/main)
+#   SHA_URL   необязательно: адрес, отдающий номер последнего коммита — тогда архив качается только при новом коммите
+#   SITE_DIR  необязательно: папка сайта внутри архива (GitHub: fpl-site-main/dist); без неё — fpl-site/ или корень архива
+set -e
+. /etc/fpl.env
+mkdir -p /var/lib/fpl /var/www/fpl
+cd /var/lib/fpl
+live_ok() { [ -e /var/www/fpl/current/index.html ] && [ "$(readlink /var/www/fpl/current)" != /var/www/fpl/placeholder ]; }
+
+sha=
+if [ -n "$SHA_URL" ]; then
+  sha=$(curl -sS -f -m 20 -H 'Accept: application/vnd.github.sha' "$SHA_URL") || exit 0
+  [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || exit 0
+  if [ -f sha ] && [ "$(cat sha)" = "$sha" ] && live_ok; then exit 0; fi
+  etag=()
+else
+  etag=(--etag-compare etag --etag-save etag.new)
+fi
+
+code=$(curl -sS -L -m 180 -o site.zip.new -w '%{http_code}' "${etag[@]}" "$ZIP_URL") || { rm -f site.zip.new etag.new; exit 0; }
+[ "$code" = "200" ] || { rm -f site.zip.new etag.new; exit 0; }
+[ -f etag.new ] && mv etag.new etag
+if [ -f site.zip ] && cmp -s site.zip site.zip.new && live_ok; then
+  rm -f site.zip.new; [ -z "$sha" ] || echo "$sha" > sha; exit 0
+fi
+
+rm -rf unpack && mkdir unpack && unzip -q site.zip.new -d unpack
+src=unpack
+if [ -n "$SITE_DIR" ]; then src=unpack/$SITE_DIR
+elif [ -d unpack/fpl-site ]; then src=unpack/fpl-site; fi
+if [ ! -f "$src/index.html" ]; then
+  logger "fpl-sync: в архиве нет $src/index.html — сайт не тронут"; rm -f site.zip.new etag; exit 1
+fi
+new=/var/www/fpl/rel-$(date +%s%N)
+cp -r "$src" "$new"
+[ -z "$sha" ] || echo "$sha" > "$new/version.txt"
+chmod -R a+rX "$new"
+ln -sfn "$new" /var/www/fpl/current
+ls -dt /var/www/fpl/rel-* | tail -n +4 | xargs -r rm -rf
+mv site.zip.new site.zip
+[ -z "$sha" ] || echo "$sha" > sha
+logger "fpl-sync: сайт обновлён ($new${sha:+, коммит ${sha:0:7}})"

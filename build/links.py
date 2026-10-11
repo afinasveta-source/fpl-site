@@ -1,7 +1,9 @@
 # FPL: настоящие ссылки в собранном сайте. Запускать после seo.py.
 # Адреса — здесь, в одном месте. Когда появится регистрация на сайте, меняется только JOIN.
 import os, re, glob
-D = '/mnt/user-data/outputs/fpl-site'
+import sys, os; sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # build/
+from paths import SRC, DIST, I18N, PRIVACY, OG
+D = DIST
 JOIN = 'https://t.me/facepaintingleaguebot'      # «Участвовать» — пока бот
 IG   = 'https://www.instagram.com/facepaintingleague/'  # «Следить»
 TG   = 'https://t.me/maskarad_grim'
@@ -60,11 +62,3 @@ if 'a.btn-wide' not in c:
     open(css, 'w', encoding='utf-8').write(c)
 print('изменено файлов:', cnt)
 
-# архив для загрузки
-import zipfile
-O = '/mnt/user-data/outputs'
-with zipfile.ZipFile(O + '/fpl-site.zip', 'w', zipfile.ZIP_DEFLATED) as z:
-    for root, _, fs in os.walk(D):
-        for f in sorted(fs):
-            full = os.path.join(root, f); z.write(full, 'fpl-site/' + os.path.relpath(full, D))
-import shutil; shutil.copy(O + '/fpl-site.zip', O + '/upload/fpl-site_1.zip'); print('архив готов')

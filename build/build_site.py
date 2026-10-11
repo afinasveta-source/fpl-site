@@ -1,5 +1,7 @@
-import re,os,shutil,zipfile
-O='/mnt/user-data/outputs'; D=O+'/fpl-site'
+import re,os,shutil
+import sys, os; sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # build/
+from paths import SRC, DIST, I18N, PRIVACY, OG
+O=SRC; D=DIST
 M={'fpl-site-pro-ink.html':'index.html','fpl-gallery.html':'gallery.html','fpl-find.html':'find.html','fpl-rating.html':'rating.html','fpl-master.html':'master.html','fpl-games.html':'games.html','fpl-diploma.html':'diploma.html','fpl-rules.html':'rules.html','fpl-about.html':'about.html','fpl-privacy.html':'privacy.html'}
 if os.path.isdir(D): shutil.rmtree(D)
 os.makedirs(D+'/assets')
@@ -23,7 +25,4 @@ for dst in M.values():
         if a and f'id="{a}"' not in open(f'{D}/{f}',encoding='utf-8').read(): bad.append((dst,h,'нет якоря'))
     for old in re.findall(r'fpl-[a-z-]+\.html',s): bad.append((dst,old,'старое имя'))
 print('проблем:',len(bad)); [print(*b) for b in bad]
-with zipfile.ZipFile(O+'/fpl-site.zip','w',zipfile.ZIP_DEFLATED) as z:
-    for r,_,fs in os.walk(D):
-        for f in sorted(fs): z.write(os.path.join(r,f),'fpl-site/'+os.path.relpath(os.path.join(r,f),D))
 print(sorted(os.listdir(D)))

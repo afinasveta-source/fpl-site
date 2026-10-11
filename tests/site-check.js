@@ -1,8 +1,11 @@
 // FPL: проверка живого сайта. Запуск: node site-check.js [базовый_URL] > report.json
+// Проверка сборки до выкладки: FPL_LOCAL=1 node site-check.js http://127.0.0.1:8099 (или tests/check-build.sh)
+// — без проверок сервера (API, HTTPS); заглушки и пример-данные уходят в content, в problems — только поломки; код выхода 1, если они есть.
 // Нужен playwright (npm i -g playwright или NODE_PATH на глобальные модули).
 const { chromium } = require('playwright');
 const tls = require('tls');
 const BASE = (process.argv[2] || 'https://facepaintingleague.com').replace(/\/$/, '');
+const LOCAL = !!process.env.FPL_LOCAL;
 const PAGES = ['index','games','rating','master','gallery','find','diploma','rules','about','privacy'];
 const PATHS = [].concat(...PAGES.map(p => [p === 'index' ? '/' : '/' + p + '.html', p === 'index' ? '/ru/' : '/ru/' + p + '.html']));
 const PLACEHOLDER = /\[(?:N|X|Y|ник|почта|реквизиты[^\]]*|Имя[^\]]*|имя[^\]]*|фото[^\]]*|работа[^\]]*|город[^\]]*|страна|Страна|СТРАНА|текст[^\]]*|срок[^\]]*|Специализация|стаж|логотип|медиа-партнёр|Победитель|email|organizer[^\]]*|name[^\]]*|photo[^\]]*|work[^\]]*|city[^\]]*|country[^\]]*)\]/g;
@@ -20,11 +23,11 @@ function certDays(host) {
 
 (async () => {
   const host = new URL(BASE).host;
-  const R = { base: BASE, at: new Date().toISOString(), cert_days_left: await certDays(host), pages: {}, links_broken: [], problems: [] };
+  const R = { base: BASE, at: new Date().toISOString(), cert_days_left: LOCAL ? 'local' : await certDays(host), pages: {}, links_broken: [], problems: [], content: [] };
   const b = await chromium.launch();
   const ctx = await b.newContext();
   // служебные адреса
-  for (const pth of ['/api/health', '/sitemap.xml', '/robots.txt', '/assets/site.css', '/assets/consent.js']) {
+  for (const pth of [...(LOCAL ? [] : ['/api/health']), '/sitemap.xml', '/robots.txt', '/assets/site.css', '/assets/consent.js']) {
     try { const r = await ctx.request.get(BASE + pth, { timeout: 20000 }); R.pages[pth] = { status: r.status() };
       if (r.status() !== 200) R.problems.push(`${pth}: ответ ${r.status()}`);
       if (pth === '/api/health' && !(await r.text()).includes('"ok"')) R.problems.push('/api/health: нет {"ok": true}');
@@ -59,10 +62,10 @@ function certDays(host) {
       if (info.overflow > 2) R.problems.push(`${key}: страница шире экрана на ${info.overflow}px`);
       if (errs.length) R.problems.push(`${key}: ошибки в коде — ${errs.slice(0, 2).join(' | ')}`);
       if (tag === 'телефон') {
-        if (info.ph.length) R.problems.push(`${pth}: заглушки на странице — ${info.ph.slice(0, 8).join(', ')}`);
-        if (info.demo.length) R.problems.push(`${pth}: пример-данные вместо настоящих — ${info.demo.join(', ')}`);
+        if (info.ph.length) (LOCAL ? R.content : R.problems).push(`${pth}: заглушки на странице — ${info.ph.slice(0, 8).join(', ')}`);
+        if (info.demo.length) (LOCAL ? R.content : R.problems).push(`${pth}: пример-данные вместо настоящих — ${info.demo.join(', ')}`);
         if (info.ctaDead.length) R.problems.push(`${pth}: кнопки никуда не ведут — ${info.ctaDead.join(', ')}`);
-        if (info.hashLinks.length) R.problems.push(`${pth}: пустые ссылки «#» — ${info.hashLinks.slice(0, 6).join(', ')}`);
+        if (info.hashLinks.length) (LOCAL && /master\.html$/.test(pth) ? R.content : R.problems).push(`${pth}: пустые ссылки «#» — ${info.hashLinks.slice(0, 6).join(', ')}`);
         if (!info.banner) R.problems.push(`${pth}: нет плашки cookie при первом визите`);
         if (ym.length) R.problems.push(`${pth}: Яндекс Метрика загрузилась ДО согласия`);
       }
@@ -82,7 +85,8 @@ function certDays(host) {
   for (const l of allLinks) { try { const r = await ctx.request.get(l, { timeout: 20000 }); if (r.status() >= 400) R.links_broken.push(`${l} → ${r.status()}`); } catch (e) { R.links_broken.push(`${l} → не открывается`); } }
   if (R.links_broken.length) R.problems.push(`Битые ссылки: ${R.links_broken.slice(0, 10).join('; ')}`);
   if (typeof R.cert_days_left === 'number' && R.cert_days_left < 21) R.problems.push(`Сертификат HTTPS истекает через ${R.cert_days_left} дн.`);
-  if (typeof R.cert_days_left !== 'number') R.problems.push(`Сертификат HTTPS: не удалось проверить (${R.cert_days_left})`);
+  if (!LOCAL && typeof R.cert_days_left !== 'number') R.problems.push(`Сертификат HTTPS: не удалось проверить (${R.cert_days_left})`);
   await b.close();
   console.log(JSON.stringify(R, null, 1));
+  if (LOCAL && R.problems.length) process.exitCode = 1;
 })();
