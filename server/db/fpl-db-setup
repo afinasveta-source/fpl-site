@@ -1,0 +1,59 @@
+#!/bin/bash
+# fpl-db-setup: база PostgreSQL сайта FPL на этом сервере. Повторный запуск безопасен.
+#  - ставит PostgreSQL (только локальные подключения);
+#  - создаёт пользователя fpl_app и базу fpl; пароль генерируется здесь и хранится только в /etc/fpl-db.env (0600);
+#  - применяет схему по порядку 001 → 002 → 003 и пишет номер в alembic_version (совместимо с backend Codex);
+#  - (пере)создаёт публичный слой site_views.sql.
+# Аргумент: папка со schema/ и site_views.sql (по умолчанию /opt/fpl/db).
+set -euo pipefail
+SRC=${1:-/opt/fpl/db}
+export DEBIAN_FRONTEND=noninteractive
+
+if ! command -v psql >/dev/null || ! ls /usr/lib/postgresql/*/bin/postgres >/dev/null 2>&1; then
+  apt-get update -q
+  apt-get install -y -q postgresql postgresql-contrib
+fi
+systemctl enable --now postgresql >/dev/null 2>&1 || true
+for i in $(seq 1 30); do su postgres -c "psql -tAc 'select 1'" >/dev/null 2>&1 && break; sleep 1; done
+
+if [ ! -s /etc/fpl-db.env ]; then
+  PW=$(openssl rand -hex 24)
+  ( umask 077; printf 'FPL_DB_NAME=fpl\nFPL_DB_USER=fpl_app\nFPL_DB_PASSWORD=%s\nFPL_DATABASE_DSN=postgresql://fpl_app:%s@127.0.0.1:5432/fpl\n' "$PW" "$PW" > /etc/fpl-db.env )
+fi
+. /etc/fpl-db.env
+
+pg() { su postgres -c "psql -v ON_ERROR_STOP=1 -tAq $*"; }
+if [ "$(pg "-c \"SELECT 1 FROM pg_roles WHERE rolname='$FPL_DB_USER'\"")" != "1" ]; then
+  pg "-c \"CREATE ROLE $FPL_DB_USER LOGIN PASSWORD '$FPL_DB_PASSWORD'\""
+fi
+if [ "$(pg "-c \"SELECT 1 FROM pg_database WHERE datname='$FPL_DB_NAME'\"")" != "1" ]; then
+  pg "-c \"CREATE DATABASE $FPL_DB_NAME OWNER $FPL_DB_USER ENCODING 'UTF8' TEMPLATE template0\""
+fi
+
+export PGPASSWORD="$FPL_DB_PASSWORD"
+app() { psql -h 127.0.0.1 -U "$FPL_DB_USER" -d "$FPL_DB_NAME" -v ON_ERROR_STOP=1 -tAq "$@"; }
+
+current=$(app -c "SELECT version_num FROM alembic_version" 2>/dev/null || true)
+step() { # $1 = версия, $2 = файл
+  local ver=$1 file=$2 tmp
+  tmp=$(mktemp)
+  {
+    echo "BEGIN;"
+    grep -v -x -e 'BEGIN;' -e 'COMMIT;' "$file"
+    echo "CREATE TABLE IF NOT EXISTS alembic_version (version_num varchar(32) NOT NULL, CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num));"
+    echo "DELETE FROM alembic_version; INSERT INTO alembic_version VALUES ('$ver');"
+    echo "COMMIT;"
+  } > "$tmp"
+  app -f "$tmp"
+  rm -f "$tmp"
+  echo "схема: применена $ver"
+}
+case "$current" in
+  "")  step 001 "$SRC/schema/001_initial_mvp_schema.sql"; step 002 "$SRC/schema/002_auth.sql"; step 003 "$SRC/schema/003_league_rules.sql" ;;
+  001) step 002 "$SRC/schema/002_auth.sql"; step 003 "$SRC/schema/003_league_rules.sql" ;;
+  002) step 003 "$SRC/schema/003_league_rules.sql" ;;
+  003) echo "схема: уже 003" ;;
+  *)   echo "схема: версия $current новее этого пакета — не трогаю" ;;
+esac
+app -f "$SRC/site_views.sql"
+echo "публичный слой: обновлён"

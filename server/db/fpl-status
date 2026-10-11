@@ -1,0 +1,38 @@
+#!/bin/bash
+# fpl-status: публичная сводка состояния сервера (без секретов и личных данных) → /data/server-status.json
+OUT=${FPL_DATA:-/var/lib/fpl/data}/server-status.json
+schema=""; tables=""; users=""; dbsize=""
+if [ -s /etc/fpl-db.env ]; then
+  . /etc/fpl-db.env; export PGPASSWORD="$FPL_DB_PASSWORD"
+  q() { psql -h 127.0.0.1 -U "$FPL_DB_USER" -d "$FPL_DB_NAME" -tAq -c "$1" 2>/dev/null; }
+  schema=$(q "SELECT version_num FROM alembic_version")
+  tables=$(q "SELECT count(*) FROM pg_tables WHERE schemaname='public'")
+  users=$(q "SELECT count(*) FROM users")
+  dbsize=$(q "SELECT pg_database_size(current_database())/1048576")
+fi
+python3 - "$OUT" "$schema" "$tables" "$users" "$dbsize" <<'P'
+import json, os, shutil, sys, time
+out, schema, tables, users, dbsize = sys.argv[1:6]
+def read(p):
+    try: return open(p).read().strip()
+    except Exception: return None
+mem = {}
+for line in open('/proc/meminfo'):
+    k, v = line.split(':', 1); mem[k] = int(v.split()[0]) // 1024
+st = {
+  'updated_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
+  'site_version': read('/var/www/fpl/current/version.txt'),
+  'db_schema': schema or None,
+  'db_tables': int(tables) if tables.isdigit() else None,
+  'db_users': int(users) if users.isdigit() else None,
+  'db_size_mb': int(dbsize) if dbsize.isdigit() else None,
+  'last_backup': read('/var/backups/fpl/last-ok'),
+  'ops': read('/var/lib/fpl/ops-status'),
+  'disk_free_mb': shutil.disk_usage('/').free // 1048576,
+  'disk_total_mb': shutil.disk_usage('/').total // 1048576,
+  'mem_total_mb': mem.get('MemTotal'), 'mem_available_mb': mem.get('MemAvailable'),
+}
+tmp = out + '.tmp'
+os.makedirs(os.path.dirname(out), exist_ok=True)
+json.dump(st, open(tmp, 'w'), ensure_ascii=False, indent=1); os.chmod(tmp, 0o644); os.replace(tmp, out)
+P

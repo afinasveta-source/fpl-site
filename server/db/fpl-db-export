@@ -1,0 +1,17 @@
+#!/bin/bash
+# fpl-db-export: публичные файлы сайта из базы (только данные с согласием).
+# /var/lib/fpl/data/{rating,games,certificates,masters}.json — сайт отдаёт их как /data/<имя>.json.
+set -euo pipefail
+. /etc/fpl-db.env
+export PGPASSWORD="$FPL_DB_PASSWORD"
+OUT=${FPL_DATA:-/var/lib/fpl/data}
+mkdir -p "$OUT"
+for name in rating games certificates masters; do
+  tmp=$(mktemp "$OUT/.$name.XXXXXX")
+  psql -h 127.0.0.1 -U "$FPL_DB_USER" -d "$FPL_DB_NAME" -v ON_ERROR_STOP=1 -tAq -c "SELECT site_export_$name()" > "$tmp"
+  if python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$tmp"; then
+    chmod 644 "$tmp"; mv -f "$tmp" "$OUT/$name.json"
+  else
+    rm -f "$tmp"; echo "export $name: неверный JSON" >&2; exit 1
+  fi
+done

@@ -1,0 +1,13 @@
+#!/bin/bash
+# fpl-db-backup: ночная копия базы (pg_dump, сжатый формат). Хранится 14 последних.
+# Позже: копирование в закрытый бакет S3 (нужен ключ доступа, вписывается на сервере).
+set -euo pipefail
+. /etc/fpl-db.env
+export PGPASSWORD="$FPL_DB_PASSWORD"
+D=/var/backups/fpl
+mkdir -p "$D" && chmod 700 "$D"
+f="$D/fpl-$(date +%Y%m%d-%H%M).dump"
+pg_dump -h 127.0.0.1 -U "$FPL_DB_USER" -d "$FPL_DB_NAME" -Fc -f "$f.tmp"
+mv "$f.tmp" "$f" && chmod 600 "$f"
+ls -1t "$D"/fpl-*.dump | tail -n +15 | xargs -r rm -f
+date -u +%Y-%m-%dT%H:%M:%SZ > "$D/last-ok"
