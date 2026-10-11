@@ -7,16 +7,23 @@ POST /api/ingest?name=<набор>[&part=<i>&parts=<n>]
   Набор из нескольких частей: каждая часть — JSON-массив; когда пришли все n частей,
   они склеиваются в один массив.
   Результат: /var/lib/fpl/data/<набор>.json (атомарная замена), сайт отдаёт его как /data/<набор>.json.
+  Наборы с именем private-… сохраняются в /var/lib/fpl/private/ — сайт их НЕ отдаёт
+  (например, private-photos: список фото работ для архива, см. fpl-photo-archive.py).
 GET /api/health -> {"ok": true}
 """
 import json, os, re, time, tempfile, urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 DATA = os.environ.get('FPL_DATA', '/var/lib/fpl/data')
+PRIVATE = os.environ.get('FPL_PRIVATE', '/var/lib/fpl/private')
 PARTS = os.environ.get('FPL_PARTS', '/var/lib/fpl/parts')
 KEY = os.environ.get('FPL_INGEST_KEY', '')
 MAX = 5 * 1024 * 1024
 NAME = re.compile(r'^[a-z0-9_-]{1,40}$')
+
+
+def target_dir(name):
+    return PRIVATE if name.startswith('private-') else DATA
 
 
 def write_atomic(path, obj):
@@ -24,7 +31,7 @@ def write_atomic(path, obj):
     fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path))
     with os.fdopen(fd, 'w', encoding='utf-8') as f:
         json.dump(obj, f, ensure_ascii=False, separators=(',', ':'))
-    os.chmod(tmp, 0o644)
+    os.chmod(tmp, 0o600 if path.startswith(PRIVATE) else 0o644)
     os.replace(tmp, path)
 
 
@@ -85,7 +92,7 @@ class H(BaseHTTPRequestHandler):
         if not (1 <= part <= parts <= 200):
             return self.reply(400, {'ok': False, 'error': 'bad_part'})
         if parts == 1:
-            write_atomic(os.path.join(DATA, name + '.json'), body)
+            write_atomic(os.path.join(target_dir(name), name + '.json'), body)
             return self.reply(200, {'ok': True, 'name': name, 'rows': len(body) if isinstance(body, list) else None})
         if not isinstance(body, list):
             return self.reply(400, {'ok': False, 'error': 'part_not_list'})
@@ -105,10 +112,11 @@ class H(BaseHTTPRequestHandler):
             with open(os.path.join(d, f), encoding='utf-8') as fh:
                 rows.extend(json.load(fh))
             os.remove(os.path.join(d, f))
-        write_atomic(os.path.join(DATA, name + '.json'), rows)
+        write_atomic(os.path.join(target_dir(name), name + '.json'), rows)
         self.reply(200, {'ok': True, 'name': name, 'rows': len(rows), 'complete': True})
 
 
 if __name__ == '__main__':
     os.makedirs(DATA, exist_ok=True)
+    os.makedirs(PRIVATE, mode=0o700, exist_ok=True)
     ThreadingHTTPServer(('127.0.0.1', int(os.environ.get('FPL_PORT', '8081'))), H).serve_forever()

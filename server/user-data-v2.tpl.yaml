@@ -27,12 +27,129 @@ write_files:
     '
 - path: /opt/fpl/fpl-ingest.py
   permissions: '0755'
-  content: "#!/usr/bin/env python3\n\"\"\"FPL: приёмник данных из бота.\n\nPOST /api/ingest?name=<набор>[&part=<i>&parts=<n>]\n  Ключ: заголовок X-FPL-Key, или параметр key в адресе, или поле key в теле.\n  Тело: JSON, или форма с полем data (строка JSON).\n  Набор из нескольких частей: каждая часть — JSON-массив; когда пришли все n частей,\n  они склеиваются в один массив.\n  Результат: /var/lib/fpl/data/<набор>.json (атомарная замена), сайт отдаёт его как /data/<набор>.json.\nGET /api/health -> {\"ok\": true}\n\"\"\"\nimport json, os, re, time, tempfile, urllib.parse\nfrom http.server import BaseHTTPRequestHandler, ThreadingHTTPServer\n\nDATA = os.environ.get('FPL_DATA', '/var/lib/fpl/data')\nPARTS = os.environ.get('FPL_PARTS', '/var/lib/fpl/parts')\nKEY = os.environ.get('FPL_INGEST_KEY', '')\nMAX = 5 * 1024 * 1024\nNAME = re.compile(r'^[a-z0-9_-]{1,40}$')\n\n\ndef write_atomic(path, obj):\n    os.makedirs(os.path.dirname(path), exist_ok=True)\n    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path))\n\
-    \    with os.fdopen(fd, 'w', encoding='utf-8') as f:\n        json.dump(obj, f, ensure_ascii=False, separators=(',', ':'))\n    os.chmod(tmp, 0o644)\n    os.replace(tmp, path)\n\n\nclass H(BaseHTTPRequestHandler):\n    server_version = 'fpl'\n\n    def reply(self, code, obj):\n        b = json.dumps(obj, ensure_ascii=False).encode()\n        self.send_response(code)\n        self.send_header('Content-Type', 'application/json; charset=utf-8')\n        self.send_header('Content-Length', str(len(b)))\n        self.end_headers()\n        self.wfile.write(b)\n\n    def log_message(self, fmt, *a):\n        print('%s %s' % (self.address_string(), fmt % a), flush=True)\n\n    def do_GET(self):\n        if self.path.split('?')[0] == '/api/health':\n            return self.reply(200, {'ok': True})\n        self.reply(404, {'ok': False})\n\n    def do_POST(self):\n        u = urllib.parse.urlparse(self.path)\n        if u.path != '/api/ingest':\n            return self.reply(404, {'ok': False})\n\
-    \        q = {k: v[0] for k, v in urllib.parse.parse_qs(u.query).items()}\n        n = int(self.headers.get('Content-Length') or 0)\n        if n > MAX:\n            return self.reply(413, {'ok': False, 'error': 'too_large'})\n        raw = self.rfile.read(n).decode('utf-8', 'replace')\n        ctype = (self.headers.get('Content-Type') or '').lower()\n        body, form = None, {}\n        try:\n            if 'json' in ctype or raw.lstrip()[:1] in ('{', '['):\n                body = json.loads(raw)\n                if isinstance(body, dict) and 'data' in body and set(body) <= {'data', 'key', 'name', 'part', 'parts'}:\n                    form = body\n                    body = body['data']\n                    if isinstance(body, str):\n                        body = json.loads(body)\n            else:\n                form = {k: v[0] for k, v in urllib.parse.parse_qs(raw).items()}\n                body = json.loads(form.get('data', 'null'))\n        except Exception:\n            return\
-    \ self.reply(400, {'ok': False, 'error': 'bad_json'})\n        key = self.headers.get('X-FPL-Key') or q.get('key') or form.get('key') or ''\n        if not KEY or key != KEY:\n            return self.reply(403, {'ok': False, 'error': 'bad_key'})\n        name = q.get('name') or form.get('name') or ''\n        if not NAME.match(name):\n            return self.reply(400, {'ok': False, 'error': 'bad_name'})\n        try:\n            part = int(q.get('part') or form.get('part') or 1)\n            parts = int(q.get('parts') or form.get('parts') or 1)\n        except ValueError:\n            return self.reply(400, {'ok': False, 'error': 'bad_part'})\n        if not (1 <= part <= parts <= 200):\n            return self.reply(400, {'ok': False, 'error': 'bad_part'})\n        if parts == 1:\n            write_atomic(os.path.join(DATA, name + '.json'), body)\n            return self.reply(200, {'ok': True, 'name': name, 'rows': len(body) if isinstance(body, list) else None})\n        if not isinstance(body,\
-    \ list):\n            return self.reply(400, {'ok': False, 'error': 'part_not_list'})\n        d = os.path.join(PARTS, name)\n        os.makedirs(d, exist_ok=True)\n        # новая серия частей: части от прошлой загрузки (старше 1 часа или с другим числом частей) удаляются\n        for f in os.listdir(d):\n            p = os.path.join(d, f)\n            if not f.startswith('%d-' % parts) or time.time() - os.path.getmtime(p) > 3600:\n                os.remove(p)\n        write_atomic(os.path.join(d, '%d-%03d.json' % (parts, part)), body)\n        got = sorted(f for f in os.listdir(d) if f.startswith('%d-' % parts))\n        if len(got) < parts:\n            return self.reply(200, {'ok': True, 'name': name, 'part': part, 'received': len(got), 'parts': parts})\n        rows = []\n        for f in got:\n            with open(os.path.join(d, f), encoding='utf-8') as fh:\n                rows.extend(json.load(fh))\n            os.remove(os.path.join(d, f))\n        write_atomic(os.path.join(DATA,\
-    \ name + '.json'), rows)\n        self.reply(200, {'ok': True, 'name': name, 'rows': len(rows), 'complete': True})\n\n\nif __name__ == '__main__':\n    os.makedirs(DATA, exist_ok=True)\n    ThreadingHTTPServer(('127.0.0.1', int(os.environ.get('FPL_PORT', '8081'))), H).serve_forever()\n"
+  content: |
+    #!/usr/bin/env python3
+    """FPL: приёмник данных из бота.
+
+    POST /api/ingest?name=<набор>[&part=<i>&parts=<n>]
+      Ключ: заголовок X-FPL-Key, или параметр key в адресе, или поле key в теле.
+      Тело: JSON, или форма с полем data (строка JSON).
+      Набор из нескольких частей: каждая часть — JSON-массив; когда пришли все n частей,
+      они склеиваются в один массив.
+      Результат: /var/lib/fpl/data/<набор>.json (атомарная замена), сайт отдаёт его как /data/<набор>.json.
+      Наборы с именем private-… сохраняются в /var/lib/fpl/private/ — сайт их НЕ отдаёт
+      (например, private-photos: список фото работ для архива, см. fpl-photo-archive.py).
+    GET /api/health -> {"ok": true}
+    """
+    import json, os, re, time, tempfile, urllib.parse
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+    DATA = os.environ.get('FPL_DATA', '/var/lib/fpl/data')
+    PRIVATE = os.environ.get('FPL_PRIVATE', '/var/lib/fpl/private')
+    PARTS = os.environ.get('FPL_PARTS', '/var/lib/fpl/parts')
+    KEY = os.environ.get('FPL_INGEST_KEY', '')
+    MAX = 5 * 1024 * 1024
+    NAME = re.compile(r'^[a-z0-9_-]{1,40}$')
+
+
+    def target_dir(name):
+        return PRIVATE if name.startswith('private-') else DATA
+
+
+    def write_atomic(path, obj):
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path))
+        with os.fdopen(fd, 'w', encoding='utf-8') as f:
+            json.dump(obj, f, ensure_ascii=False, separators=(',', ':'))
+        os.chmod(tmp, 0o600 if path.startswith(PRIVATE) else 0o644)
+        os.replace(tmp, path)
+
+
+    class H(BaseHTTPRequestHandler):
+        server_version = 'fpl'
+
+        def reply(self, code, obj):
+            b = json.dumps(obj, ensure_ascii=False).encode()
+            self.send_response(code)
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.send_header('Content-Length', str(len(b)))
+            self.end_headers()
+            self.wfile.write(b)
+
+        def log_message(self, fmt, *a):
+            print('%s %s' % (self.address_string(), fmt % a), flush=True)
+
+        def do_GET(self):
+            if self.path.split('?')[0] == '/api/health':
+                return self.reply(200, {'ok': True})
+            self.reply(404, {'ok': False})
+
+        def do_POST(self):
+            u = urllib.parse.urlparse(self.path)
+            if u.path != '/api/ingest':
+                return self.reply(404, {'ok': False})
+            q = {k: v[0] for k, v in urllib.parse.parse_qs(u.query).items()}
+            n = int(self.headers.get('Content-Length') or 0)
+            if n > MAX:
+                return self.reply(413, {'ok': False, 'error': 'too_large'})
+            raw = self.rfile.read(n).decode('utf-8', 'replace')
+            ctype = (self.headers.get('Content-Type') or '').lower()
+            body, form = None, {}
+            try:
+                if 'json' in ctype or raw.lstrip()[:1] in ('{', '['):
+                    body = json.loads(raw)
+                    if isinstance(body, dict) and 'data' in body and set(body) <= {'data', 'key', 'name', 'part', 'parts'}:
+                        form = body
+                        body = body['data']
+                        if isinstance(body, str):
+                            body = json.loads(body)
+                else:
+                    form = {k: v[0] for k, v in urllib.parse.parse_qs(raw).items()}
+                    body = json.loads(form.get('data', 'null'))
+            except Exception:
+                return self.reply(400, {'ok': False, 'error': 'bad_json'})
+            key = self.headers.get('X-FPL-Key') or q.get('key') or form.get('key') or ''
+            if not KEY or key != KEY:
+                return self.reply(403, {'ok': False, 'error': 'bad_key'})
+            name = q.get('name') or form.get('name') or ''
+            if not NAME.match(name):
+                return self.reply(400, {'ok': False, 'error': 'bad_name'})
+            try:
+                part = int(q.get('part') or form.get('part') or 1)
+                parts = int(q.get('parts') or form.get('parts') or 1)
+            except ValueError:
+                return self.reply(400, {'ok': False, 'error': 'bad_part'})
+            if not (1 <= part <= parts <= 200):
+                return self.reply(400, {'ok': False, 'error': 'bad_part'})
+            if parts == 1:
+                write_atomic(os.path.join(target_dir(name), name + '.json'), body)
+                return self.reply(200, {'ok': True, 'name': name, 'rows': len(body) if isinstance(body, list) else None})
+            if not isinstance(body, list):
+                return self.reply(400, {'ok': False, 'error': 'part_not_list'})
+            d = os.path.join(PARTS, name)
+            os.makedirs(d, exist_ok=True)
+            # новая серия частей: части от прошлой загрузки (старше 1 часа или с другим числом частей) удаляются
+            for f in os.listdir(d):
+                p = os.path.join(d, f)
+                if not f.startswith('%d-' % parts) or time.time() - os.path.getmtime(p) > 3600:
+                    os.remove(p)
+            write_atomic(os.path.join(d, '%d-%03d.json' % (parts, part)), body)
+            got = sorted(f for f in os.listdir(d) if f.startswith('%d-' % parts))
+            if len(got) < parts:
+                return self.reply(200, {'ok': True, 'name': name, 'part': part, 'received': len(got), 'parts': parts})
+            rows = []
+            for f in got:
+                with open(os.path.join(d, f), encoding='utf-8') as fh:
+                    rows.extend(json.load(fh))
+                os.remove(os.path.join(d, f))
+            write_atomic(os.path.join(target_dir(name), name + '.json'), rows)
+            self.reply(200, {'ok': True, 'name': name, 'rows': len(rows), 'complete': True})
+
+
+    if __name__ == '__main__':
+        os.makedirs(DATA, exist_ok=True)
+        os.makedirs(PRIVATE, mode=0o700, exist_ok=True)
+        ThreadingHTTPServer(('127.0.0.1', int(os.environ.get('FPL_PORT', '8081'))), H).serve_forever()
 - path: /etc/systemd/system/fpl-ingest.service
   content: '[Unit]
 
@@ -45,7 +162,7 @@ write_files:
 
     EnvironmentFile=/etc/fpl-ingest.env
 
-    Environment=FPL_DATA=/var/lib/fpl/data FPL_PARTS=/var/lib/fpl/parts FPL_PORT=8081
+    Environment=FPL_PRIVATE=/var/lib/fpl/private FPL_DATA=/var/lib/fpl/data FPL_PARTS=/var/lib/fpl/parts FPL_PORT=8081
 
     ExecStart=/usr/bin/python3 /opt/fpl/fpl-ingest.py
 
@@ -61,6 +178,146 @@ write_files:
     WantedBy=multi-user.target
 
     '
+- path: /usr/local/bin/fpl-photo-archive
+  permissions: '0755'
+  content: |
+    #!/usr/bin/env python3
+    """FPL: архив фото работ (cron, каждые 10 минут).
+
+    Бот присылает список фото в закрытый набор: POST /api/ingest?name=private-photos[...]
+      [{"key": "fpl_game1_2026/r2/work/123", "url": "https://sun9-…userapi.com/…jpg"}, …]
+      key — постоянный идентификатор работы (марафон / тур / трек / номер), url — где фото сейчас.
+    Наборов может быть несколько: private-photos, private-photos-free, private-photos-cards …
+    (все файлы /var/lib/fpl/private/private-photos*.json).
+
+    Архиватор скачивает каждое ещё не сохранённое фото в /var/lib/fpl/archive/files/<sha256>.<ext>
+    (папка не отдаётся сайтом), записывает журнал /var/lib/fpl/archive/index.json
+    и повторяет неудачные попытки (до MAX_ATTEMPTS). Если по тому же key пришла новая ссылка
+    (работу заменили), сохраняется и новая версия.
+    Наружу публикуется только сводка без ссылок и имён: /var/lib/fpl/data/photo-archive-status.json.
+    """
+    import glob, hashlib, json, os, shutil, sys, tempfile, time, urllib.request
+
+    PRIVATE = os.environ.get('FPL_PRIVATE', '/var/lib/fpl/private')
+    ARCHIVE = os.environ.get('FPL_ARCHIVE', '/var/lib/fpl/archive')
+    DATA = os.environ.get('FPL_DATA', '/var/lib/fpl/data')
+    MAX_BYTES = 25 * 1024 * 1024
+    MAX_ATTEMPTS = 6
+    MIN_FREE = int(os.environ.get('FPL_ARCHIVE_MIN_FREE', str(800 * 1024 * 1024)))
+    PER_RUN = int(os.environ.get('FPL_ARCHIVE_PER_RUN', '300'))
+    TIMEOUT = 30
+    MAGIC = [(b'\xff\xd8\xff', 'jpg'), (b'\x89PNG\r\n\x1a\n', 'png'), (b'RIFF', 'webp'), (b'GIF8', 'gif')]
+
+
+    def now():
+        return time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+
+
+    def write_json(path, obj, mode=0o600):
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path))
+        with os.fdopen(fd, 'w', encoding='utf-8') as f:
+            json.dump(obj, f, ensure_ascii=False, indent=0)
+        os.chmod(tmp, mode)
+        os.replace(tmp, path)
+
+
+    def kind(data):
+        for sig, ext in MAGIC:
+            if data.startswith(sig) and (ext != 'webp' or data[8:12] == b'WEBP'):
+                return ext
+        if data[4:12] in (b'ftypheic', b'ftypheix', b'ftypmif1'):
+            return 'heic'
+        return None
+
+
+    def fetch(url):
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (FPL photo archive)'})
+        with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
+            if r.status != 200:
+                raise ValueError('http %s' % r.status)
+            data = r.read(MAX_BYTES + 1)
+        if len(data) > MAX_BYTES:
+            raise ValueError('too large')
+        ext = kind(data)
+        if not ext:
+            raise ValueError('not an image')
+        return data, ext
+
+
+    def load_queue():
+        items = {}
+        for path in sorted(glob.glob(os.path.join(PRIVATE, 'private-photos*.json'))):
+            try:
+                rows = json.load(open(path, encoding='utf-8'))
+            except Exception as e:
+                print('skip %s: %s' % (os.path.basename(path), e), file=sys.stderr)
+                continue
+            for row in rows if isinstance(rows, list) else []:
+                if not isinstance(row, dict):
+                    continue
+                key, url = str(row.get('key') or '').strip(), str(row.get('url') or '').strip()
+                if key and url.startswith(('http://', 'https://')):
+                    items[(key, url)] = row
+        return items
+
+
+    def main():
+        os.makedirs(os.path.join(ARCHIVE, 'files'), mode=0o700, exist_ok=True)
+        idx_path = os.path.join(ARCHIVE, 'index.json')
+        try:
+            index = json.load(open(idx_path, encoding='utf-8'))
+        except FileNotFoundError:
+            index = {}
+        # index: "<key>\n<url>" -> {key,url,status,sha256,file,bytes,attempts,first_seen,last_try,error}
+        queue = load_queue()
+        for (key, url) in queue:
+            index.setdefault(key + '\n' + url, {'key': key, 'url': url, 'status': 'pending', 'attempts': 0, 'first_seen': now()})
+
+        done = 0
+        for rec in sorted(index.values(), key=lambda r: r['first_seen']):
+            if rec['status'] == 'archived' or rec['attempts'] >= MAX_ATTEMPTS or done >= PER_RUN:
+                continue
+            if shutil.disk_usage(ARCHIVE).free < MIN_FREE:
+                print('low disk space, stopping', file=sys.stderr)
+                break
+            rec['attempts'] += 1
+            rec['last_try'] = now()
+            done += 1
+            try:
+                data, ext = fetch(rec['url'])
+            except Exception as e:
+                rec['error'] = str(e)[:200]
+                rec['status'] = 'lost' if rec['attempts'] >= MAX_ATTEMPTS else 'retry'
+                continue
+            sha = hashlib.sha256(data).hexdigest()
+            name = sha + '.' + ext
+            path = os.path.join(ARCHIVE, 'files', name)
+            if not os.path.exists(path):
+                fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path))
+                with os.fdopen(fd, 'wb') as f:
+                    f.write(data)
+                os.chmod(tmp, 0o600)
+                os.replace(tmp, path)
+            rec.update(status='archived', sha256=sha, file=name, bytes=len(data), archived_at=now())
+            rec.pop('error', None)
+            if done % 25 == 0:
+                write_json(idx_path, index)
+        write_json(idx_path, index)
+
+        st = {'updated_at': now(), 'items': len(index),
+              'archived': sum(r['status'] == 'archived' for r in index.values()),
+              'pending': sum(r['status'] in ('pending', 'retry') for r in index.values()),
+              'lost': sum(r['status'] == 'lost' for r in index.values()),
+              'works': len({r['key'] for r in index.values()}),
+              'works_without_copy': len({r['key'] for r in index.values()} - {r['key'] for r in index.values() if r['status'] == 'archived'}),
+              'disk_free_mb': shutil.disk_usage(ARCHIVE).free // (1024 * 1024)}
+        write_json(os.path.join(DATA, 'photo-archive-status.json'), st, mode=0o644)
+        print(json.dumps(st, ensure_ascii=False))
+
+
+    if __name__ == '__main__':
+        main()
 - path: /usr/local/bin/fpl-sync
   permissions: '0755'
   content: |
@@ -149,8 +406,9 @@ write_files:
   content: "server {\n  listen 80 default_server;\n  listen [::]:80 default_server;\n  server_name facepaintingleague.com www.facepaintingleague.com _;\n  root /var/www/fpl/current;\n  index index.html;\n  charset utf-8;\n  client_max_body_size 6m;\n\n  # основной адрес — без www\n  if ($host = www.facepaintingleague.com) { return 301 $scheme://facepaintingleague.com$request_uri; }\n\n  location / { try_files $uri $uri/ $uri.html =404; }\n  location /assets/ { expires 7d; add_header Cache-Control \"public\"; }\n  location ~* \\.html$ { add_header Cache-Control \"no-cache\"; }\n  # данные из бота\n  location /data/ { alias /var/lib/fpl/data/; add_header Cache-Control \"no-cache\"; default_type application/json; }\n  location /media/ { alias /var/lib/fpl/media/; expires 30d; }\n  # приёмник данных из бота\n  location /api/ { proxy_pass http://127.0.0.1:8081; proxy_set_header Host $host; proxy_read_timeout 60s; }\n  error_page 404 /index.html;\n\n  gzip on; gzip_types text/css application/javascript\
     \ application/json image/svg+xml text/plain application/xml;\n  add_header X-Content-Type-Options nosniff;\n  server_tokens off;\n}\n"
 runcmd:
-- mkdir -p /var/lib/fpl/data /var/lib/fpl/parts /var/lib/fpl/media /var/lib/fpl/ops
-- chown -R www-data:www-data /var/lib/fpl/data /var/lib/fpl/parts /var/lib/fpl/media
+- mkdir -p /var/lib/fpl/data /var/lib/fpl/parts /var/lib/fpl/media /var/lib/fpl/ops /var/lib/fpl/private /var/lib/fpl/archive/files
+- chown -R www-data:www-data /var/lib/fpl/data /var/lib/fpl/parts /var/lib/fpl/media /var/lib/fpl/private
+- chmod 700 /var/lib/fpl/private /var/lib/fpl/archive /var/lib/fpl/archive/files
 - rm -f /etc/nginx/sites-enabled/default
 - ln -sf /etc/nginx/sites-available/fpl /etc/nginx/sites-enabled/fpl
 - mkdir -p /var/www/fpl/placeholder && echo "<!doctype html><meta charset=utf-8><title>Face Painting League</title><p>Face Painting League</p>" > /var/www/fpl/placeholder/index.html
@@ -158,5 +416,5 @@ runcmd:
 - /usr/local/bin/fpl-sync || true
 - systemctl daemon-reload && systemctl enable --now fpl-ingest
 - systemctl enable --now nginx && systemctl reload nginx
-- printf '*/5 * * * * root /usr/local/bin/fpl-sync\n2-59/5 * * * * root /usr/local/bin/fpl-ops\n*/10 * * * * root /usr/local/bin/fpl-cert\n' > /etc/cron.d/fpl
+- printf '*/5 * * * * root /usr/local/bin/fpl-sync\n2-59/5 * * * * root /usr/local/bin/fpl-ops\n*/10 * * * * root /usr/local/bin/fpl-cert\n7-59/10 * * * * root /usr/local/bin/fpl-photo-archive >> /var/log/fpl-photo-archive.log 2>&1\n' > /etc/cron.d/fpl
 - /usr/local/bin/fpl-cert || true
