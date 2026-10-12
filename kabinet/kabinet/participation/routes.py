@@ -201,7 +201,10 @@ def game_summary(conn, game, now, user_id):
     rounds = V.rounds_view(game, now, rules_ok=ok)
     flags = R.game_flags(game.event, game.mode, game.rounds, game.assignments, game.on_time_ids(), game.by_end_ids(),
                          game.pas, now, more_rounds_planned=len(game.all_round_nos) > len(game.rounds))
-    return {'event': V.event_brief(game.event), 'me': V.me_view(game), 'flags': flags, 'rules_ok': ok, 'rounds': rounds}
+    from kabinet.results import service as RS
+    result = RS.my_result(conn, game.event['id'], game.ep['id']) if game.ep else None
+    return {'event': V.event_brief(game.event), 'me': V.me_view(game), 'flags': flags, 'rules_ok': ok, 'rounds': rounds,
+            'result': result}
 
 
 @router.get('/games')

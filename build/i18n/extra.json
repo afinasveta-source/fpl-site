@@ -137,7 +137,8 @@
  },
  "js": {
   "diploma": {
-   "[['Игра',d.game],['Лига',d.league],['Результат',d.result]]": "[['Game',d.game],['League',d.league],['Result',d.result]]",
+   "<h2>'+esc(d.name||'Имя не публикуется')+'</h2>": "<h2>'+esc(d.name||'Name not published')+'</h2>",
+   "[['Игра',d.game],['Сезон',d.season],['Лига',d.league],['Результат',d.result],['Выдан',d.issued_at?new Date(d.issued_at).toLocaleDateString('ru-RU'):'']]": "[['Game',d.game],['Season',d.season_en||d.season],['League',d.league],['Result',d.result_en||d.result],['Issued',d.issued_at?new Date(d.issued_at).toLocaleDateString('en-GB'):'']]",
    "<span class=\"dres-status\">Диплом подтверждён</span>": "<span class=\"dres-status\">Certificate confirmed</span>",
    "<span style=\"white-space:nowrap\">диплом '+n": "<span style=\"white-space:nowrap\">certificate '+n",
    ">Рейтинг лиги</a>": ">League rating</a>",

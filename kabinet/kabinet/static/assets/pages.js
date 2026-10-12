@@ -357,18 +357,39 @@
       '<details class="more"><summary>Запись и оплата</summary><dl class="kv"><dt>Запись</dt><dd>' + pill(reg || '—', 'ok') + (me.joined_at ? ' <span class="small muted">' + esc(K.dateY(me.joined_at)) + '</span>' : '') + '</dd>' +
       '<dt>Оплата</dt><dd>' + pill(pay || '—', 'plain') + '</dd></dl></details></section>';
   }
+  /* Итоги Игры (этап 5): места показываются только здесь — в конце Игры. */
+  function resultCard(g) {
+    var r = g.result;
+    if (!r) return '';
+    var L = r.league ? K.LEAGUE[r.league] : '';
+    var head = r.award_place ? ['🥇', '🥈', '🥉'][r.award_place - 1] + ' ' + r.award_place + ' место' + (L ? ' · лига ' + L : '') :
+      r.top10 ? 'TOP-10 Игры' : r.top25 ? 'TOP-25 Игры' : 'Игра завершена';
+    var cells = [];
+    if (r.total != null) cells.push(['Итог Игры', String(r.total).replace('.', ',')]);
+    if (r.league_rank) cells.push(['Место в лиге', r.league_rank + (L ? ' · ' + L : '')]);
+    if (r.overall_rank) cells.push(['Место в Игре', String(r.overall_rank)]);
+    cells.push(['Очки FPL', '+' + (r.points || 0)]);
+    if (r.top_works) cells.push(['TOP WORK', String(r.top_works)]);
+    var h = '<section class="card next-step"><span class="eyebrow">Итоги Игры</span><h2>' + esc(head) + '</h2>' +
+      '<div class="res-grid">' + cells.map(function (c) { return '<div><span class="small muted">' + esc(c[0]) + '</span><b class="num">' + esc(c[1]) + '</b></div>'; }).join('') + '</div>';
+    h += '<dl class="kv"><dt>Зачёт Игры</dt><dd>' + (r.game_counted ? pill('Засчитана', 'ok') : pill('Не засчитана', 'plain')) + '</dd>' +
+      '<dt>Диплом</dt><dd>' + (r.diploma ? '<b>' + esc(r.diploma) + '</b>' + (r.diploma_title ? ' <span class="small muted">' + esc(r.diploma_title) + '</span>' : '') : pill('Не выдаётся', 'plain')) + '</dd></dl>';
+    if (r.diploma) h += '<div class="row"><a class="btn sec" href="/ru/diploma.html?n=' + encodeURIComponent(r.diploma) + '" target="_blank" rel="noopener">Проверить диплом на сайте</a></div>';
+    return h + '</section>';
+  }
   K.on(/^\/games\/([0-9a-f-]{36})$/, function (id) {
     K.load(['/api/games/' + id, '/api/events/' + id], function (g, e) {
       var act = nextAction(g), next = actionBlock(g, act);
       var h = '<div class="stack"><span class="eyebrow">' + esc(TYPE[g.event.type] || 'Игра') + '</span><h1>' + esc(g.event.title) + '</h1>' +
         '<p class="muted">' + esc([K.range(g.event.starts_at, g.event.ends_at), g.me.league ? 'Лига Игры: ' + K.LEAGUE[g.me.league] : ''].filter(Boolean).join(' · ')) + '</p></div>';
+      h += resultCard(g);
       if (next) h += '<section class="card next-step' + (act.kind === 'choose' || g.me.mode === 'outside' ? ' out-step' : '') + '">' + (act.kind === 'submit' ? '<span class="eyebrow">Следующий шаг</span><h2>' +
         (g.me.mode === 'outside' ? 'Сдавайте задания, когда удобно' : 'Сдать работу к туру ' + act.round.round_no) + '</h2>' : '') + next + '</section>';
       if (g.me.mode === 'withdrawn') h += '<section class="card next-step out-step"><h2>Вы вышли из Игры</h2><p>Задания и напоминания этой Игры больше не приходят. Рейтинг за пройденные туры сохранён. Передумали — напишите организатору, пока Игра не закончилась.</p>' +
         '<div class="row"><button class="btn sec" type="button" data-href="/support/new?event=' + id + '">Написать организатору</button></div></section>';
       h += '<section class="card"><h2>Туры</h2>' + (g.rounds.length ? '<div class="list">' + g.rounds.map(function (r) { return roundRow(g, r); }).join('') + '</div>' :
         '<p class="muted">Расписание туров появится до старта Игры.</p>') + '</section>';
-      h += statusCard(g) + prizesCard(e.prizes);
+      h += (g.result ? '' : statusCard(g)) + prizesCard(e.prizes);
       h += '<section class="card game-more"><h2>Ещё по Игре</h2><div class="list">' + li('Задать вопрос организатору', 'Обращение сохранит контекст этой Игры', '', '/support/new?event=' + id) + '</div></section>';
       K.page(h, [['Мои Игры', '/games'], [g.event.title]]);
     }, [['Мои Игры', '/games'], ['Игра']]);

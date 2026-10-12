@@ -28,7 +28,7 @@ META = {
   'master': ('Artist pages — coming soon | Face Painting League', 'Face Painting League artist pages open after the Game 01 final: FPL Rating, league, awards and judged works — for artists who allow a public page.'),
   'gallery':('Face painting gallery — works from FPL Games', 'Gallery of face painting works by Face Painting League artists. Opens after the Game 01 final; works are published only with the artists’ consent.'),
   'find':   ('Find a face painter — FPL artists taking bookings', 'Directory of Face Painting League face painters taking bookings. Opens after the Game 01 final: artists judged by professionals, with rating and awards.'),
-  'diploma':('Certificate check — Face Painting League', 'Verify a Face Painting League certificate by its number (FPL-S1-01-0247) or QR code: who it was issued to, for which Game and with what result.'),
+  'diploma':('Certificate check — Face Painting League', 'Verify a Face Painting League certificate by its number (FPL-S1-01-G-0247) or QR code: who it was issued to, for which Game and with what result.'),
   'rules':  ('Rules & FAQ — Face Painting League', 'The Face Painting League rules in plain words: how to join, submit a work, how judging, rating and leagues work, certificates and the Super Final.'),
   'privacy':('Privacy policy — Face Painting League', 'How Face Painting League processes the personal data of participants and website visitors: what we collect, why, where it is stored and how to exercise your rights.'),
   'feedback':('Ideas for the league — Face Painting League', 'Send the Face Painting League organizers an anonymous suggestion about the Games, briefs, judging or the website. No sign-in needed.'),
@@ -41,7 +41,7 @@ META = {
   'master': ('Страницы мастеров — скоро | Face Painting League', 'Страницы мастеров Face Painting League откроются после финала Игры 01: рейтинг FPL, лига, награды и работы, оценённые жюри, — у тех, кто разрешит публичную страницу.'),
   'gallery':('Галерея аквагрима — работы участников FPL', 'Галерея работ мастеров Face Painting League. Откроется после финала Игры 01; работы публикуются только с согласия авторов.'),
   'find':   ('Найти мастера аквагрима — мастера FPL', 'Каталог мастеров аквагрима Face Painting League, которые принимают заказы. Откроется после финала Игры 01: работы оценены жюри, есть рейтинг и награды.'),
-  'diploma':('Проверка диплома — Face Painting League', 'Проверьте диплом Face Painting League по номеру (FPL-S1-01-0247) или QR-коду: кому, за какую Игру и с каким результатом он выдан.'),
+  'diploma':('Проверка диплома — Face Painting League', 'Проверьте диплом Face Painting League по номеру (FPL-S1-01-G-0247) или QR-коду: кому, за какую Игру и с каким результатом он выдан.'),
   'rules':  ('Правила и вопросы — Face Painting League', 'Правила лиги простыми словами: как участвовать и сдать работу, как устроены оценка, рейтинг и лиги, диплом и Суперфинал.'),
   'privacy':('Политика конфиденциальности — Face Painting League', 'Как Face Painting League обрабатывает персональные данные участников и посетителей сайта: что собираем, зачем, где храним и как реализовать свои права.'),
   'feedback':('Пожелания лиге — Face Painting League', 'Анонимно напишите организаторам Face Painting League, что улучшить в Играх, заданиях, судействе или на сайте. Без входа в кабинет.'),
@@ -239,7 +239,7 @@ Key facts:
 - Organizer: MAGFACE, after seven years of face painting marathons (1,400+ artists, 30,000+ works).
 - Season 1: three Games and a Super Final. The first Game is free for new participants.
 - Judging: anonymous; head-to-head or by criteria depending on the round. TOP WORK marks the best works of each round.
-- Certificates: numbered FPL-S1-01-0247 (season, Game, number) and verifiable online.
+- Certificates: numbered FPL-S1-01-G-0247 (season, Game, league, number) and verifiable online.
 - Languages: English and Russian.
 
 ## Main pages

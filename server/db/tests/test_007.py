@@ -16,7 +16,7 @@ import psycopg
 
 failures = []
 FILES = ('001_initial_mvp_schema.sql', '002_auth.sql', '003_league_rules.sql', '004_rewards_groups.sql',
-         '005_participant_cabinet.sql', '006_organizer_cabinet.sql', '007_judging_scale.sql')
+         '005_participant_cabinet.sql', '006_organizer_cabinet.sql', '007_judging_results.sql')
 
 
 def check(cond, msg):
@@ -75,6 +75,14 @@ def main():
     fresh_db()
     with psycopg.connect(DSN) as c:
         check('criteria_mean_100_v1' in rule(c), 'с нуля 001→007 — новое правило на месте')
+        cert = one(c, """SELECT pg_get_constraintdef(oid) FROM pg_constraint WHERE conname='lr_cert_number_format'""")
+        check('[GSB]' in cert, 'номер диплома — с буквой лиги')
+        u = one(c, "INSERT INTO users(full_name) VALUES ('Очки') RETURNING id")
+        ins = """INSERT INTO points_transactions(user_id,lifetime_delta,reason_code,idempotency_key,source_type,source_id,event_id)
+VALUES (%s,5,%s,%s,'manual',NULL,NULL)"""
+        check(not fails(c, ins, (u, 'game_result', 'k1')), 'очки за итог — без Игры (ручные) пишутся')
+        idx = {r[0] for r in c.execute("SELECT indexname FROM pg_indexes WHERE tablename='points_transactions'")}
+        check({'lr_pt_one_game_result', 'lr_pt_one_top_work'} <= idx, 'защита от двойных очков за итог и TOP WORK')
     su('DROP DATABASE IF EXISTS %s' % TEST_DB)
     print('Итог: %s' % ('ошибок нет' if not failures else '%d ошибок' % len(failures)))
     sys.exit(1 if failures else 0)

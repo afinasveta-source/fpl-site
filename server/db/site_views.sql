@@ -106,7 +106,8 @@ CREATE OR REPLACE FUNCTION site_export_games() RETURNS json LANGUAGE sql STABLE 
       WHERE e.status <> 'draft' AND e.event_type = 'ranked_game'), '[]'::json));
 $$;
 
--- Проверка диплома по номеру: только выданные и неотозванные, без лишних личных данных.
+-- Проверка диплома по номеру: только выданные и неотозванные, без лишних личных данных
+-- (Политика 4.3: публичное имя, Игра, сезон, лига, вид диплома, дата выдачи — город не выгружается).
 CREATE OR REPLACE FUNCTION site_export_certificates() RETURNS json LANGUAGE sql STABLE AS $$
   SELECT json_build_object(
     'schema', 'fpl.public.certificates.v1',
@@ -114,10 +115,13 @@ CREATE OR REPLACE FUNCTION site_export_certificates() RETURNS json LANGUAGE sql 
     'certificates', coalesce((
       SELECT json_object_agg(c.certificate_number, json_build_object(
         'type', c.certificate_type,
-        'name', c.issue_snapshot->>'name',
+        'name', c.issue_snapshot->>'public_name',
         'game', c.issue_snapshot->>'game',
+        'season', c.issue_snapshot->>'season',
+        'season_en', c.issue_snapshot->>'season_en',
         'league', c.issue_snapshot->>'league',
         'result', c.issue_snapshot->>'result',
+        'result_en', c.issue_snapshot->>'result_en',
         'issued_at', c.issued_at))
       FROM certificates c
       WHERE c.status = 'issued' AND c.revoked_at IS NULL AND c.certificate_number IS NOT NULL), '{}'::json));

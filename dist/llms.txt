@@ -6,7 +6,7 @@ Key facts:
 - Organizer: MAGFACE, after seven years of face painting marathons (1,400+ artists, 30,000+ works).
 - Season 1: three Games and a Super Final. The first Game is free for new participants.
 - Judging: anonymous; head-to-head or by criteria depending on the round. TOP WORK marks the best works of each round.
-- Certificates: numbered FPL-S1-01-0247 (season, Game, number) and verifiable online.
+- Certificates: numbered FPL-S1-01-G-0247 (season, Game, league, number) and verifiable online.
 - Languages: English and Russian.
 
 ## Main pages

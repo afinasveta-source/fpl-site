@@ -11,7 +11,7 @@
         '<div class="stats"><div class="stat"><span>Рейтинг FPL</span><b class="num">' + (a.rating.value == null ? '—' : Math.round(a.rating.value)) + '</b><span>' +
         (a.rating.value == null ? 'нет данных' : a.rating.status === 'established' ? 'установлен' : 'калибровка ' + a.rating.calibration + ' из 3') + '</span></div>' +
         '<div class="stat"><span>Лига сезона</span><b>' + (a.league && a.league.league ? esc(K.LEAGUE[a.league.league]) : '—') + '</b><span>' + esc(a.league ? a.league.season : '') + '</span></div>' +
-        '<div class="stat"><span>Баллы лиги</span><b class="num">' + a.points.total + '</b><span>за всё время</span></div>' +
+        '<div class="stat"><span>Очки FPL</span><b class="num">' + a.points.total + '</b><span>за всё время</span></div>' +
         '<div class="stat"><span>Зачтено Игр</span><b class="num">' + a.counted_games + '</b><span>для финала сезона</span></div></div>';
       if (a.rating.history.length) {
         h += '<section class="card"><h2>Рейтинг: история изменений</h2><div class="list">' + a.rating.history.slice().reverse().map(function (x) {
@@ -24,11 +24,15 @@
         return li(esc(r.game + ' · Тур ' + r.round_no + ' · ' + r.round_title), 'Оценка ' + K.score(r.score) + (r.league ? ' · ' + K.LEAGUE[r.league] : ''),
           r.top_work ? pill('TOP WORK', 'acc') : '', '/games/' + r.event_id + '/rounds/' + r.round_no);
       }).join('') + '</div>' : '<p class="muted">История пуста.</p>') + '</section>';
-      h += '<section class="card"><h2>Баллы лиги</h2>' + (a.points.items.length ? '<div class="list">' + a.points.items.map(function (p) {
+      h += '<section class="card"><h2>Очки FPL</h2>' + (a.points.items.length ? '<div class="list">' + a.points.items.map(function (p) {
         return li(esc(p.reason), esc(K.dateY(p.at)), '<b class="num">' + (p.delta > 0 ? '+' : '') + p.delta + '</b>', null);
-      }).join('') + '</div>' : '<p class="muted">Начислений ещё не было.</p>') + '<p class="small muted">Баллы — не рейтинг. Обменивать их пока не на что: магазин наград появится позже.</p></section>';
+      }).join('') + '</div>' : '<p class="muted">Начислений ещё не было.</p>') + '<p class="small muted">Очки — не рейтинг: они копятся за достижения и не сгорают.</p></section>';
+      var medals = (a.games || []).filter(function (g) { return g.award_place; });
+      if (medals.length) h += '<section class="card"><h2>Медали</h2><div class="list">' + medals.map(function (g) {
+        return li(esc(['🥇', '🥈', '🥉'][g.award_place - 1] + ' ' + g.award_place + ' место · ' + (g.league ? K.LEAGUE[g.league] : '')), esc(g.game), '', '/games/' + g.event_id);
+      }).join('') + '</div></section>';
       h += '<section class="card"><h2>Дипломы и награды</h2>' + (a.diplomas.length ? '<div class="list">' + a.diplomas.map(function (d) {
-        return li(esc('Диплом участника · ' + d.game), esc('№ ' + d.number + ' · ' + K.dateY(d.issued_at) + (d.place ? ' · ' + d.place + ' место' : '') + (d.league ? ' · лига ' + K.LEAGUE[d.league] : '')), pill('Выдан', 'ok'), null);
+        return li(esc((d.title || 'Диплом участника') + ' · ' + d.game), esc('№ ' + d.number + ' · ' + K.dateY(d.issued_at) + (d.league ? ' · лига ' + (K.LEAGUE[d.league] || d.league) : '')), pill('Выдан', 'ok'), null);
       }).join('') + '</div><p class="small muted">Подлинность диплома проверяется по номеру на главной странице сайта лиги.</p>' :
         '<p class="muted">Дипломы появятся после итогов Игры.</p>') + '</section>';
       K.page(h);

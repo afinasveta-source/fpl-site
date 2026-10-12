@@ -156,6 +156,19 @@ def non_draft_rounds(conn, event_id):
     return conn.execute("SELECT * FROM rounds WHERE event_id=%s AND status<>'draft' ORDER BY round_no", (event_id,)).fetchall()
 
 
+def numbering_problems(conn, e):
+    """Номер диплома строится из номера сезона и номера Игры — после старта их не поменять, поэтому нужны до старта."""
+    if not e['has_diploma']:
+        return []
+    out = []
+    season = conn.execute('SELECT season_no FROM seasons WHERE id=%s', (e['season_id'],)).fetchone() if e['season_id'] else None
+    if season is None or season['season_no'] is None:
+        out.append('no_season_number')
+    if e['game_no'] is None:
+        out.append('no_game_number')
+    return out
+
+
 def event_checks(conn, e, now):
     """Что мешает следующему шагу Игры (problems) и на что обратить внимание (warnings)."""
     problems, warnings = [], []
@@ -174,11 +187,13 @@ def event_checks(conn, e, now):
             warnings.append('no_personal_data')
         if not rounds:
             warnings.append('no_rounds')
+        warnings.extend(numbering_problems(conn, e))
         if e['registration_closes_at'] and e['ends_at'] and e['registration_closes_at'] > e['ends_at']:
             warnings.append('registration_after_end')
     elif e['status'] == 'registration':
         if docs['rules'] is None:
             problems.append('no_rules')
+        warnings.extend(numbering_problems(conn, e))
         if not rounds:
             warnings.append('no_rounds')
         if any(r['status'] == 'draft' for r in all_rounds):
@@ -199,6 +214,12 @@ def event_checks(conn, e, now):
     return {'problems': problems, 'warnings': warnings}
 
 
+def locked_fields(e):
+    """Что уже не поменять после старта. Пустые сезон и номер Игры можно дописать до публикации итогов."""
+    published = ((e['settings'] or {}).get('results') or {}).get('published_at')
+    return [k for k in LOCKED_AFTER_START if published or k not in ('season_id', 'game_no') or e[k] is not None]
+
+
 def event_view(e, season=None):
     started = e['status'] in ('active', 'finished', 'archived')
     return {'id': str(e['id']), 'title': e['title'], 'description': e['description'], 'type': e['event_type'],
@@ -208,7 +229,7 @@ def event_view(e, season=None):
             'starts_at': iso(e['starts_at']), 'ends_at': iso(e['ends_at']), 'completion_deadline': iso(R.game_deadline(e)),
             'affects_rating': e['affects_rating'], 'has_diploma': e['has_diploma'], 'awards_points': e['awards_points'],
             'counts_for_final': e['counts_for_final'], 'payment_required': e['payment_required'],
-            'locked': list(LOCKED_AFTER_START) if started else [],
+            'locked': locked_fields(e) if started else [],
             'readonly': e['status'] in ('finished', 'archived')}
 
 
@@ -313,10 +334,12 @@ def change_event(event_id: UUID, body: EventChange, request: Request, user=Depen
     with db(request).transaction() as conn:
         locked_admin(conn, user)
         e = load_event(conn, event_id, lock=True)
-        if e['status'] in ('finished', 'archived') and set(values) - {'title', 'description'}:
+        if e['status'] in ('finished', 'archived') and set(values) - {'title', 'description', 'season_id', 'game_no'}:
             raise problem('game_finished', 409)
         if e['status'] in ('active', 'finished', 'archived'):
-            blocked = [k for k in LOCKED_AFTER_START if k in values and values[k] != e[k]]
+            # сезон и номер Игры можно дописать после старта, если их не было (нужны для номеров дипломов), — до итогов
+            fill = {'season_id', 'game_no'} if not ((e['settings'] or {}).get('results') or {}).get('published_at') else set()
+            blocked = [k for k in LOCKED_AFTER_START if k in values and values[k] != e[k] and not (k in fill and e[k] is None)]
             if blocked:
                 raise problem('locked_after_start', 409)
         if e['status'] != 'draft':
@@ -399,6 +422,8 @@ def change_status(event_id: UUID, body: StatusChange, request: Request, user=Dep
             checks = event_checks(conn, e, now)
             if checks['problems']:
                 raise problem(checks['problems'][0], 409)
+        if body.action == 'reopen' and ((e['settings'] or {}).get('results') or {}).get('published_at'):
+            raise problem('results_published', 409)   # итоги, очки и дипломы выданы — Игру не вернуть в работу
         if body.action == 'unpublish' and conn.execute('SELECT 1 FROM event_participants WHERE event_id=%s LIMIT 1',
                                                        (event_id,)).fetchone():
             raise problem('has_participants', 409)

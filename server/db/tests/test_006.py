@@ -16,7 +16,7 @@ import psycopg
 
 failures = []
 FILES = ('001_initial_mvp_schema.sql', '002_auth.sql', '003_league_rules.sql', '004_rewards_groups.sql',
-         '005_participant_cabinet.sql', '006_organizer_cabinet.sql', '007_judging_scale.sql')
+         '005_participant_cabinet.sql', '006_organizer_cabinet.sql', '007_judging_results.sql')
 
 
 def check(cond, msg):

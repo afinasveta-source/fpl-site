@@ -31,6 +31,17 @@ body.org main{padding-bottom:64px}
  body.org .hdr{padding-inline:max(24px, calc((100vw - 1240px)/2 + 24px))}
 }
 .grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;align-items:end}
+.grid4{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;align-items:end}
+.num-in{width:90px;max-width:100%;text-align:center;margin:0 auto}
+.otable.ptable tbody tr{cursor:default}
+.otable.ptable tbody th,.otable.ptable td{vertical-align:middle}
+@media (min-width:761px){.otable.ptable tbody th{display:table-cell}}
+.otable.ptable tbody tr:hover,.otable.rtable tbody tr:hover{background:none}
+.otable.rtable tbody tr{cursor:default}
+.res-medal{font-size:28px;line-height:1}
+.res-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.res-grid>div{background:var(--sunk);border-radius:12px;padding:12px 14px}
+.res-grid b{display:block;font-size:20px}
 select.input{appearance:auto;padding-right:8px}
 .input[disabled],.input:disabled{opacity:.6;cursor:not-allowed}
 .btn.small{min-height:36px;padding:7px 12px;font-size:13px}
@@ -129,3 +140,4 @@ body.org main h3{font:700 15px/1.3 var(--f-body);margin:6px 0 0}
 .crit-row{border-bottom:1px solid var(--line);padding-bottom:10px}
 .crit-row .btn{justify-self:start}
 @media (max-width:520px){ .jgrid{gap:8px} .jphoto img{max-height:55vh} .jside .btn{padding-inline:8px} }
+.nowrap{white-space:nowrap}

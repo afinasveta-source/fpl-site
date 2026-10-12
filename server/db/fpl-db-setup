@@ -51,7 +51,7 @@ step() { # $1 = версия, $2 = файл
 S1="$SRC/schema/001_initial_mvp_schema.sql"; S2="$SRC/schema/002_auth.sql"
 S3="$SRC/schema/003_league_rules.sql"; S4="$SRC/schema/004_rewards_groups.sql"
 S5="$SRC/schema/005_participant_cabinet.sql"; S6="$SRC/schema/006_organizer_cabinet.sql"
-S7="$SRC/schema/007_judging_scale.sql"
+S7="$SRC/schema/007_judging_results.sql"
 case "$current" in
   "")  step 001 "$S1"; step 002 "$S2"; step 003 "$S3"; step 004 "$S4"; step 005 "$S5"; step 006 "$S6"; step 007 "$S7" ;;
   001) step 002 "$S2"; step 003 "$S3"; step 004 "$S4"; step 005 "$S5"; step 006 "$S6"; step 007 "$S7" ;;

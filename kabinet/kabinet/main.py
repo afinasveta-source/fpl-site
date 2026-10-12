@@ -19,6 +19,7 @@ from kabinet.participation.account import router as account_router
 from kabinet.participation.media import MediaStore
 from kabinet.org import games as org_games, rounds as org_rounds, documents as org_documents, people as org_people
 from kabinet.judging import routes as judging_routes
+from kabinet.results import routes as results_routes
 from kabinet.org import participants as org_participants, support as org_support, home as org_home
 
 # Версия схемы базы (server/db/schema), под которую написан кабинет. Новее — можно, старее — нельзя.
@@ -104,5 +105,6 @@ def create_app(settings=None, mailer=None, clock=None):
     app.include_router(org_support.public)
     app.include_router(judging_routes.org)
     app.include_router(judging_routes.judge)
+    app.include_router(results_routes.router)
     app.mount('/assets', StaticFiles(directory=str(STATIC / 'assets')), name='assets')
     return app

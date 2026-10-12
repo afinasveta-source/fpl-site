@@ -399,7 +399,8 @@ WHERE user_id=%s ORDER BY created_at DESC LIMIT 200''', (user['id'],)).fetchall(
 rr.league, rr.published_at FROM round_results rr
 JOIN event_participants p ON p.id=rr.event_participant_id JOIN events e ON e.id=rr.event_id JOIN rounds r ON r.id=rr.round_id
 WHERE p.user_id=%s AND rr.is_current AND rr.status='published' ORDER BY rr.published_at DESC''', (user['id'],)).fetchall()
-        games = conn.execute('''SELECT e.id AS event_id, e.title, er.game_counted, er.league, er.league_rank, er.final_score, er.published_at
+        games = conn.execute('''SELECT e.id AS event_id, e.title, er.game_counted, er.league, er.league_rank, er.award_place, er.overall_rank,
+er.final_score, er.published_at
 FROM event_results er JOIN event_participants p ON p.id=er.event_participant_id JOIN events e ON e.id=er.event_id
 WHERE p.user_id=%s AND er.is_current AND er.status='published' AND er.result_kind='personal' ORDER BY er.published_at DESC''',
                              (user['id'],)).fetchall()
@@ -423,8 +424,10 @@ WHERE p.user_id=%s AND c.status='issued' ORDER BY c.issued_at DESC''', (user['id
                      'score': num(r['display_score']), 'top_work': r['top_work'], 'league': r['league'],
                      'at': iso(r['published_at'])} for r in results],
         'games': [{'event_id': str(g['event_id']), 'game': g['title'], 'counted': g['game_counted'], 'league': g['league'],
-                   'league_rank': g['league_rank'], 'score': num(g['final_score']), 'at': iso(g['published_at'])} for g in games],
+                   'league_rank': g['league_rank'], 'award_place': g['award_place'], 'overall_rank': g['overall_rank'],
+                   'score': num(g['final_score']), 'at': iso(g['published_at'])} for g in games],
         'diplomas': [{'number': d['certificate_number'], 'game': d['title'], 'issued_at': iso(d['issued_at']),
-                      'place': (d['issue_snapshot'] or {}).get('place'), 'league': (d['issue_snapshot'] or {}).get('league')}
+                      'place': (d['issue_snapshot'] or {}).get('place'), 'league': (d['issue_snapshot'] or {}).get('league'),
+                      'title': (d['issue_snapshot'] or {}).get('result')}
                      for d in diplomas],
     }

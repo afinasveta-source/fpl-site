@@ -21,7 +21,8 @@
     no_rounds: 'Ни одного опубликованного тура — участницы не увидят план Игры.', registration_after_end: 'Запись заканчивается позже конца Игры.',
     draft_rounds: 'Есть туры-черновики: участницы их не видят.', starts_later: 'Дата начала Игры ещё не наступила.',
     rounds_accepting: 'Ещё идёт приём работ: после завершения сдавать будет нельзя ни в конкурсе, ни вне конкурса.',
-    rounds_ahead: 'Не все туры прошли.', results_not_ready: 'Итоги, дипломы и скидки ещё не считаются кабинетом — это следующие этапы.',
+    rounds_ahead: 'Не все туры прошли.', no_season_number: 'У Игры с дипломом нужен сезон с номером: номер диплома строится из номера сезона и Игры (после старта не меняются).', no_game_number: 'Укажите номер Игры в сезоне: он нужен для номеров дипломов (после старта не меняется).',
+    results_not_ready: 'Итоги Игры, очки и дипломы — после завершения Игры, в разделе «Итоги Игры». Скидки — позже.',
     registration_dates: 'Конец записи должен быть позже её начала.', game_dates: 'Конец Игры должен быть позже начала.',
     rounds_after_end: 'Срок сдачи какого-то тура позже нового конца Игры. Сначала поменяйте срок тура.',
     locked_after_start: 'После старта Игры это поле не меняется.', game_finished: 'Игра завершена — её нельзя менять.', date_required: 'Опубликованной Игре или туру нужна эта дата.',
@@ -50,6 +51,7 @@
     personal_deadlines_after_end: 'У кого-то из участниц личный срок позже нового конца Игры. Сначала поменяйте этот срок.'
   };
   O.text = function (code) { return TEXT[code] || code; };
+  O.addText = function (map) { Object.keys(map).forEach(function (k) { TEXT[k] = map[k]; }); };
   O.err = function (res) {
     if (res.detail && TEXT[res.detail]) return TEXT[res.detail];
     if (res.status === 422 && res.data && Array.isArray(res.data.detail)) {
@@ -112,6 +114,8 @@
     var opt = O.pending, r = document.getElementById('cf-reason'), err = document.getElementById('cf-err');
     var reason = r ? r.value.trim() : null;
     if (opt.reason && !reason) { err.textContent = 'Укажите причину.'; err.hidden = false; return; }
+    var bad = opt.validate ? opt.validate() : null;
+    if (bad) { err.textContent = bad; err.hidden = false; return; }
     b.disabled = true;
     K.api(opt.method || 'POST', opt.path, opt.body ? opt.body(reason) : undefined).then(function (res) {
       if (!res.ok) { b.disabled = false; err.textContent = O.err(res); err.hidden = false; return; }
@@ -254,7 +258,7 @@
   });
 
   function drawGame(e, seasons) {
-    var locked = function (k) { return e.locked.indexOf(k) >= 0 || e.readonly; };
+    var locked = function (k) { return e.locked.indexOf(k) >= 0 || (e.readonly && k !== 'season_id' && k !== 'game_no'); };
     var dis = function (k) { return locked(k) ? ' disabled' : ''; };
     var p = e.participants || {}, total = 0;
     Object.keys(p).forEach(function (k) { total += p[k]; });
@@ -271,6 +275,9 @@
         return li(roundName(r), esc([r.task_title, r.opens_at ? 'открытие ' + K.date(r.opens_at) : 'нет даты открытия', r.deadline ? 'срок ' + K.date(r.deadline) : 'нет срока', r.state !== 'draft' && r.state !== 'plan' ? 'сдали: ' + r.sent : ''].filter(Boolean).join(' · ')),
           O.st(O.ROUND, r.state), '/org/rounds/' + r.id);
       }).join('') + '</div>' : '<p class="muted">Туров пока нет.</p>') + '</section>';
+    h += '<section class="card"><div class="between"><h2>Итоги Игры</h2><button class="btn sec" type="button" data-href="/org/games/' + e.id + '/results">' +
+      (e.status === 'finished' ? 'Подвести итоги' : 'Формат итогов') + '</button></div><p class="small muted">' +
+      (e.status === 'draft' || e.status === 'registration' ? 'Как считается итог, места и очки FPL — задаётся до старта Игры.' : e.status === 'finished' ? 'Места, очки FPL и дипломы.' : 'Подводятся после завершения Игры.') + '</p></section>';
     h += '<section class="card"><div class="between"><h2>Участницы</h2><button class="btn sec" type="button" data-href="/org/games/' + e.id + '/people">Список</button></div>' +
       (total ? '<div class="stats">' + Object.keys(O.MODE).filter(function (k) { return p[k]; }).map(function (k) {
         return '<button class="stat stat-link" type="button" data-href="/org/games/' + e.id + '/people?mode=' + k + '"><span>' + esc(O.MODE[k][0]) + '</span><b class="num">' + p[k] + '</b></button>';
@@ -280,7 +287,7 @@
       O.sel('g-season', 'Сезон', [['', 'Без сезона']].concat(seasons.map(function (x) { return [x.id, x.name]; })), e.season_id || '', dis('season_id')) +
       O.txt('g-no', 'Номер Игры в сезоне', e.game_no || '', ' type="number" min="1" max="99"' + dis('game_no')) + '</div>' +
       O.area('g-desc', 'Описание для участниц', e.description, ' maxlength="5000" data-s="h120"', 'Показывается на странице Игры в каталоге.') +
-      '<div class="stack" data-s="g6">' + O.chk('g-rating', 'Влияет на рейтинг FPL', e.affects_rating, dis('affects_rating')) + O.chk('g-points', 'Даёт баллы лиги', e.awards_points, dis('awards_points')) +
+      '<div class="stack" data-s="g6">' + O.chk('g-rating', 'Влияет на рейтинг FPL', e.affects_rating, dis('affects_rating')) + O.chk('g-points', 'Даёт очки FPL', e.awards_points, dis('awards_points')) +
       O.chk('g-diploma', 'Диплом за прохождение', e.has_diploma, dis('has_diploma')) + O.chk('g-final', 'Засчитывается для финала сезона', e.counts_for_final, dis('counts_for_final')) + '</div>' +
       (e.locked.length && !e.readonly ? '<p class="small muted">Игра началась: вид, сезон, номер и настройки зачёта больше не меняются.</p>' : '') + O.errBox +
       '<button class="btn" type="submit">Сохранить</button></form>';
