@@ -288,7 +288,12 @@ def evaluate(conn, st, data=None):
     for r in ordered:
         r.extra['left'] = state[r.target] != R.IN
     staying = [r for r in ordered if not r.extra['left']]
-    C.top_work(staying, sum(1 for r in staying if r.key is not None))   # по баллу тура, переголосование его не меняет
+    # TOP WORK — в каждой лиге отдельно, даже если тур судят общим пулом (решение 13.10); по баллу тура,
+    # переголосование его не меняет
+    league_of = {str(t['id']): t['entry_league'] for t in data['targets']}
+    for lg in sorted({league_of[r.target] for r in staying}, key=lambda x: x or ''):
+        group = [r for r in staying if league_of[r.target] == lg]
+        C.top_work(group, sum(1 for r in group if r.key is not None))
     groups = tie_groups(st, data)
     done = [(m, w) for m, w, finished, _ in groups if finished]
     order = C.apply_tie_breaks(ordered, done)
@@ -642,7 +647,7 @@ competition_status_after,calculation_snapshot,published_at,league,pool_size,leag
 VALUES (%s,%s,%s,%s,'published',%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)''', (
                 event['id'], rnd['id'], ep['id'], ver, r.score, advanced, after,
                 G.Jsonb({'stream_id': str(st['id']), 'position': r.position, **r.extra}), now,
-                st['league'], ev['pool_size'] if judged else None, place,
+                st['league'] or ep['entry_league'], ev['pool_size'] if judged else None, place,   # лига участницы и в общем пуле
                 r.average_place, r.tie_group_size, r.top_work, C.TOPWORK_RULE if r.top_work else None))
             change = None
             if rating_on and in_comp and judged and str(ep['id']) in snapshot and outcomes.get(r.target):

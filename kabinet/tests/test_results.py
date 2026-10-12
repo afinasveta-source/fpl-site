@@ -39,6 +39,9 @@ def test_format_before_start_only(app, seed, clock):
 
 def test_game_results_flow(app, seed, clock):
     c, eid, rounds = game_with_season(app, seed, clock)
+    # маленькая тестовая Игра: TOP-10 включаем с 1 человека (по умолчанию — от 30)
+    ok(c.put(f'/api/org/events/{eid}/results/format', headers=ORIGIN, json={'final_round': 2, 'path_rounds': [1], 'path_weight': 40,
+                                                                          'points': {'top10_min': 1}}))
     ok(c.post(f'/api/org/events/{eid}/status', headers=ORIGIN, json={'action': 'publish'}))
     people = {}
     for n in NAMES:
@@ -166,3 +169,32 @@ def test_numbers_can_be_filled_after_start(app, seed, clock):
     assert c.patch(f'/api/org/events/{eid}', headers=ORIGIN, json={'game_no': 6}).json()['detail'] == 'locked_after_start'
     e = ok(c.get(f'/api/org/events/{eid}'))
     assert 'game_no' in e['locked'] and 'season_id' in e['locked']
+
+
+def test_top_work_per_league_in_common_pool(app, seed, clock):
+    """TOP WORK — в каждой лиге отдельно, даже когда тур судят общим пулом (решение 13.10)."""
+    from test_judging import setup_game, stream_of
+    gold = ['ga', 'gb', 'gc', 'gd', 'ge']
+    silver = ['sa', 'sb', 'sc', 'sd', 'se']
+    c, eid, rounds, people, lst = setup_game(app, seed, clock, gold + silver,
+                                             leagues={**{n: 'gold' for n in gold}, **{n: 'silver' for n in silver}})
+    js = judges(app, seed, 1)
+    url = f'/api/org/rounds/{rounds[0]}/judging'
+    ok(c.put(url, headers=ORIGIN, json={'method': 'criteria', 'pools': 'common', 'criteria': [{'label': 'Идея', 'weight': 1}],
+                                        'judges': {'all': [js[0][0]]}}))
+    clock.set(h(days=1, minutes=5))
+    st = stream_of(ok(c.post(url + '/start', headers=ORIGIN)))
+    with app.state.db.transaction() as conn:
+        who = {r['email'].split('@')[0]: str(r['id']) for r in conn.execute('''SELECT t.id, u.email FROM evaluation_targets t
+JOIN evaluation_target_members m ON m.evaluation_target_id=t.id JOIN event_participants p ON p.id=m.event_participant_id
+JOIN users u ON u.id=p.user_id WHERE t.evaluation_stream_id=%s''', (st['id'],))}
+    marks = dict(zip(gold, [99, 98, 97, 96, 95])) | dict(zip(silver, [50, 40, 30, 20, 10]))   # Gold вся выше Silver
+    for n, v in marks.items():
+        ok(js[0][1].post(f"/api/judging/streams/{st['id']}/works/{who[n]}", headers=ORIGIN, json={'scores': {'c1': v}}))
+    rows = {r['name'].split('@')[0]: r for r in stream_of(ok(c.get(url)))['rows']}
+    assert sorted(n for n, r in rows.items() if r['top_work']) == ['ga', 'sa']    # 20% от 5 в каждой лиге = 1
+    ok(c.post(url + '/publish', headers=ORIGIN))
+    with app.state.db.transaction() as conn:
+        lg = conn.execute('''SELECT league FROM round_results rr JOIN event_participants p ON p.id=rr.event_participant_id
+JOIN users u ON u.id=p.user_id WHERE rr.round_id=%s AND u.email='sa@example.com' ''', (rounds[0],)).fetchone()['league']
+        assert lg == 'silver'                                                      # в итоге тура — лига участницы

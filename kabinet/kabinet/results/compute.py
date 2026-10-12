@@ -25,6 +25,7 @@ LEAGUE_NAME = {'gold': 'Gold', 'silver': 'Silver', 'bronze': 'Bronze'}
 DEFAULT_POINTS = {
     'places': {'gold': [20, 15, 12], 'silver': [12, 10, 8], 'bronze': [8, 6, 5]},
     'top10': 8, 'top25': 5, 'completion': 3, 'top_work': 1,
+    'top10_min': 30,       # TOP-10 — если в общем списке Игры не меньше 30 человек (решение 13.10)
     'top25_min': 100,      # TOP-25 — только в больших Играх: в общем списке не меньше 100 человек (решение 13.10)
 }
 DEFAULT_PATH_WEIGHT = 40
@@ -174,6 +175,10 @@ def top25_on(grid, standing_size):
     return standing_size >= grid.get('top25_min', DEFAULT_POINTS['top25_min'])
 
 
+def top10_on(grid, standing_size):
+    return standing_size >= grid.get('top10_min', DEFAULT_POINTS['top10_min'])
+
+
 def points_for(p, grid, standing_size=0):
     """Очки FPL: одно самое высокое достижение за итог Игры + TOP WORK за каждую работу.
     standing_size — сколько человек в общем списке Игры (TOP-25 есть только в больших Играх)."""
@@ -182,7 +187,7 @@ def points_for(p, grid, standing_size=0):
     options = []
     if p.award_place and p.league in grid['places']:
         options.append(('place_%d' % p.award_place, grid['places'][p.league][p.award_place - 1]))
-    if p.overall_rank is not None and p.overall_rank <= 10:
+    if p.overall_rank is not None and p.overall_rank <= 10 and top10_on(grid, standing_size):
         options.append(('top10', grid['top10']))
     if p.overall_rank is not None and p.overall_rank <= 25 and top25_on(grid, standing_size):
         options.append(('top25', grid['top25']))

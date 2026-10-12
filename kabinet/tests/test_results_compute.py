@@ -62,7 +62,8 @@ def test_points_best_only_plus_top_work():
     assert C.points_for(p, grid) == {'best': 'place_1', 'result': 12, 'top_work': 2, 'total': 14}
     q = person(2, 'silver', {}, counted=True)
     q.overall_rank = 9
-    assert C.points_for(q, grid)['best'] == 'top10' and C.points_for(q, grid)['total'] == 8
+    assert C.points_for(q, grid, 30)['best'] == 'top10' and C.points_for(q, grid, 30)['total'] == 8
+    assert C.points_for(q, grid, 29)['best'] == 'completion'           # TOP-10 — от 30 человек в общем списке
     r = person(3, 'gold', {}, counted=True)
     r.overall_rank = 40
     assert C.points_for(r, grid)['total'] == 3

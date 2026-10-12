@@ -33,6 +33,7 @@ class Points(BaseModel):
     top10: int | None = Field(default=None, ge=0, le=1000)
     top25: int | None = Field(default=None, ge=0, le=1000)
     top25_min: int | None = Field(default=None, ge=0, le=100000)
+    top10_min: int | None = Field(default=None, ge=0, le=100000)
     completion: int | None = Field(default=None, ge=0, le=1000)
     top_work: int | None = Field(default=None, ge=0, le=1000)
 
