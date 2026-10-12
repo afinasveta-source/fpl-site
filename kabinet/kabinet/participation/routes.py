@@ -1,9 +1,11 @@
 """API кабинета участника: Игры лиги, запись, мои Игры, задание, фото, сдача и замена работы."""
 import re
+import threading
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import FileResponse
+from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from kabinet.auth.routes import client_ip, service
@@ -189,7 +191,7 @@ def game_summary(conn, game, now, user_id):
     ok = G.rules_ok(conn, user_id, now)
     rounds = V.rounds_view(game, now, rules_ok=ok)
     flags = R.game_flags(game.event, game.mode, game.rounds, game.assignments, game.on_time_ids(), game.by_end_ids(),
-                         game.pas, now)
+                         game.pas, now, more_rounds_planned=len(game.all_round_nos) > len(game.rounds))
     return {'event': V.event_brief(game.event), 'me': V.me_view(game), 'flags': flags, 'rules_ok': ok, 'rounds': rounds}
 
 
@@ -308,30 +310,17 @@ def submit(event_id: UUID, assignment_id: UUID, body: Submit, request: Request, 
 UPLOAD_TYPES = {'image/jpeg', 'image/png', 'image/webp'}
 
 
-@router.post('/uploads', status_code=201, dependencies=[Depends(same_origin)])
-async def upload(request: Request, user=Depends(browser_user), auth=Depends(service)):
-    settings = request.app.state.settings
-    ctype = (request.headers.get('content-type') or '').split(';')[0].strip().lower()
-    if ctype not in UPLOAD_TYPES:
-        raise HTTPException(415, 'unsupported_format')
-    limit = settings.upload_max_mb * 1024 * 1024
-    declared = request.headers.get('content-length')
-    if declared and declared.isdigit() and int(declared) > limit:
-        raise HTTPException(413, 'too_large')
-    auth.throttle('upload', client_ip(request), str(user['id']), limit=settings.upload_limit, by_ip=False)
-    chunks, size = [], 0
-    async for chunk in request.stream():
-        size += len(chunk)
-        if size > limit:
-            raise HTTPException(413, 'too_large')
-        chunks.append(chunk)
-    data = b''.join(chunks)
-    if not data:
-        raise HTTPException(422, 'empty')
-    try:
-        info = request.app.state.media.save_image(data)
-    except MediaError as exc:
-        raise HTTPException(507 if exc.code == 'storage_full' else 422, exc.code) from None
+# Обработка фото — по одной за раз и не в общем потоке запросов: память службы ограничена,
+# а остальные страницы не должны ждать, пока уменьшается чужое фото.
+PHOTO_LOCK = threading.Semaphore(1)
+
+
+def store_photo(request, user, data):
+    with PHOTO_LOCK:
+        try:
+            info = request.app.state.media.save_image(data)
+        except MediaError as exc:
+            raise HTTPException(507 if exc.code == 'storage_full' else 422, exc.code) from None
     with db(request).transaction() as conn:
         # Тот же файл тем же человеком — та же запись (повторная загрузка ничего не дублирует).
         row = conn.execute('''SELECT * FROM media_files WHERE uploaded_by=%s AND sha256=%s AND deleted_at IS NULL
@@ -345,6 +334,29 @@ optimized_storage_key,thumbnail_storage_key,sha256,metadata) VALUES (%s,%s,%s,%s
                                 info['size_bytes'], info['optimized_storage_key'], info['thumbnail_storage_key'],
                                 info['sha256'], G.Jsonb({'width': info['width'], 'height': info['height']}))).fetchone()
     return V.photo_view(row, root(request))
+
+
+@router.post('/uploads', status_code=201, dependencies=[Depends(same_origin)])
+async def upload(request: Request, user=Depends(browser_user), auth=Depends(service)):
+    settings = request.app.state.settings
+    ctype = (request.headers.get('content-type') or '').split(';')[0].strip().lower()
+    if ctype not in UPLOAD_TYPES:
+        raise HTTPException(415, 'unsupported_format')
+    limit = settings.upload_max_mb * 1024 * 1024
+    declared = request.headers.get('content-length')
+    if declared and declared.isdigit() and int(declared) > limit:
+        raise HTTPException(413, 'too_large')
+    await run_in_threadpool(auth.throttle, 'upload', client_ip(request), str(user['id']), limit=settings.upload_limit, by_ip=False)
+    chunks, size = [], 0
+    async for chunk in request.stream():
+        size += len(chunk)
+        if size > limit:
+            raise HTTPException(413, 'too_large')
+        chunks.append(chunk)
+    data = b''.join(chunks)
+    if not data:
+        raise HTTPException(422, 'empty')
+    return await run_in_threadpool(store_photo, request, user, data)
 
 
 @router.get('/media/{media_id}')

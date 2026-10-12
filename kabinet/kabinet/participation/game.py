@@ -26,6 +26,7 @@ class Game:
     versions: dict = field(default_factory=dict)     # submission_id → {'draft': v, 'latest': v}
     media: dict = field(default_factory=dict)        # version_id → [media rows]
     results: dict = field(default_factory=dict)      # round_id → published round_result
+    all_round_nos: list = field(default_factory=list)
 
     @property
     def mode(self):
@@ -65,6 +66,8 @@ ORDER BY (assignment_type='competition_work') DESC, code''', (ids,)):
     for v in conn.execute('SELECT * FROM assignment_variants WHERE assignment_id = ANY(%s) ORDER BY code', (a_ids,)):
         variants[v['assignment_id']].append(v)
     game = Game(event, ep, rounds, assignments, variants)
+    # Номера всех туров, включая черновики организатора: «следующий тур» существует, даже если ещё не опубликован.
+    game.all_round_nos = [r['round_no'] for r in conn.execute('SELECT round_no FROM rounds WHERE event_id=%s', (event_id,))]
     if ep:
         _load_participant(conn, game)
     return game
@@ -130,16 +133,25 @@ def audit(conn, actor, entity, entity_id, action, after=None):
 
 
 def sync_late(conn, game, now):
-    """Опоздавший в конкурсе переходит вне конкурса (решение 12.10). Безопасно вызывать сколько угодно раз."""
+    """Опоздавший в конкурсе переходит вне конкурса (решение 12.10). Безопасно вызывать сколько угодно раз.
+
+    Время перехода — открытие следующего тура (а не момент, когда это заметили), чтобы история была верной,
+    кто бы ни запустил проверку: сам участник, открыв кабинет, или ежедневная сверка (fpl-kabinet-sync).
+    """
     if game.mode != R.IN:
         return False
     missed = R.missed_round(game.event, game.rounds, game.assignments, game.on_time_ids(), game.pas, now)
-    if not missed or not R.late_transfer_due(game.rounds, missed, now):
+    if not missed:
+        return False
+    deadline = max((R.competition_deadline(missed, a, game.pas.get(a['id']))[0] for a in game.assignments.get(missed['id'], [])
+                    if R.competition_deadline(missed, a, game.pas.get(a['id']))[0] is not None), default=None)
+    due = R.late_transfer_due(game.rounds, missed, now, game.all_round_nos, deadline)
+    if due is None:
         return False
     row = conn.execute('''UPDATE event_participants SET competition_status='diploma_only', elimination_reason='late',
 eliminated_round_id=%s, out_of_competition_at=%s, out_of_competition_source='auto'
 WHERE id=%s AND registration_status='participating' AND (competition_status IS NULL OR competition_status='active')
-RETURNING *''', (missed['id'], now, game.ep['id'])).fetchone()
+RETURNING *''', (missed['id'], due, game.ep['id'])).fetchone()
     if not row:
         return False
     game.ep = row
@@ -149,6 +161,17 @@ RETURNING *''', (missed['id'], now, game.ep['id'])).fetchone()
             'text': 'Работа не сдана в срок. Игра продолжается вне конкурса: все работы — до конца Игры, тогда будет диплом.',
             'route': 'game', 'event_id': str(row['event_id'])}, row['event_id'], missed['id'])
     return True
+
+
+def sync_event(conn, event_id, now):
+    """Сверка всей Игры: всех опоздавших — вне конкурса. Возвращает число переведённых."""
+    users = [r['user_id'] for r in conn.execute('''SELECT user_id FROM event_participants WHERE event_id=%s
+AND registration_status='participating' AND (competition_status IS NULL OR competition_status='active')''', (event_id,))]
+    moved = 0
+    for user_id in users:
+        game = load(conn, event_id, user_id, lock=True)
+        moved += sync_late(conn, game, now)
+    return moved
 
 
 def variant_for(game, assignment):
@@ -248,13 +271,13 @@ def save_draft(conn, game, assignment, photos, link, user_id, now):
     draft = conn.execute('SELECT * FROM submission_versions WHERE submission_id=%s AND submitted_at IS NULL FOR UPDATE',
                          (sub['id'],)).fetchone()
     if draft:
+        # Каждое сохранение — новый черновик с новым id: «Сдать» отправляет ровно то, что человек видел
+        # (если в другом окне черновик поменяли, сдача вернёт draft_changed).
         conn.execute('DELETE FROM submission_version_media WHERE submission_version_id=%s', (draft['id'],))
-        draft = conn.execute('UPDATE submission_versions SET payload=%s, created_at=%s WHERE id=%s RETURNING *',
-                             (Jsonb({'link': link}), now, draft['id'])).fetchone()
-    else:
-        no = conn.execute('SELECT coalesce(max(version_no),0)+1 AS n FROM submission_versions WHERE submission_id=%s',
-                          (sub['id'],)).fetchone()['n']
-        draft = conn.execute('''INSERT INTO submission_versions(submission_id,version_no,payload,source,created_by,created_at)
+        conn.execute('DELETE FROM submission_versions WHERE id=%s', (draft['id'],))
+    no = conn.execute('SELECT coalesce(max(version_no),0)+1 AS n FROM submission_versions WHERE submission_id=%s',
+                      (sub['id'],)).fetchone()['n']
+    draft = conn.execute('''INSERT INTO submission_versions(submission_id,version_no,payload,source,created_by,created_at)
 VALUES (%s,%s,%s,'web',%s,%s) RETURNING *''', (sub['id'], no, Jsonb({'link': link}), user_id, now)).fetchone()
     for i, mid in enumerate(photos):
         conn.execute("INSERT INTO submission_version_media VALUES (%s,%s,'photo',%s)", (draft['id'], mid, i))

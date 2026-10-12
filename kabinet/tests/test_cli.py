@@ -17,3 +17,11 @@ def test_bootstrap_admin_and_refuse_second(app,client,monkeypatch):
         cli.main()
     with app.state.db.transaction() as conn:
         assert conn.execute('SELECT count(*) AS n FROM users').fetchone()['n']==1
+
+
+def test_sync_late_command(app, monkeypatch, capsys):
+    monkeypatch.setenv('FPL_ENVIRONMENT', 'TEST')
+    monkeypatch.setenv('FPL_DATABASE_DSN', app.state.db.dsn)
+    monkeypatch.setattr(sys, 'argv', ['fpl', 'sync-late'])
+    cli.main()
+    assert 'sync-late: games' in capsys.readouterr().out

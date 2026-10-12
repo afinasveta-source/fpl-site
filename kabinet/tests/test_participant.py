@@ -253,3 +253,58 @@ def test_outsiders_cannot_touch_game(app, seed, clock):
     assert stranger.get(task_url(game, 0)).status_code == 404
     assert stranger.put(task_url(game, 0) + '/draft', headers=ORIGIN, json={'photos': []}).status_code == 404
     assert a.get(f"/api/games/{game['event']}/tasks/{game['rounds'][0]}").status_code == 404
+
+
+def test_next_round_in_draft_still_counts_as_next(app, seed, clock):
+    c = login(app, seed, 'anna@example.com')
+    with app.state.db.transaction() as conn:
+        add_docs(conn)
+        game = build_game(conn)
+        conn.execute("UPDATE rounds SET status='draft' WHERE round_no > 1")
+    register(c, game['event'])
+    clock.set(h(days=3))                          # срок тура 1 прошёл, тур 2 у организатора ещё в черновике
+    g = c.get(f"/api/games/{game['event']}").json()
+    assert g['me']['mode'] == 'in' and g['rounds'][0]['work'] == 'missed'
+    assert g['flags']['diploma'] == 'pending'
+
+
+def test_late_transfer_time_and_sweep_without_visit(app, seed, clock):
+    from kabinet.participation.game import sync_event
+    c = login(app, seed, 'anna@example.com')
+    with app.state.db.transaction() as conn:
+        add_docs(conn)
+        game = build_game(conn)
+    register(c, game['event'])                    # дальше участница в кабинет не заходит
+    with app.state.db.transaction() as conn:
+        assert sync_event(conn, game['event'], h(days=1, hours=1)) == 0        # тур 2 ещё не открыт
+        assert sync_event(conn, game['event'], h(days=2, hours=5)) == 1
+        assert sync_event(conn, game['event'], h(days=2, hours=6)) == 0        # повтор ничего не меняет
+        ep = conn.execute('SELECT * FROM event_participants').fetchone()
+        assert ep['competition_status'] == 'diploma_only' and ep['out_of_competition_at'] == h(days=2)   # время открытия тура 2
+
+
+def test_submit_sends_exactly_what_was_seen(app, seed, clock):
+    c = login(app, seed, 'anna@example.com')
+    with app.state.db.transaction() as conn:
+        add_docs(conn)
+        game = build_game(conn)
+    register(c, game['event'])
+    a = upload(c, jpeg((1, 1, 1))).json()
+    b = upload(c, jpeg((250, 250, 250))).json()
+    first = c.put(task_url(game, 0) + '/draft', headers=ORIGIN, json={'photos': [a['id']]}).json()['draft']
+    second = c.put(task_url(game, 0) + '/draft', headers=ORIGIN, json={'photos': [b['id']]}).json()['draft']   # другое окно
+    assert second['id'] != first['id']
+    stale = c.post(task_url(game, 0) + '/submit', headers=ORIGIN, json={'draft_id': first['id']})
+    assert stale.status_code == 409 and stale.json()['detail'] == 'draft_changed'
+    ok = c.post(task_url(game, 0) + '/submit', headers=ORIGIN, json={'draft_id': second['id']}).json()
+    assert ok['submitted']['photos'][0]['id'] == b['id'] and ok['submitted']['version_no'] == 1
+
+
+def test_big_phone_photo_is_processed(app, seed, clock):
+    c = login(app, seed, 'anna@example.com')
+    big = io.BytesIO()
+    Image.new('RGB', (8160, 6120), (90, 60, 30)).save(big, 'JPEG', quality=70)   # 50 Мп, как у современных телефонов
+    r = upload(c, big.getvalue())
+    assert r.status_code == 201, r.text
+    view = Image.open(io.BytesIO(c.get(r.json()['view_url']).content))
+    assert max(view.size) == 1600

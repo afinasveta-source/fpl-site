@@ -1,4 +1,8 @@
-"""Первый администратор из командной строки сервера (запасной путь к /web-auth/setup). Публичной регистрации администраторов нет."""
+"""Команды сервера кабинета.
+
+bootstrap-admin --email … — первый администратор (запасной путь к /web-auth/setup). Публичной регистрации администраторов нет.
+sync-late — сверка идущих Игр: опоздавших в конкурсе — вне конкурса (таймер fpl-kabinet-sync, каждые 10 минут).
+"""
 import argparse
 from getpass import getpass
 from pydantic import TypeAdapter, EmailStr
@@ -7,12 +11,30 @@ from kabinet.db import Database
 from kabinet.auth.security import password_hasher
 
 
+def sync_late(settings):
+    from datetime import datetime, timezone
+    from kabinet.participation.game import sync_event
+    db = Database(settings)
+    with db.transaction() as conn:
+        events = [r['id'] for r in conn.execute("SELECT id FROM events WHERE status='active'")]
+    moved = 0
+    for event_id in events:
+        with db.transaction() as conn:   # по Игре — своя транзакция: сбой одной не откатывает другие
+            moved += sync_event(conn, event_id, datetime.now(timezone.utc))
+    print(f'sync-late: games {len(events)}, moved outside {moved}')
+
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('command', choices=['bootstrap-admin'])
-    parser.add_argument('--email', required=True)
+    parser.add_argument('command', choices=['bootstrap-admin', 'sync-late'])
+    parser.add_argument('--email')
     args = parser.parse_args()
     settings = Settings()
+    if args.command == 'sync-late':
+        sync_late(settings)
+        return
+    if not args.email:
+        parser.error('--email is required for bootstrap-admin')
     email = str(TypeAdapter(EmailStr).validate_python(args.email)).lower()
     password = getpass('Admin password (at least 12 characters): ')
     if not 12 <= len(password) <= 128 or password != getpass('Repeat password: '):

@@ -145,12 +145,21 @@ def missed_round(event, rounds, assignments_by_round, submitted, pa_by_assignmen
     return None
 
 
-def late_transfer_due(rounds, missed, now):
-    """Опоздавший переходит вне конкурса с открытия следующего тура; если туров больше нет — сразу."""
+def late_transfer_due(rounds, missed, now, all_round_nos=(), missed_deadline=None):
+    """Когда опоздавший переходит вне конкурса: с открытия следующего тура (решение 12.10).
+
+    Возвращает момент перехода или None (ещё рано). Следующий тур в черновике у организатора — тоже «следующий тур»:
+    ждём его открытия. Если туров после пропущенного нет вовсе — переход сразу после срока.
+    """
     later = [r for r in rounds if r['round_no'] > missed['round_no']]
-    if not later:
-        return True
-    return any(round_opened(r, now) for r in later)
+    opened = [r for r in later if round_opened(r, now)]
+    if opened:
+        first = min(opened, key=lambda r: r['round_no'])
+        at = first['opens_at'] if first['opens_at'] is not None and first['opens_at'] <= now else now
+        return at
+    if later or any(n > missed['round_no'] for n in all_round_nos):
+        return None
+    return missed_deadline if missed_deadline is not None and missed_deadline <= now else now
 
 
 def audience_match(rules, ep):
@@ -208,7 +217,7 @@ def payload_problems(form, photos, link):
     return problems
 
 
-def game_flags(event, mode, rounds, assignments_by_round, on_time, by_end, pa_by_assignment, now):
+def game_flags(event, mode, rounds, assignments_by_round, on_time, by_end, pa_by_assignment, now, more_rounds_planned=False):
     """Предварительный статус зачёта Игры и диплома (до подведения итогов).
 
     on_time — id заданий со сданной в срок тура работой; by_end — со сданной до конца Игры.
@@ -225,7 +234,7 @@ def game_flags(event, mode, rounds, assignments_by_round, on_time, by_end, pa_by
     required = [a for rnd in rounds for a in assignments_by_round.get(rnd['id'], []) if a['required_for_diploma']]
     end = game_deadline(event)
     over = event['status'] in GAME_OVER or (end is not None and now > end)
-    if required and all(a['id'] in by_end for a in required):
+    if required and not more_rounds_planned and all(a['id'] in by_end for a in required):
         diploma = 'all_sent'      # все известные работы сданы до конца Игры; выдачу решают итоги Игры
     elif over:
         diploma = 'no'

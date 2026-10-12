@@ -89,7 +89,7 @@ if [ -d kabinet-src ]; then
   if [ -f fpl-media-backup ]; then
     install -m 0755 fpl-media-backup /usr/local/bin/fpl-media-backup
     grep -q fpl-media-backup /etc/cron.d/fpl || \
-      printf '11-59/15 * * * * root /usr/local/bin/fpl-media-backup >> /var/log/fpl-media-backup.log 2>&1\n' >> /etc/cron.d/fpl
+      printf '11-59/15 * * * * root flock -n /run/lock/fpl-media-backup.lock /usr/local/bin/fpl-media-backup >> /var/log/fpl-media-backup.log 2>&1\n' >> /etc/cron.d/fpl
   fi
 fi
 

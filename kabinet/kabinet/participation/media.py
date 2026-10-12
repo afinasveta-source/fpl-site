@@ -16,8 +16,15 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 
 FORMATS = {'JPEG': ('jpg', 'image/jpeg'), 'PNG': ('png', 'image/png'), 'WEBP': ('webp', 'image/webp')}
 VIEW_PX, THUMB_PX = 1600, 480
-MAX_PIXELS = 60_000_000          # больше — не фото с телефона, а попытка перегрузить сервер
+MAX_PIXELS = 120_000_000         # телефоны дают до ~108 Мп; больше — не фото, а попытка перегрузить сервер
+MAX_PIXELS_OTHER = 30_000_000    # PNG и WebP декодируются целиком: держим память службы в пределах
 Image.MAX_IMAGE_PIXELS = MAX_PIXELS
+
+
+def _fit(size, limit):
+    w, h = size
+    k = limit / max(w, h)
+    return max(1, round(w * k)), max(1, round(h * k))
 
 
 class MediaError(ValueError):
@@ -54,23 +61,34 @@ class MediaStore:
         return shutil.disk_usage(self.root).free - incoming * 4 > self.min_free
 
     def save_image(self, data):
-        """Проверить и сохранить фото. Возвращает сведения для media_files."""
+        """Проверить и сохранить фото. Возвращает сведения для media_files.
+
+        Память ограничена (служба — до 350 МБ): размер в пикселях проверяется по заголовку до декодирования,
+        JPEG декодируется сразу в уменьшенном виде (draft), уменьшение и поворот — без лишних полных копий.
+        """
         try:
             with Image.open(io.BytesIO(data)) as probe:
                 kind = probe.format
+                width, height = probe.size
                 probe.verify()
+            if kind not in FORMATS:
+                raise MediaError('unsupported_format')
+            if width * height > (MAX_PIXELS if kind == 'JPEG' else MAX_PIXELS_OTHER):
+                raise MediaError('too_many_pixels')
             with Image.open(io.BytesIO(data)) as img:
+                if kind == 'JPEG':
+                    img.draft('RGB', (VIEW_PX * 2, VIEW_PX * 2))   # декодирование в 1/2–1/8 масштаба
                 img.load()
-                if kind not in FORMATS:
-                    raise MediaError('unsupported_format')
-                img = ImageOps.exif_transpose(img)
-                width, height = img.size
+                img.thumbnail((VIEW_PX * 2, VIEW_PX * 2))
+                img = ImageOps.exif_transpose(img) or img
                 view = self._jpeg(img, VIEW_PX)
                 thumb = self._jpeg(img, THUMB_PX)
         except MediaError:
             raise
-        except (UnidentifiedImageError, Image.DecompressionBombError, OSError, SyntaxError, ValueError):
+        except (UnidentifiedImageError, Image.DecompressionBombError, Image.DecompressionBombWarning, OSError,
+                SyntaxError, ValueError, MemoryError):
             raise MediaError('not_an_image') from None
+        width, height = img.size          # после поворота: пропорции такие, как их видит человек
         if not self.free_ok(len(data) + len(view) + len(thumb)):
             raise MediaError('storage_full')
         digest = hashlib.sha256(data).hexdigest()
@@ -85,8 +103,8 @@ class MediaStore:
 
     @staticmethod
     def _jpeg(img, limit):
-        copy = img.copy()
-        copy.thumbnail((limit, limit))
+        copy = img.copy() if max(img.size) <= limit else img.resize(
+            _fit(img.size, limit), Image.Resampling.LANCZOS)
         if copy.mode not in ('RGB', 'L'):
             background = Image.new('RGB', copy.size, (255, 255, 255))
             rgba = copy.convert('RGBA')

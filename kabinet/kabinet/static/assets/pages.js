@@ -538,9 +538,12 @@
   K.on(/^\/games\/([0-9a-f-]{36})\/tasks\/([0-9a-f-]{36})$/, loadTask);
 
   function taskUrl() { return '/api/games/' + T.ids[0] + '/tasks/' + T.ids[1]; }
+  /* Страница задания всё ещё на экране? (за время загрузки человек мог уйти в другой раздел) */
+  function stillHere(stamp) { return stamp === K.route.stamp; }
   function saveDraft(photos, link) {
+    var stamp = K.route.stamp;
     var p = K.api('PUT', taskUrl() + '/draft', { photos: photos, link: link || null }).then(function (r) {
-      if (r.ok) { T.data = r.data; drawTask(); } else K.toast(K.errorText(r));
+      if (r.ok) { T.data = r.data; if (stillHere(stamp)) drawTask(); } else K.toast(K.errorText(r));
       return r;
     });
     T.pending = p;
@@ -556,9 +559,11 @@
     if (['image/jpeg', 'image/png', 'image/webp'].indexOf(file.type) < 0) { K.toast('Выберите фото JPG, PNG или WebP.'); return; }
     if (file.size > 20 * 1024 * 1024) { K.toast('Файл больше 20 МБ. Выберите другой.'); return; }
     var link = linkValue();
+    var stamp = K.route.stamp;
     T.uploading = true; drawTask();
     K.api('POST', '/api/uploads', undefined, { body: file, type: file.type }).then(function (r) {
       T.uploading = false;
+      if (!stillHere(stamp)) { if (r.ok) K.toast('Фото загружено, но страница задания уже закрыта — добавьте его ещё раз.'); return; }
       if (!r.ok) { drawTask(); K.toast(K.errorText(r)); return; }
       var ids = photoIds(), max = (T.data.form && T.data.form.photo_max) || 1;
       ids = max === 1 ? [r.data.id] : ids.concat([r.data.id]).slice(0, max);
