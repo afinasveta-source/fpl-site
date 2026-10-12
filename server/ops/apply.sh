@@ -3,11 +3,11 @@
 #  1) сайт берётся из GitHub (afinasveta-source/fpl-site, папка dist/ ветки main);
 #  2) приёмник данных из бота понимает закрытые наборы private-… (не публикуются);
 #  3) архив фото работ: /var/lib/fpl/archive, cron каждые 10 минут;
-#  4) база PostgreSQL сайта (схема 001→004), публичные файлы /data/*.json, ночная копия;
+#  4) база PostgreSQL сайта (схема 001→005), публичные файлы /data/*.json, ночная копия;
 #  5) сводка состояния /data/server-status.json;
 #  6) копии базы в закрытый бакет в другом городе (доступ вводится на /admin/backup.html);
 #  7) перенос данных из SaleBot в базу (fpl-db-import, каждые 5 минут, если бот прислал новый снимок);
-#  9) кабинет на закрытом адресе /kabinet/ (fpl-kabinet-setup).
+#  9) кабинет на закрытом адресе /kabinet/ (fpl-kabinet-setup), копии фото работ в бакет (fpl-media-backup, каждые 15 минут).
 # Если что-то упало — пакет будет применён заново при следующем запуске fpl-ops (через 5 минут).
 set -e
 cd "$(dirname "$0")"
@@ -86,6 +86,11 @@ if [ -d kabinet-src ]; then
   install -m 0755 fpl-kabinet-setup /usr/local/bin/fpl-kabinet-setup
   rm -rf /opt/fpl/kabinet-src && mkdir -p /opt/fpl && cp -r kabinet-src /opt/fpl/kabinet-src
   /usr/local/bin/fpl-kabinet-setup /opt/fpl/kabinet-src || echo "кабинет: ошибка установки (см. /var/lib/fpl/kabinet-status)"
+  if [ -f fpl-media-backup ]; then
+    install -m 0755 fpl-media-backup /usr/local/bin/fpl-media-backup
+    grep -q fpl-media-backup /etc/cron.d/fpl || \
+      printf '11-59/15 * * * * root /usr/local/bin/fpl-media-backup >> /var/log/fpl-media-backup.log 2>&1\n' >> /etc/cron.d/fpl
+  fi
 fi
 
 /usr/local/bin/fpl-sync || true

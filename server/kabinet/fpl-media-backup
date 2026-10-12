@@ -1,0 +1,79 @@
+#!/usr/bin/env python3
+"""fpl-media-backup: копии фото работ из кабинета в закрытый бакет в другом городе (cron, каждые 15 минут).
+
+Фото участников хранятся на сервере: /var/lib/fpl/kabinet-media/orig/… (оригиналы; копии для показа
+view/ и thumb/ пересоздаются из оригинала и в бакет не идут). Каждый оригинал отправляется один раз
+в тот же бакет, что и копии базы: media/orig/<…>. Список уже отправленных — в журнале рядом.
+Настройки бакета — /var/lib/fpl/private/backup-s3.json (как у fpl-db-backup). Нет настроек — ничего не делает.
+Итог — /var/lib/fpl/kabinet-media-backup-status (попадает в /data/server-status.json).
+"""
+import importlib.util
+import json
+import os
+import sys
+import tempfile
+import time
+
+MEDIA = os.environ.get('FPL_MEDIA_DIR', '/var/lib/fpl/kabinet-media')
+JOURNAL = os.environ.get('FPL_MEDIA_JOURNAL', '/var/lib/fpl/kabinet-media-backup.json')
+STATUS = os.environ.get('FPL_MEDIA_STATUS', '/var/lib/fpl/kabinet-media-backup-status')
+S3_LIB = os.environ.get('FPL_S3_LIB', '/opt/fpl/fpl_s3.py')
+PER_RUN = int(os.environ.get('FPL_MEDIA_PER_RUN', '200'))
+
+
+def now():
+    return time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+
+
+def write(path, text):
+    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path))
+    with os.fdopen(fd, 'w', encoding='utf-8') as f:
+        f.write(text)
+    os.chmod(tmp, 0o600)
+    os.replace(tmp, path)
+
+
+def main():
+    spec = importlib.util.spec_from_file_location('fpl_s3', S3_LIB)
+    s3 = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(s3)
+    if not os.path.isfile(s3.CONFIG):
+        write(STATUS, 'off %s no bucket settings\n' % now())
+        return 0
+    cfg = s3.load()
+    try:
+        with open(JOURNAL, encoding='utf-8') as f:
+            done = set(json.load(f))
+    except (OSError, ValueError):
+        done = set()
+    root = os.path.join(MEDIA, 'orig')
+    pending = []
+    for base, _, files in os.walk(root):
+        for name in files:
+            rel = os.path.relpath(os.path.join(base, name), MEDIA)
+            if rel not in done and not name.startswith('tmp'):
+                pending.append(rel)
+    pending.sort()
+    sent, errors = 0, []
+    for rel in pending[:PER_RUN]:
+        with open(os.path.join(MEDIA, rel), 'rb') as f:
+            data = f.read()
+        code, mode, msg = s3.put_bytes(cfg, 'media/' + rel, data, timeout=300)
+        if 200 <= code < 300:
+            done.add(rel)
+            sent += 1
+        else:
+            errors.append('%s %s' % (code, msg))
+            if len(errors) >= 3:
+                break
+    write(JOURNAL, json.dumps(sorted(done)))
+    left = len(pending) - sent
+    if errors:
+        write(STATUS, 'error %s sent %d left %d %s\n' % (now(), sent, left, errors[0][:120]))
+        return 1
+    write(STATUS, 'ok %s files %d sent %d left %d\n' % (now(), len(done), sent, left))
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

@@ -34,6 +34,7 @@ st = {
   'offsite_error': read('/var/backups/fpl/last-offsite-error'),
   'ops': read('/var/lib/fpl/ops-status'),
   'kabinet': read('/var/lib/fpl/kabinet-status'),
+  'media_backup': read('/var/lib/fpl/kabinet-media-backup-status'),
   'last_import': imp.get('last_completed_at'), 'import_status': imp.get('status') or ('waiting' if imp.get('waiting') else None),
   'disk_free_mb': shutil.disk_usage('/').free // 1048576,
   'disk_total_mb': shutil.disk_usage('/').total // 1048576,
