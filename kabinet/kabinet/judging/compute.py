@@ -1,9 +1,10 @@
-"""Судейство: чистые расчёты без базы — жеребьёвка пар, балл 40–100, места, TOP WORK, граница прохода, рейтинг.
+"""Судейство: чистые расчёты без базы — жеребьёвка пар, балл 1–100, места, TOP WORK, граница прохода, рейтинг.
 
 Решения Светланы (документы проекта «Чат бот»):
-- балл тура = 40 + 60 × победы / сравнения, в счёт идут и сравнения переголосования (06.10, win_share_v1);
-- по критериям: среднее по критериям с весами, затем среднее по судьям (criteria_mean_v1); оценка 1–10 переводится
-  в 40–100 линейно (1 → 40, 10 → 100) — способ приведения в документах не задан, выбран этот;
+- балл тура — по шкале 1–100 (решение 12.10; шкала 40–100 была только в первом туре Игры 01):
+  сравнение пар — 1 + 99 × победы / сравнения, в счёт идут и сравнения переголосования (win_share_100_v1);
+  критерии — судьи ставят 1–100 по каждому критерию, среднее с весами критериев, затем среднее по судьям
+  (criteria_mean_100_v1);
 - место — по доле побед (или оценке); одинаковые — одно место; хранится и среднее место группы;
 - TOP WORK: min(10, floor(20% пула)), равные на границе — все, при пуле < 5 — нет (FPL_TOPWORK_V1);
 - проход: число по лиге задаёт организатор; равные на границе — переголосование или решение организатора;
@@ -16,7 +17,8 @@ import math
 import random
 from dataclasses import dataclass, field
 
-SCALE_MIN, SCALE_MAX = 40, 100
+SCALE_MIN, SCALE_MAX = 1, 100
+CRITERIA_MIN, CRITERIA_MAX = 1, 100   # оценка судьи по критерию
 TOPWORK_RULE = 'FPL_TOPWORK_V1'
 ELO_FORMULA = 'FPL_ELO_V1'
 NEWCOMER_RATING = 500
@@ -98,10 +100,11 @@ def criteria_value(judge_scores, weights):
     return sum(per_judge) / len(per_judge)
 
 
-def criteria_score(value, lo=1, hi=10):
+def criteria_score(value):
+    """Оценки судей уже по шкале 1–100 — балл тура = среднее, округлённое половина вверх."""
     if value is None:
         return None
-    return half_up(SCALE_MIN + (SCALE_MAX - SCALE_MIN) * (value - lo) / (hi - lo))
+    return half_up(value)
 
 
 # ---------- места, TOP WORK, проход ----------
@@ -110,7 +113,7 @@ def criteria_score(value, lo=1, hi=10):
 class Row:
     target: object
     key: float | None          # чем больше, тем выше (доля побед или оценка)
-    score: int | None          # балл 40–100 для показа
+    score: int | None          # балл 1–100 для показа
     rank: int | None = None
     average_place: float | None = None
     tie_group_size: int | None = None

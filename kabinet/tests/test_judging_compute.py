@@ -28,15 +28,16 @@ def test_draw_pairs_small_pool():
 
 
 def test_scores():
-    assert C.win_share_score(3, 6) == 70 and C.win_share_score(0, 6) == 40 and C.win_share_score(6, 6) == 100
+    # шкала 1–100 (решение 12.10): 1 + 99 × доля побед
+    assert C.win_share_score(3, 6) == 51 and C.win_share_score(0, 6) == 1 and C.win_share_score(6, 6) == 100
     assert C.win_share_score(0, 0) is None
-    v = C.criteria_value({'j1': {'idea': 10, 'tech': 4}, 'j2': {'idea': 6, 'tech': 6}, 'j3': {'idea': 9}}, {'idea': 2, 'tech': 1})
-    assert abs(v - ((24 / 3 + 18 / 3) / 2)) < 1e-9       # неполная оценка судьи j3 не идёт в счёт
-    assert C.criteria_score(1) == 40 and C.criteria_score(10) == 100 and C.criteria_score(5.5) == 70
+    v = C.criteria_value({'j1': {'idea': 100, 'tech': 40}, 'j2': {'idea': 60, 'tech': 60}, 'j3': {'idea': 90}}, {'idea': 2, 'tech': 1})
+    assert abs(v - ((240 / 3 + 180 / 3) / 2)) < 1e-9     # неполная оценка судьи j3 не идёт в счёт
+    assert C.criteria_score(70) == 70 and C.criteria_score(86.5) == 87 and C.criteria_score(1) == 1 and C.criteria_score(None) is None
 
 
 def rows(keys):
-    return [C.Row(t, k, None if k is None else round(40 + 60 * k)) for t, k in keys]
+    return [C.Row(t, k, None if k is None else C.win_share_score(k * 100, 100)) for t, k in keys]
 
 
 def test_rank_ties_and_top_work():
@@ -90,7 +91,7 @@ def test_elo():
 
 
 def test_half_up_and_shared_places():
-    assert C.win_share_score(3, 8) == 63 and C.win_share_score(7, 8) == 93     # как ROUND в базе бота
+    assert C.win_share_score(1, 2) == 51 and C.win_share_score(1, 198) == 2      # 50,5 → 51; 1,5 → 2 (половина вверх)
     order = C.apply_tie_breaks(C.rank_rows(rows([('a', .5), ('b', .5), ('c', .5), ('d', .1)])), [])
     assert [r.place for r in order] == [1, 1, 1, 4]
     order = C.apply_tie_breaks(C.rank_rows(rows([('a', .5), ('b', .5), ('c', .5), ('d', .1)])), [({'a', 'b', 'c'}, {'c': 2, 'a': 1, 'b': 1})])

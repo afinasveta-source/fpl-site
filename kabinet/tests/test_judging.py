@@ -115,7 +115,7 @@ def test_pairwise_judging_flow(app, seed, clock):
     assert st['pending'] == 0
     # пары жеребьёвки случайны: сильнейшая (ann) всегда со 100, слабейшая (fay) — с 40, но равные им возможны
     by = {r['name'].split('@')[0]: r for r in st['rows']}
-    assert by['ann']['score'] == 100 and by['fay']['score'] == 40 and st['rows'][0]['score'] == 100
+    assert by['ann']['score'] == 100 and by['fay']['score'] == 1 and st['rows'][0]['score'] == 100
     tops = [r for r in st['rows'] if r['top_work']]
     assert by['ann']['top_work'] and all(r['score'] == 100 for r in tops)   # 20% от 6 = 1 (+ равные на границе)
     if st['border']['status'] == 'tie':
@@ -172,11 +172,15 @@ def test_criteria_by_league_replace_close_decision(app, seed, clock):
     assert len(s['works']) == 2 and codes == ['c1', 'c2']
     w1, w2 = s['works']
     assert js[0][1].post(f"/api/judging/streams/{gold['id']}/works/{w1['id']}", headers=ORIGIN,
-                         json={'scores': {'c1': 9}}).json()['detail'] == 'all_criteria_required'
+                         json={'scores': {'c1': 90}}).json()['detail'] == 'all_criteria_required'
     assert js[0][1].post(f"/api/judging/streams/{gold['id']}/works/{w1['id']}", headers=ORIGIN,
-                         json={'scores': {'c1': 11, 'c2': 5}}).json()['detail'] == 'score_out_of_range'
-    ok(js[0][1].post(f"/api/judging/streams/{gold['id']}/works/{w1['id']}", headers=ORIGIN, json={'scores': {'c1': 9, 'c2': 6}}))
-    ok(js[0][1].post(f"/api/judging/streams/{gold['id']}/works/{w2['id']}", headers=ORIGIN, json={'scores': {'c1': 9, 'c2': 6}}))
+                         json={'scores': {'c1': 101, 'c2': 50}}).json()['detail'] == 'score_out_of_range'
+    assert js[0][1].post(f"/api/judging/streams/{gold['id']}/works/{w1['id']}", headers=ORIGIN,
+                         json={'scores': {'c1': 0, 'c2': 50}}).json()['detail'] == 'score_out_of_range'
+    assert js[0][1].post(f"/api/judging/streams/{gold['id']}/works/{w1['id']}", headers=ORIGIN,
+                         json={'scores': {'c1': 7.5, 'c2': 50}}).status_code == 422          # только целые
+    ok(js[0][1].post(f"/api/judging/streams/{gold['id']}/works/{w1['id']}", headers=ORIGIN, json={'scores': {'c1': 90, 'c2': 60}}))
+    ok(js[0][1].post(f"/api/judging/streams/{gold['id']}/works/{w2['id']}", headers=ORIGIN, json={'scores': {'c1': 90, 'c2': 60}}))
     # второй судья gold пропал — замена: новый судья доделывает
     new = str(seed('judge9@example.com', ('judge',)))
     jn = login_only(app, 'judge9@example.com')
@@ -185,17 +189,17 @@ def test_criteria_by_league_replace_close_decision(app, seed, clock):
     assert js[1][1].get(f"/api/judging/streams/{gold['id']}").status_code == 404
     s = ok(jn.get(f"/api/judging/streams/{gold['id']}"))
     for w in s['works']:
-        ok(jn.post(f"/api/judging/streams/{gold['id']}/works/{w['id']}", headers=ORIGIN, json={'scores': {'c1': 7, 'c2': 7}}))
+        ok(jn.post(f"/api/judging/streams/{gold['id']}/works/{w['id']}", headers=ORIGIN, json={'scores': {'c1': 70, 'c2': 70}}))
     # silver: судья оценил одну работу из двух — организатор закрывает недостающее? (критерии — нельзя закрыть,
     # поэтому дооцениваем)
     s = ok(js[2][1].get(f"/api/judging/streams/{silver['id']}"))
-    ok(js[2][1].post(f"/api/judging/streams/{silver['id']}/works/{s['works'][0]['id']}", headers=ORIGIN, json={'scores': {'c1': 10, 'c2': 10}}))
+    ok(js[2][1].post(f"/api/judging/streams/{silver['id']}/works/{s['works'][0]['id']}", headers=ORIGIN, json={'scores': {'c1': 100, 'c2': 100}}))
     view = ok(c.get(url))
     assert 'votes_pending' in view['publish_problems']
-    ok(js[2][1].post(f"/api/judging/streams/{silver['id']}/works/{s['works'][1]['id']}", headers=ORIGIN, json={'scores': {'c1': 5, 'c2': 2}}))
+    ok(js[2][1].post(f"/api/judging/streams/{silver['id']}/works/{s['works'][1]['id']}", headers=ORIGIN, json={'scores': {'c1': 50, 'c2': 20}}))
     view = ok(c.get(url))
     gold = next(x for x in view['streams'] if x['league'] == 'gold')
-    # в gold обе работы равны (9/6 и 7/7 → у обеих (2·9+6)/3=8 и 7 → среднее 7.5) — граница не разведена
+    # в gold обе работы равны (90/60 и 70/70 → у обеих (2·90+60)/3=80 и 70 → среднее 75) — граница не разведена
     assert gold['border']['status'] == 'tie' and 'border_tie' in view['publish_problems']
     a, b = gold['border']['tied']
     assert c.post(f"/api/org/judging/streams/{gold['id']}/decision", headers=ORIGIN,
@@ -207,7 +211,7 @@ def test_criteria_by_league_replace_close_decision(app, seed, clock):
     assert view['publish_problems'] == []
     view = ok(c.post(f'/api/org/rounds/{rounds[0]}/judging/publish', headers=ORIGIN))
     silver_rows = next(x for x in view['streams'] if x['league'] == 'silver')['rows']
-    assert [r['score'] for r in silver_rows] == [100, round(40 + 60 * (4 - 1) / 9)]
+    assert [r['score'] for r in silver_rows] == [100, 40]          # (2·50+20)/3 = 40 — шкала 1–100 без пересчёта
     # рейтинг: пул из 2 работ меньше 3 — рейтинг не меняется
     assert ok(people['cat'].get(f'/api/games/{eid}'))['rounds'][0]['result']['rating'] is None
     with app.state.db.transaction() as conn:

@@ -22,7 +22,7 @@ from kabinet.judging import routes as judging_routes
 from kabinet.org import participants as org_participants, support as org_support, home as org_home
 
 # Версия схемы базы (server/db/schema), под которую написан кабинет. Новее — можно, старее — нельзя.
-SCHEMA_REQUIRED = 6
+SCHEMA_REQUIRED = 7
 CSP = ("default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data: blob:; "
        "connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'")
 

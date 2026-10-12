@@ -405,7 +405,7 @@ def vote(comparison_id: UUID, body: Vote, request: Request, user=Depends(browser
 
 class Scores(BaseModel):
     model_config = ConfigDict(extra='forbid')
-    scores: dict[str, float] = Field(min_length=1, max_length=6)
+    scores: dict[str, int] = Field(min_length=1, max_length=6)   # целые 1–100 (дробные и бесконечность — 422)
 
 
 @judge.post('/streams/{stream_id}/works/{target_id}', dependencies=WRITE)

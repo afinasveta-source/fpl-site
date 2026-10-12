@@ -56,8 +56,8 @@
     var c = d.config, ch = d.checks;
     var h = '<form class="card" id="f-jcfg" novalidate><h2>Настройка</h2>' +
       '<fieldset class="stack" data-s="g6"><legend>Способ оценки</legend>' +
-      '<label class="chk"><input type="radio" name="method" value="pairwise"' + (c.method === 'pairwise' ? ' checked' : '') + '> <span>Сравнение пар: судья выбирает сильнейшую из двух работ. Балл = 40 + 60 × доля побед.</span></label>' +
-      '<label class="chk"><input type="radio" name="method" value="criteria"' + (c.method === 'criteria' ? ' checked' : '') + '> <span>Оценки по критериям 1–10: среднее с весами, затем среднее по судьям; 1 → 40, 10 → 100.</span></label></fieldset>' +
+      '<label class="chk"><input type="radio" name="method" value="pairwise"' + (c.method === 'pairwise' ? ' checked' : '') + '> <span>Сравнение пар: судья выбирает сильнейшую из двух работ. Балл = 1 + 99 × доля побед (шкала 1–100).</span></label>' +
+      '<label class="chk"><input type="radio" name="method" value="criteria"' + (c.method === 'criteria' ? ' checked' : '') + '> <span>Оценки по критериям 1–100: среднее с весами критериев, затем среднее по судьям — это и есть балл.</span></label></fieldset>' +
       '<div class="jm-pair"' + (c.method === 'pairwise' ? '' : ' hidden') + '>' + O.sel('j-per', 'Сравнений на работу у каждого судьи', [[2, '2'], [4, '4'], [6, '6']], c.per_target) + '</div>' +
       '<div class="jm-crit"' + (c.method === 'criteria' ? '' : ' hidden') + '><h3>Критерии</h3><div class="stack" id="crit-rows">' +
       (c.criteria.length ? c.criteria : [{ label: '', weight: 1 }]).map(critRow).join('') + '</div>' +

@@ -143,10 +143,11 @@ VALUES (%s,%s,%s,'individual',%s,%s,%s,%s,%s,%s,%s) RETURNING *''', (
             event['id'], rnd['id'], key or 'all', method, event['affects_rating'],
             cfg['per_target'] if method == 'pairwise' else None,
             G.Jsonb({'quota': cfg['quota'].get(key or 'all'), 'tie_breaks': [], 'admin_decisions': []}),
-            key, rnd['judging_deadline'], 'win_share_v1' if method == 'pairwise' else 'criteria_mean_v1')).fetchone()
+            key, rnd['judging_deadline'], 'win_share_100_v1' if method == 'pairwise' else 'criteria_mean_100_v1')).fetchone()
         for i, c in enumerate(cfg['criteria'] if method == 'criteria' else []):
             conn.execute('''INSERT INTO evaluation_criteria(evaluation_stream_id,code,label_i18n,weight,min_score,max_score,sort_order)
-VALUES (%s,%s,%s,%s,1,10,%s)''', (st['id'], c['code'], G.Jsonb({'ru': c['label']}), c['weight'], i))
+VALUES (%s,%s,%s,%s,%s,%s,%s)''', (st['id'], c['code'], G.Jsonb({'ru': c['label']}), c['weight'], C.CRITERIA_MIN,
+                                               C.CRITERIA_MAX, i))
         slots = []
         for no, user_id in enumerate(cfg['judges'].get(key or 'all') or [], 1):
             slot = conn.execute('INSERT INTO evaluation_judge_slots(evaluation_stream_id,slot_no) VALUES (%s,%s) RETURNING id',
@@ -427,7 +428,7 @@ AND judge_assignment_id<>%s LIMIT 1''', (a['judge_slot_id'], target_id, a['id'])
         raise HTTPException(404, 'Not found')
     for code, v in values.items():
         c = codes[code]
-        if not (float(c['min_score']) <= v <= float(c['max_score'])):
+        if v != int(v) or not (float(c['min_score']) <= v <= float(c['max_score'])):   # целые 1–100
             raise problem('score_out_of_range')
         conn.execute('''UPDATE criterion_scores SET status='void' WHERE judge_slot_id=%s AND evaluation_target_id=%s
 AND criterion_id=%s AND status='valid' ''', (a['judge_slot_id'], target_id, c['id']))

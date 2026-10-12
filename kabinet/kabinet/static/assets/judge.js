@@ -5,7 +5,7 @@
   var J = {};
   var LEAGUE = { bronze: 'Bronze', silver: 'Silver', gold: 'Gold' };
   var TEXT = { judging_closed: 'Итоги тура уже опубликованы — оценки не меняются.', regular_locked: 'Идёт переголосование — основные голоса уже не меняются.',
-    all_criteria_required: 'Поставьте оценку по каждому критерию.', score_out_of_range: 'Оценка — от 1 до 10.' };
+    all_criteria_required: 'Поставьте оценку по каждому критерию.', score_out_of_range: 'Оценка — целое число от 1 до 100.' };
   var err = function (r) { return TEXT[r.detail] || K.errorText(r); };
   function poolName(s) { return s.league ? 'Лига ' + LEAGUE[s.league] : 'Общий пул'; }
   function bar(done, total) {
@@ -111,9 +111,9 @@
     return '<form class="card jform" id="f-score" data-id="' + w.id + '" novalidate><div class="between"><h2>Работа № ' + w.no + '</h2>' + (isNext ? pill('Следующая', 'acc') : '') + '</div>' +
       '<div class="jphotos">' + photos(w.photos, 'Работа № ' + w.no) + '</div><div class="grid3">' + s.criteria.map(function (c) {
         var v = w.scores[c.code];
-        return '<div class="field"><label for="sc-' + c.code + '">' + esc(c.label) + '</label><select class="input" id="sc-' + c.code + '" data-code="' + c.code + '"><option value="">—</option>' +
-          [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(function (n) { return '<option value="' + n + '"' + (v === n ? ' selected' : '') + '>' + n + '</option>'; }).join('') + '</select></div>';
-      }).join('') + '</div><p class="small muted">Оценка от 1 до 10 по каждому критерию.</p><p class="form-err" role="alert" tabindex="-1" hidden></p>' +
+        return '<div class="field"><label for="sc-' + c.code + '">' + esc(c.label) + '</label><input class="input" id="sc-' + c.code + '" data-code="' + c.code +
+          '" type="number" inputmode="numeric" min="1" max="100" step="1" value="' + (v == null ? '' : esc(v)) + '"></div>';
+      }).join('') + '</div><p class="small muted">Оценка от 1 до 100 по каждому критерию, целым числом.</p><p class="form-err" role="alert" tabindex="-1" hidden></p>' +
       '<button class="btn" type="submit"' + (s.open && !s.locked_regular ? '' : ' disabled') + '>Сохранить оценку</button></form>';
   }
   function bindForm(s) {
@@ -122,10 +122,11 @@
     f.addEventListener('submit', function (e) {
       e.preventDefault();
       var scores = {}, missing = false;
-      Array.prototype.forEach.call(f.querySelectorAll('select[data-code]'), function (sel) {
-        if (!sel.value) missing = true; else scores[sel.getAttribute('data-code')] = +sel.value;
+      Array.prototype.forEach.call(f.querySelectorAll('input[data-code]'), function (inp) {
+        var t = inp.value.trim(), n = +t;
+        if (!/^\d{1,3}$/.test(t) || n < 1 || n > 100) missing = true; else scores[inp.getAttribute('data-code')] = n;
       });
-      if (missing) { K.formError(f, 'Поставьте оценку по каждому критерию.'); return; }
+      if (missing) { K.formError(f, 'Поставьте оценку по каждому критерию — целое число от 1 до 100.'); return; }
       K.formError(f, ''); K.busy(f, true);
       K.api('POST', '/api/judging/streams/' + s.id + '/works/' + f.getAttribute('data-id'), { scores: scores }).then(function (r) {
         K.busy(f, false);

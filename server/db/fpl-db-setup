@@ -51,14 +51,16 @@ step() { # $1 = версия, $2 = файл
 S1="$SRC/schema/001_initial_mvp_schema.sql"; S2="$SRC/schema/002_auth.sql"
 S3="$SRC/schema/003_league_rules.sql"; S4="$SRC/schema/004_rewards_groups.sql"
 S5="$SRC/schema/005_participant_cabinet.sql"; S6="$SRC/schema/006_organizer_cabinet.sql"
+S7="$SRC/schema/007_judging_scale.sql"
 case "$current" in
-  "")  step 001 "$S1"; step 002 "$S2"; step 003 "$S3"; step 004 "$S4"; step 005 "$S5"; step 006 "$S6" ;;
-  001) step 002 "$S2"; step 003 "$S3"; step 004 "$S4"; step 005 "$S5"; step 006 "$S6" ;;
-  002) step 003 "$S3"; step 004 "$S4"; step 005 "$S5"; step 006 "$S6" ;;
-  003) step 004 "$S4"; step 005 "$S5"; step 006 "$S6" ;;
-  004) step 005 "$S5"; step 006 "$S6" ;;
-  005) step 006 "$S6" ;;
-  006) echo "схема: уже 006" ;;
+  "")  step 001 "$S1"; step 002 "$S2"; step 003 "$S3"; step 004 "$S4"; step 005 "$S5"; step 006 "$S6"; step 007 "$S7" ;;
+  001) step 002 "$S2"; step 003 "$S3"; step 004 "$S4"; step 005 "$S5"; step 006 "$S6"; step 007 "$S7" ;;
+  002) step 003 "$S3"; step 004 "$S4"; step 005 "$S5"; step 006 "$S6"; step 007 "$S7" ;;
+  003) step 004 "$S4"; step 005 "$S5"; step 006 "$S6"; step 007 "$S7" ;;
+  004) step 005 "$S5"; step 006 "$S6"; step 007 "$S7" ;;
+  005) step 006 "$S6"; step 007 "$S7" ;;
+  006) step 007 "$S7" ;;
+  007) echo "схема: уже 007" ;;
   *)   echo "схема: версия $current новее этого пакета — не трогаю" ;;
 esac
 app -f "$SRC/site_views.sql"
