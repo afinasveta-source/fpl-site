@@ -1,0 +1,178 @@
+#!/bin/bash
+# fpl-kabinet-setup: кабинет FPL на этом сервере (закрытый адрес https://<домен>/kabinet/). Повторный запуск безопасен.
+#  - системный пользователь fplkab без входа; код в /opt/fpl/kabinet/code, Python-окружение в /opt/fpl/kabinet/venv;
+#  - своя роль базы fpl_kabinet: только чтение и запись данных (SELECT/INSERT/UPDATE/DELETE), без права менять таблицы;
+#  - настройки в /etc/fpl-kabinet.env (пароль роли генерируется здесь; ключ первого администратора — sha256 ключа приёмника);
+#  - служба systemd fpl-kabinet на 127.0.0.1:8100; nginx отдаёт её по адресу /kabinet/ (с проверкой конфигурации и откатом);
+#  - итог проверки пишется в /var/lib/fpl/kabinet-status (попадает в /data/server-status.json).
+# Аргумент: папка с кодом из пакета (по умолчанию /opt/fpl/kabinet-src). Сайт и база от сбоя кабинета не зависят.
+set -euo pipefail
+SRC=${1:-/opt/fpl/kabinet-src}
+APP=/opt/fpl/kabinet
+STATUS=/var/lib/fpl/kabinet-status
+PORT=8100
+mkdir -p /var/lib/fpl
+fail() { echo "error $(date -u +%Y-%m-%dT%H:%M:%SZ) line $1" > "$STATUS"; }
+trap 'fail $LINENO' ERR
+export DEBIAN_FRONTEND=noninteractive
+
+. /etc/fpl.env
+DOMAIN=${DOMAIN:-facepaintingleague.com}
+. /etc/fpl-db.env
+
+# 1. Пользователь и Python
+id fplkab >/dev/null 2>&1 || useradd --system --home-dir /nonexistent --no-create-home --shell /usr/sbin/nologin fplkab
+python3 -c 'import ensurepip, venv' 2>/dev/null || {
+  apt-get -o DPkg::Lock::Timeout=600 update -q
+  apt-get -o DPkg::Lock::Timeout=600 install -y -q python3-venv
+}
+mkdir -p "$APP"
+PYVER=$(python3 -c 'import sys; print("%d.%d" % sys.version_info[:2])')
+if [ ! -x "$APP/venv/bin/python" ] || [ "$(cat "$APP/venv/.pyver" 2>/dev/null)" != "$PYVER" ]; then
+  rm -rf "$APP/venv"
+  python3 -m venv "$APP/venv"
+  echo "$PYVER" > "$APP/venv/.pyver"
+fi
+REQ_SHA=$(sha256sum "$SRC/requirements.txt" | cut -d' ' -f1)
+if [ "$(cat "$APP/venv/.req" 2>/dev/null)" != "$REQ_SHA" ]; then
+  "$APP/venv/bin/pip" install -q --disable-pip-version-check --no-input -r "$SRC/requirements.txt"
+  echo "$REQ_SHA" > "$APP/venv/.req"
+  echo "кабинет: зависимости установлены"
+fi
+
+# 2. Код: новая версия рядом, затем подмена одним шагом
+NEW_SHA=$(cd "$SRC" && find kabinet requirements.txt -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -d' ' -f1)
+CHANGED=0
+if [ "$(cat "$APP/code/.sha" 2>/dev/null)" != "$NEW_SHA" ]; then
+  rm -rf "$APP/code.new"
+  mkdir -p "$APP/code.new"
+  cp -r "$SRC/kabinet" "$SRC/requirements.txt" "$APP/code.new/"
+  echo "$NEW_SHA" > "$APP/code.new/.sha"
+  chown -R root:root "$APP/code.new" && chmod -R go-w "$APP/code.new"
+  rm -rf "$APP/code.old"; [ -d "$APP/code" ] && mv "$APP/code" "$APP/code.old"
+  mv "$APP/code.new" "$APP/code"
+  CHANGED=1
+fi
+
+# 3. Роль базы: только данные
+PWF=/etc/fpl-kabinet-db.pw
+[ -s "$PWF" ] || ( umask 077; openssl rand -hex 24 > "$PWF" )
+KPW=$(cat "$PWF")
+pg() { su postgres -c "psql -v ON_ERROR_STOP=1 -d $FPL_DB_NAME -tAq $*"; }
+if [ "$(pg "-c \"SELECT 1 FROM pg_roles WHERE rolname='fpl_kabinet'\"")" != "1" ]; then
+  pg "-c \"CREATE ROLE fpl_kabinet LOGIN PASSWORD '$KPW'\""
+else
+  pg "-c \"ALTER ROLE fpl_kabinet LOGIN PASSWORD '$KPW'\""
+fi
+pg "-c \"GRANT CONNECT ON DATABASE $FPL_DB_NAME TO fpl_kabinet; GRANT USAGE ON SCHEMA public TO fpl_kabinet; GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO fpl_kabinet; GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO fpl_kabinet; ALTER DEFAULT PRIVILEGES FOR ROLE $FPL_DB_USER IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO fpl_kabinet; ALTER DEFAULT PRIVILEGES FOR ROLE $FPL_DB_USER IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO fpl_kabinet\""
+
+# 4. Настройки службы
+KEY_SHA=""
+if [ -s /etc/fpl-ingest.env ]; then
+  KEY=$(sed -n 's/^FPL_INGEST_KEY=//p' /etc/fpl-ingest.env | tail -1)
+  [ -n "$KEY" ] && KEY_SHA=$(printf '%s' "$KEY" | sha256sum | cut -d' ' -f1)
+fi
+TMP=$(mktemp)
+{
+  echo "FPL_ENVIRONMENT=PROD"
+  echo "FPL_DATABASE_DSN=postgresql://fpl_kabinet:$KPW@127.0.0.1:5432/$FPL_DB_NAME"
+  echo "FPL_MAIL_MODE=disabled"
+  echo "FPL_FRONTEND_URL=https://$DOMAIN/kabinet"
+  echo "FPL_ROOT_PATH=/kabinet"
+  [ -n "$KEY_SHA" ] && echo "FPL_SETUP_KEY_SHA256=$KEY_SHA"
+} > "$TMP"
+if ! cmp -s "$TMP" /etc/fpl-kabinet.env; then
+  install -m 0640 -o root -g fplkab "$TMP" /etc/fpl-kabinet.env
+  CHANGED=1
+fi
+rm -f "$TMP"
+
+# 5. Служба
+UNIT=/etc/systemd/system/fpl-kabinet.service
+TMP=$(mktemp)
+cat > "$TMP" <<EOF
+[Unit]
+Description=FPL kabinet (личные кабинеты)
+After=network.target postgresql.service
+
+[Service]
+User=fplkab
+Group=fplkab
+EnvironmentFile=/etc/fpl-kabinet.env
+WorkingDirectory=$APP/code
+ExecStart=$APP/venv/bin/uvicorn kabinet.main:create_app --factory --host 127.0.0.1 --port $PORT --proxy-headers --forwarded-allow-ips 127.0.0.1 --no-access-log --workers 1
+Restart=always
+RestartSec=3
+MemoryMax=350M
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+
+[Install]
+WantedBy=multi-user.target
+EOF
+if ! cmp -s "$TMP" "$UNIT"; then install -m 0644 "$TMP" "$UNIT"; systemctl daemon-reload; CHANGED=1; fi
+rm -f "$TMP"
+systemctl enable fpl-kabinet >/dev/null 2>&1
+if [ "$CHANGED" = 1 ] || ! systemctl is-active --quiet fpl-kabinet; then systemctl restart fpl-kabinet; fi
+
+# 6. nginx: /kabinet/ → служба (во всех блоках server сайта; проверка и откат)
+SN=/etc/nginx/snippets/fpl-kabinet.conf
+mkdir -p /etc/nginx/snippets
+cat > "$SN.tmp" <<EOF
+# Кабинет FPL (fpl-kabinet-setup)
+location = /kabinet { return 301 /kabinet/; }
+location /kabinet/ {
+  proxy_pass http://127.0.0.1:$PORT/;
+  proxy_set_header Host \$host;
+  proxy_set_header X-Forwarded-For \$remote_addr;
+  proxy_set_header X-Forwarded-Proto \$scheme;
+  proxy_read_timeout 60s;
+  client_max_body_size 12m;
+}
+EOF
+NG=/etc/nginx/sites-available/fpl
+if [ -f "$NG" ]; then
+  cp "$NG" "$NG.bak-kabinet"
+  [ -f "$SN" ] && cp "$SN" "$SN.bak" || true
+  mv "$SN.tmp" "$SN"
+  if ! grep -q 'snippets/fpl-kabinet.conf' "$NG"; then
+    # перед error_page 404 — это строка верхнего уровня блока server (в каждом блоке сайта, включая HTTPS от certbot)
+    if grep -q 'error_page 404' "$NG"; then
+      sed -i '/error_page 404/i\  include snippets/fpl-kabinet.conf;' "$NG"
+    else
+      sed -i '/location \/api\/ .*}\s*$/a\  include snippets/fpl-kabinet.conf;' "$NG"
+    fi
+  fi
+  if nginx -t >/dev/null 2>&1; then
+    systemctl reload nginx
+  else
+    cp "$NG.bak-kabinet" "$NG"; [ -f "$SN.bak" ] && cp "$SN.bak" "$SN" || rm -f "$SN"
+    nginx -t >/dev/null 2>&1 && systemctl reload nginx || true
+    echo "error $(date -u +%Y-%m-%dT%H:%M:%SZ) nginx config rejected, rolled back" > "$STATUS"
+    exit 0
+  fi
+else
+  rm -f "$SN.tmp"
+fi
+
+# 7. Проверка: служба отвечает и видит нужную схему базы
+ok=""
+for i in $(seq 1 20); do
+  r=$(curl -s --max-time 3 "http://127.0.0.1:$PORT/ready" || true)
+  case "$r" in *'"ready"'*) ok="$r"; break ;; esac
+  sleep 1
+done
+if [ -n "$ok" ]; then
+  schema=$(printf '%s' "$ok" | sed -n 's/.*"schema":"\([0-9]*\)".*/\1/p')
+  echo "ok $(date -u +%Y-%m-%dT%H:%M:%SZ) schema $schema python $PYVER" > "$STATUS"
+  echo "кабинет: работает (схема $schema)"
+else
+  echo "error $(date -u +%Y-%m-%dT%H:%M:%SZ) not ready" > "$STATUS"
+  echo "кабинет: служба не ответила"
+fi

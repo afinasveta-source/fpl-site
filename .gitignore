@@ -8,3 +8,6 @@ server/ops/fpl-ingest.py
 server/ops/fpl-photo-archive.py
 server/ops/db/
 server/ops/fpl_s3.py
+server/ops/fpl-kabinet-setup
+server/ops/kabinet-src/
+.pytest_cache/

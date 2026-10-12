@@ -1,0 +1,83 @@
+"""Кабинет Face Painting League: приложение FastAPI."""
+import psycopg
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
+
+from kabinet.config import Settings
+from kabinet.db import Database
+from kabinet.auth.mail import DisabledMailer, MemoryMailer, SMTPMailer
+from kabinet.auth.service import AuthService
+from kabinet.auth.routes import router as auth_router
+from kabinet.users.routes import router as users_router
+from kabinet.web.routes import router as web_router, STATIC
+
+# Версия схемы базы (server/db/schema), под которую написан кабинет. Новее — можно, старее — нельзя.
+SCHEMA_REQUIRED = 4
+CSP = ("default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data: blob:; "
+       "connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'")
+
+
+def schema_version(conn):
+    row = conn.execute('SELECT version_num FROM alembic_version').fetchone()
+    return int(row['version_num']) if row and str(row['version_num']).isdigit() else None
+
+
+def create_app(settings=None, mailer=None):
+    settings = settings or Settings()
+    if settings.environment == 'PROD' and mailer is not None:
+        raise ValueError('Mailer injection is only allowed in TEST')
+    if mailer is None:
+        mailer = {'memory': MemoryMailer, 'disabled': DisabledMailer}.get(settings.mail_mode)
+        mailer = mailer() if mailer else SMTPMailer(settings)
+    test = settings.environment == 'TEST'
+    app = FastAPI(title='Кабинет FPL', version='0.1.0', root_path=settings.root_path,
+                  docs_url='/docs' if test else None, redoc_url=None,
+                  openapi_url='/openapi.json' if test else None)
+    app.state.settings = settings
+    app.state.db = Database(settings)
+    app.state.mailer = mailer
+    app.state.auth = AuthService(app.state.db, settings, mailer)
+
+    @app.middleware('http')
+    async def security_headers(request: Request, call_next):
+        response = await call_next(request)
+        if '/assets/' not in request.url.path:
+            response.headers['Cache-Control'] = 'no-store'
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['Referrer-Policy'] = 'no-referrer'
+        response.headers['X-Robots-Tag'] = 'noindex, nofollow'
+        response.headers['Content-Security-Policy'] = CSP if not request.url.path.endswith('/docs') else "frame-ancestors 'none'"
+        return response
+
+    @app.exception_handler(RequestValidationError)
+    async def validation_error(request, exc):
+        # Ответ об ошибке не повторяет введённое: пароли и токены не должны попадать в ответы.
+        errors = [{k: e[k] for k in ('loc', 'msg', 'type')} for e in exc.errors()]
+        return JSONResponse(status_code=422, content={'detail': errors})
+
+    @app.exception_handler(psycopg.IntegrityError)
+    async def integrity_error(request, exc):
+        return JSONResponse(status_code=409, content={'detail': 'Data conflicts with existing records'})
+
+    @app.get('/health')
+    def health():
+        return {'status': 'ok', 'environment': settings.environment}
+
+    @app.get('/ready')
+    def ready():
+        try:
+            with app.state.db.transaction() as conn:
+                version = schema_version(conn)
+            if version is None or version < SCHEMA_REQUIRED:
+                raise ValueError('Migration required')
+        except (psycopg.Error, ValueError):
+            return JSONResponse(status_code=503, content={'status': 'not_ready'})
+        return {'status': 'ready', 'schema': '%03d' % version}
+
+    app.include_router(auth_router)
+    app.include_router(users_router)
+    app.include_router(web_router)
+    app.mount('/assets', StaticFiles(directory=str(STATIC / 'assets')), name='assets')
+    return app

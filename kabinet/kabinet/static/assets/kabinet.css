@@ -1,0 +1,9 @@
+/* Кабинет: дополнения к стилям прототипа (этап 1) */
+.form-err{color:var(--bad);font-weight:600;font-size:14px;margin:0}
+.form-err:focus{outline:none}
+.roles{gap:6px;flex-wrap:wrap}
+form.card .btn{justify-self:start}
+form.card .lnk{justify-self:start}
+.toast[hidden]{display:none}
+@media (max-width:760px){form.card .btn{justify-self:stretch}}
+html{background:var(--bg)}
