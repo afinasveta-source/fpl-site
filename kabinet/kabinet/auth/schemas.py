@@ -35,6 +35,7 @@ class UserView(BaseModel):
     display_name: str | None
     full_name: str | None
     city: str | None = None
+    country_code: str | None = None
     account_status: str
     roles: list[Role]
 

@@ -1,4 +1,6 @@
 """Кабинет Face Painting League: приложение FastAPI."""
+from datetime import datetime, timezone
+
 import psycopg
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -12,9 +14,12 @@ from kabinet.auth.service import AuthService
 from kabinet.auth.routes import router as auth_router
 from kabinet.users.routes import router as users_router
 from kabinet.web.routes import router as web_router, STATIC
+from kabinet.participation.routes import router as participant_router
+from kabinet.participation.account import router as account_router
+from kabinet.participation.media import MediaStore
 
 # Версия схемы базы (server/db/schema), под которую написан кабинет. Новее — можно, старее — нельзя.
-SCHEMA_REQUIRED = 4
+SCHEMA_REQUIRED = 5
 CSP = ("default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data: blob:; "
        "connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'")
 
@@ -24,7 +29,11 @@ def schema_version(conn):
     return int(row['version_num']) if row and str(row['version_num']).isdigit() else None
 
 
-def create_app(settings=None, mailer=None):
+def utc_now():
+    return datetime.now(timezone.utc)
+
+
+def create_app(settings=None, mailer=None, clock=None):
     settings = settings or Settings()
     if settings.environment == 'PROD' and mailer is not None:
         raise ValueError('Mailer injection is only allowed in TEST')
@@ -41,6 +50,10 @@ def create_app(settings=None, mailer=None):
     app.state.db = Database(settings)
     app.state.mailer = mailer
     app.state.auth = AuthService(app.state.db, settings, mailer)
+    if clock is not None and settings.environment == 'PROD':
+        raise ValueError('Clock injection is only allowed in TEST')
+    app.state.clock = clock or utc_now
+    app.state.media = MediaStore(settings.media_dir, settings.media_min_free_mb)
 
     @app.middleware('http')
     async def security_headers(request: Request, call_next):
@@ -81,5 +94,7 @@ def create_app(settings=None, mailer=None):
     app.include_router(auth_router)
     app.include_router(users_router)
     app.include_router(web_router)
+    app.include_router(participant_router)
+    app.include_router(account_router)
     app.mount('/assets', StaticFiles(directory=str(STATIC / 'assets')), name='assets')
     return app

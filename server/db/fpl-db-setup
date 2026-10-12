@@ -2,7 +2,7 @@
 # fpl-db-setup: база PostgreSQL сайта FPL на этом сервере. Повторный запуск безопасен.
 #  - ставит PostgreSQL (только локальные подключения);
 #  - создаёт пользователя fpl_app и базу fpl; пароль генерируется здесь и хранится только в /etc/fpl-db.env (0600);
-#  - применяет схему по порядку 001 → 002 → 003 → 004 и пишет номер в alembic_version (совместимо с backend Codex);
+#  - применяет схему по порядку 001 → 002 → 003 → 004 → 005 и пишет номер в alembic_version (совместимо с backend Codex);
 #  - (пере)создаёт публичный слой site_views.sql.
 # Аргумент: папка со schema/ и site_views.sql (по умолчанию /opt/fpl/db).
 set -euo pipefail
@@ -50,12 +50,14 @@ step() { # $1 = версия, $2 = файл
 }
 S1="$SRC/schema/001_initial_mvp_schema.sql"; S2="$SRC/schema/002_auth.sql"
 S3="$SRC/schema/003_league_rules.sql"; S4="$SRC/schema/004_rewards_groups.sql"
+S5="$SRC/schema/005_participant_cabinet.sql"
 case "$current" in
-  "")  step 001 "$S1"; step 002 "$S2"; step 003 "$S3"; step 004 "$S4" ;;
-  001) step 002 "$S2"; step 003 "$S3"; step 004 "$S4" ;;
-  002) step 003 "$S3"; step 004 "$S4" ;;
-  003) step 004 "$S4" ;;
-  004) echo "схема: уже 004" ;;
+  "")  step 001 "$S1"; step 002 "$S2"; step 003 "$S3"; step 004 "$S4"; step 005 "$S5" ;;
+  001) step 002 "$S2"; step 003 "$S3"; step 004 "$S4"; step 005 "$S5" ;;
+  002) step 003 "$S3"; step 004 "$S4"; step 005 "$S5" ;;
+  003) step 004 "$S4"; step 005 "$S5" ;;
+  004) step 005 "$S5" ;;
+  005) echo "схема: уже 005" ;;
   *)   echo "схема: версия $current новее этого пакета — не трогаю" ;;
 esac
 app -f "$SRC/site_views.sql"

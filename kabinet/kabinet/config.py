@@ -29,6 +29,11 @@ class Settings(BaseSettings):
     rate_window_seconds: int = 900
     # sha256 ключа сервера (ключ приёмника данных); нужен один раз — создать первого администратора.
     setup_key_sha256: str | None = None
+    # Фото работ: папка на сервере (не отдаётся сайтом), лимит загрузок, запас свободного места.
+    media_dir: str = '/var/lib/fpl/kabinet-media'
+    upload_max_mb: int = Field(default=20, ge=1, le=50)
+    upload_limit: int = 60
+    media_min_free_mb: int = 1024
 
     @model_validator(mode='after')
     def guard_environment(self):

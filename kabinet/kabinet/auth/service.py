@@ -11,7 +11,7 @@ def require_admin(conn, actor):
 
 
 def user_view(conn, user):
-    return {k: user[k] for k in ('id', 'email', 'display_name', 'full_name', 'city', 'account_status')} | {
+    return {k: user[k] for k in ('id', 'email', 'display_name', 'full_name', 'city', 'country_code', 'account_status')} | {
         'roles': [r['role'] for r in conn.execute('SELECT role FROM user_roles WHERE user_id=%s ORDER BY role', (user['id'],))]
     }
 
@@ -20,10 +20,11 @@ class AuthService:
     def __init__(self, db, settings, mailer):
         self.db, self.settings, self.mailer = db, settings, mailer
 
-    def throttle(self, action, ip, email=None):
+    def throttle(self, action, ip, email=None, limit=None, by_ip=True):
         s = self.settings
-        limit = s.login_limit if action == 'login' else s.reset_limit
-        keys = [token_hash(f'{action}:ip:{ip}')]
+        if limit is None:
+            limit = s.login_limit if action == 'login' else s.reset_limit
+        keys = [token_hash(f'{action}:ip:{ip}')] if by_ip else []
         if email:
             keys.append(token_hash(f'{action}:email:{email}'))
         # Independent transaction: failed authentication must still consume its quota.

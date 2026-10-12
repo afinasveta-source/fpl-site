@@ -6,6 +6,7 @@
 """
 import os
 import re
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from uuid import uuid4
 
@@ -65,20 +66,48 @@ def database_dsn():
             admin.execute(sql.SQL('DROP DATABASE {} WITH (FORCE)').format(sql.Identifier(name)))
 
 
+MEDIA_DIR = None
+
+
 def make_settings(dsn, **extra):
     import hashlib
+    import tempfile
+    global MEDIA_DIR
+    if MEDIA_DIR is None:
+        MEDIA_DIR = tempfile.mkdtemp(prefix='fpl-media-test-')
     values = dict(environment='TEST', database_dsn=dsn, login_limit=50, reset_limit=50,
-                  setup_key_sha256=hashlib.sha256(SETUP_KEY.encode()).hexdigest(), _env_file=None)
+                  setup_key_sha256=hashlib.sha256(SETUP_KEY.encode()).hexdigest(), _env_file=None,
+                  media_dir=MEDIA_DIR, media_min_free_mb=1)
     values.update(extra)
     return Settings(**values)
 
 
+class Clock:
+    """Управляемое время для проверок сроков: clock.set(...) / clock.shift(hours=...)."""
+    def __init__(self):
+        self.now = datetime(2026, 11, 10, 12, 0, tzinfo=timezone.utc)
+
+    def __call__(self):
+        return self.now
+
+    def set(self, value):
+        self.now = value
+
+    def shift(self, **delta):
+        self.now = self.now + timedelta(**delta)
+
+
 @pytest.fixture
-def app(database_dsn):
+def clock():
+    return Clock()
+
+
+@pytest.fixture
+def app(database_dsn, clock):
     with psycopg.connect(database_dsn) as conn:
-        conn.execute('TRUNCATE users CASCADE')
-        conn.execute('TRUNCATE auth_rate_limits')
-    return create_app(make_settings(database_dsn), MemoryMailer())
+        conn.execute("""TRUNCATE users, events, legal_documents, seasons, auth_rate_limits, notifications, consents,
+media_files, audit_log, system_errors CASCADE""")
+    return create_app(make_settings(database_dsn), MemoryMailer(), clock=clock)
 
 
 @pytest.fixture

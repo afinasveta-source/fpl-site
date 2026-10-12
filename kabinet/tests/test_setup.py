@@ -79,9 +79,9 @@ VALUES ('person@example.com','x',now(),'active')""")
 def test_ready_accepts_newer_schema(client, app):
     with app.state.db.transaction() as conn:
         old = conn.execute('SELECT version_num FROM alembic_version').fetchone()['version_num']
-        conn.execute("UPDATE alembic_version SET version_num='005'")
+        conn.execute("UPDATE alembic_version SET version_num='006'")
     try:
-        assert client.get('/ready').json() == {'status': 'ready', 'schema': '005'}
+        assert client.get('/ready').json() == {'status': 'ready', 'schema': '006'}
     finally:
         with app.state.db.transaction() as conn:
             conn.execute('UPDATE alembic_version SET version_num=%s', (old,))

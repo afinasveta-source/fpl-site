@@ -134,11 +134,27 @@ class ProfileChange(BaseModel):
     display_name: str | None = Field(default=None, max_length=100)
     full_name: str | None = Field(default=None, max_length=200)
     city: str | None = Field(default=None, max_length=120)
+    country_code: str | None = Field(default=None, max_length=2)
 
-    @field_validator('display_name', 'full_name', 'city')
+    @field_validator('display_name', 'full_name', 'city', 'country_code')
     @classmethod
     def trim_optional(cls, value):
         return (value.strip() or None) if value is not None else None
+
+    @field_validator('display_name')
+    @classmethod
+    def public_name(cls, value):
+        # Публичное имя необязательно; заполненное — от 2 до 40 символов.
+        if value is not None and not 2 <= len(value) <= 40:
+            raise ValueError('Public name must be 2 to 40 characters')
+        return value
+
+    @field_validator('country_code')
+    @classmethod
+    def country(cls, value):
+        if value is not None and not (len(value) == 2 and value.isascii() and value.isalpha()):
+            raise ValueError('Country code must be two letters')
+        return value.upper() if value else value
 
     @model_validator(mode='after')
     def supplied_fields(self):
@@ -155,6 +171,12 @@ def update_profile(body: ProfileChange, user=Depends(browser_user), auth=Depends
         if not row:
             raise HTTPException(401, 'Authentication required')
         changes = body.model_dump(exclude_unset=True)
+        if 'full_name' in changes and row['full_name'] and changes['full_name'] != row['full_name']:
+            # ФИО по документам указано в согласиях: участник меняет его через организатора.
+            staff = conn.execute("SELECT 1 FROM user_roles WHERE user_id=%s AND role IN ('admin','moderator')",
+                                 (user['id'],)).fetchone()
+            if not staff:
+                raise HTTPException(403, 'full_name_locked')
         # Пишутся только проверенные поля своего профиля; не переданные — не трогаются.
         assignments = sql.SQL(', ').join(sql.SQL('{}=%s').format(sql.Identifier(key)) for key in changes)
         row = conn.execute(sql.SQL('UPDATE users SET {} WHERE id=%s RETURNING *').format(assignments),
