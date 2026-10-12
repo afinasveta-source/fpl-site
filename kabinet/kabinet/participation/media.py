@@ -17,7 +17,7 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 FORMATS = {'JPEG': ('jpg', 'image/jpeg'), 'PNG': ('png', 'image/png'), 'WEBP': ('webp', 'image/webp')}
 VIEW_PX, THUMB_PX = 1600, 480
 MAX_PIXELS = 120_000_000         # телефоны дают до ~108 Мп; больше — не фото, а попытка перегрузить сервер
-MAX_PIXELS_OTHER = 30_000_000    # PNG и WebP декодируются целиком: держим память службы в пределах
+MAX_PIXELS_OTHER = 12_000_000    # PNG и WebP декодируются целиком: держим память службы в пределах
 Image.MAX_IMAGE_PIXELS = MAX_PIXELS
 
 
@@ -70,6 +70,8 @@ class MediaStore:
             with Image.open(io.BytesIO(data)) as probe:
                 kind = probe.format
                 width, height = probe.size
+                if probe.getexif().get(0x0112) in (5, 6, 7, 8):   # снято «боком»: показываем повёрнутым
+                    width, height = height, width
                 probe.verify()
             if kind not in FORMATS:
                 raise MediaError('unsupported_format')
@@ -77,7 +79,7 @@ class MediaStore:
                 raise MediaError('too_many_pixels')
             with Image.open(io.BytesIO(data)) as img:
                 if kind == 'JPEG':
-                    img.draft('RGB', (VIEW_PX * 2, VIEW_PX * 2))   # декодирование в 1/2–1/8 масштаба
+                    img.draft('RGB', (VIEW_PX, VIEW_PX))   # декодирование сразу в 1/2–1/8 масштаба (по меньшей стороне)
                 img.load()
                 img.thumbnail((VIEW_PX * 2, VIEW_PX * 2))
                 img = ImageOps.exif_transpose(img) or img
@@ -88,7 +90,6 @@ class MediaStore:
         except (UnidentifiedImageError, Image.DecompressionBombError, Image.DecompressionBombWarning, OSError,
                 SyntaxError, ValueError, MemoryError):
             raise MediaError('not_an_image') from None
-        width, height = img.size          # после поворота: пропорции такие, как их видит человек
         if not self.free_ok(len(data) + len(view) + len(thumb)):
             raise MediaError('storage_full')
         digest = hashlib.sha256(data).hexdigest()

@@ -543,7 +543,8 @@
   function saveDraft(photos, link) {
     var stamp = K.route.stamp;
     var p = K.api('PUT', taskUrl() + '/draft', { photos: photos, link: link || null }).then(function (r) {
-      if (r.ok) { T.data = r.data; if (stillHere(stamp)) drawTask(); } else K.toast(K.errorText(r));
+      if (!stillHere(stamp)) return r;   // человек уже на другой странице: её данные не трогаем
+      if (r.ok) { T.data = r.data; drawTask(); } else K.toast(K.errorText(r));
       return r;
     });
     T.pending = p;

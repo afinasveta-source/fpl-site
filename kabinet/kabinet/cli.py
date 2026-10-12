@@ -17,11 +17,17 @@ def sync_late(settings):
     db = Database(settings)
     with db.transaction() as conn:
         events = [r['id'] for r in conn.execute("SELECT id FROM events WHERE status='active'")]
-    moved = 0
+    moved, failed = 0, 0
     for event_id in events:
-        with db.transaction() as conn:   # по Игре — своя транзакция: сбой одной не откатывает другие
-            moved += sync_event(conn, event_id, datetime.now(timezone.utc))
-    print(f'sync-late: games {len(events)}, moved outside {moved}')
+        try:
+            with db.transaction() as conn:   # по Игре — своя транзакция: сбой одной не мешает остальным
+                moved += sync_event(conn, event_id, datetime.now(timezone.utc))
+        except Exception as exc:  # noqa: BLE001 — сверка остальных Игр продолжается, ошибка видна в журнале
+            failed += 1
+            print(f'sync-late: game {event_id} failed: {type(exc).__name__}: {exc}'[:300])
+    print(f'sync-late: games {len(events)}, moved outside {moved}, failed {failed}')
+    if failed:
+        raise SystemExit(1)
 
 
 def main():
