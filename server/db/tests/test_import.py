@@ -34,7 +34,7 @@ def fresh_db():
     su('DROP DATABASE IF EXISTS %s' % TEST_DB)
     su("CREATE DATABASE %s OWNER %s ENCODING 'UTF8' TEMPLATE template0" % (TEST_DB, env['FPL_DB_USER']))
     for f in ('001_initial_mvp_schema.sql', '002_auth.sql', '003_league_rules.sql', '004_rewards_groups.sql',
-              '005_participant_cabinet.sql'):
+              '005_participant_cabinet.sql', '006_organizer_cabinet.sql'):
         body = ''.join(l for l in open(os.path.join(DB_DIR, 'schema', f)) if l.strip() not in ('BEGIN;', 'COMMIT;'))
         with psycopg.connect(DSN) as c:
             c.execute(body)

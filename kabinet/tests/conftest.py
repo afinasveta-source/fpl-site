@@ -106,7 +106,7 @@ def clock():
 def app(database_dsn, clock):
     with psycopg.connect(database_dsn) as conn:
         conn.execute("""TRUNCATE users, events, legal_documents, seasons, auth_rate_limits, notifications, consents,
-media_files, audit_log, system_errors CASCADE""")
+media_files, audit_log, system_errors, feedback_messages CASCADE""")
     return create_app(make_settings(database_dsn), MemoryMailer(), clock=clock)
 
 

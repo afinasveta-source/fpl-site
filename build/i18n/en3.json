@@ -65,7 +65,7 @@
  "Мастер показал диплом FPL? Проверьте номер здесь. На странице результата есть ссылка на профиль мастера с рейтингом и работами из лиги.": "An artist showed you an FPL certificate? Check the number here. The result page links to the artist profile with their rating and League works.",
  "Не нашли диплом?": "Can't find a certificate?",
  "Проверьте номер ещё раз: часто путают 0 и O. Если номер верный, а диплом не находится, напишите нам в бота — разберёмся.": "Check the number again: 0 and O are often mixed up. If the number is correct but the certificate isn't found, message us in the bot and we'll sort it out.",
- "<b>Участникам</b><a href=\"index.html#how\">Как участвовать</a><a aria-current=\"page\" href=\"diploma.html\">Проверка диплома</a><a href=\"rules.html#faq\">Вопросы</a>": "<b>For participants</b><a href=\"index.html#how\">How to join</a><a aria-current=\"page\" href=\"diploma.html\">Certificate check</a><a href=\"rules.html#faq\">FAQ</a>",
+ "<b>Участникам</b><a href=\"index.html#how\">Как участвовать</a><a aria-current=\"page\" href=\"diploma.html\">Проверка диплома</a><a href=\"rules.html#faq\">Вопросы</a><a href=\"feedback.html\">Пожелания лиге</a>": "<b>For participants</b><a href=\"index.html#how\">How to join</a><a aria-current=\"page\" href=\"diploma.html\">Certificate check</a><a href=\"rules.html#faq\">FAQ</a><a href=\"feedback.html\">Ideas &amp; feedback</a>",
  "Правила и вопросы · FPL": "Rules & FAQ · FPL",
  "Правила <span>и вопросы</span>": "Rules <span>& FAQ</span>",
  "Главное из Правил лиги — простыми словами. Полный текст юридически обязателен; если что-то расходится, действует он.": "The key points of the League Rules in plain words. The full text is legally binding; if anything differs, the full text applies.",

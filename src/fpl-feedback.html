@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Пожелания лиге · FPL</title>
+<link rel="stylesheet" href="assets/site.css">
+<style>
+/* =========================================================
+   ПОЖЕЛАНИЯ ЛИГЕ (анонимная обратная связь)
+   ========================================================= */
+.fbhero{padding-top:120px; padding-bottom:48px}
+.fbhero .lead{margin:20px 0 0; font:400 18px/1.6 var(--f-body); color:#CFC7BE; max-width:620px}
+.fbgrid{display:grid; grid-template-columns:minmax(0,1fr) 340px; gap:32px; align-items:start}
+.fbcard{min-width:0; background:#fff; border-radius:12px; padding:36px 40px; max-width:760px}
+.fbfield{margin:0 0 24px}
+.fbfield label{display:block; font:600 11px/1.3 var(--f-body); letter-spacing:.16em; text-transform:uppercase; color:var(--muted); margin-bottom:10px}
+.fbfield label small{font:500 12px/1.3 var(--f-body); letter-spacing:.01em; text-transform:none; color:#8E857D}
+.fbfield textarea,.fbfield input{display:block; width:100%; min-width:0; background:var(--page); border:1px solid #E2DBD2; color:var(--ink); font:500 16px/1.55 var(--f-body)}
+.fbfield textarea{border-radius:16px; padding:16px 18px; min-height:190px; resize:vertical}
+.fbfield input{border-radius:999px; padding:14px 20px}
+.fbfield textarea:hover,.fbfield input:hover{border-color:#CFC5BA}
+.fbfield textarea:focus-visible,.fbfield input:focus-visible{outline:3px solid var(--indigo); outline-offset:2px; border-color:var(--ink); background:#fff}
+.fbfield textarea[aria-invalid="true"]{border-color:#B3261E}
+.fbfoot{display:flex; justify-content:flex-end; margin:8px 2px 0}
+.fbcount{font:500 13px/1.4 var(--f-body); color:var(--muted); font-variant-numeric:tabular-nums}
+.fbcount.is-near{color:var(--accent-text)}
+.fbhint{margin:10px 2px 0; font:500 13px/1.5 var(--f-body); color:var(--muted)}
+.fbtrap{position:absolute; left:-10000px; top:auto; width:1px; height:1px; overflow:hidden}
+.fbcard .btnC{border:0; cursor:pointer; padding:16px 34px}
+.fbcard .btnC:focus-visible{outline:3px solid var(--ink); outline-offset:3px}
+.fbcard .btnC[disabled]{opacity:.6; cursor:progress}
+.fbmsg{margin:20px 0 0; font:500 15px/1.55 var(--f-body); color:#3A342F; border-left:4px solid var(--c,#B3261E); background:#FBF7F3; border-radius:0 10px 10px 0; padding:14px 18px; overflow-wrap:anywhere}
+.fbmsg:empty{margin:0; padding:0; border:0}
+.fbmsg.is-ok{--c:#3FA34D; background:#F1F8EF; font-size:17px; margin-top:0}
+.fbmsg b{display:block; font:500 20px/1.3 var(--f-display); color:var(--ink); margin-bottom:6px}
+.fbmsg a{color:var(--accent-text)}
+.fbagain{margin-top:22px}
+.fbcard [hidden]{display:none!important}
+.fbaside{display:grid; gap:14px}
+.fbnote{background:var(--blush); border-radius:12px; padding:22px 24px; font:500 14px/1.6 var(--f-body); color:#3A342F}
+.fbnote b{display:block; font:500 17px/1.25 var(--f-display); color:var(--ink); margin-bottom:8px}
+.fbnote p{margin:0}
+.fbnote a{display:inline-block; margin-top:10px; color:var(--accent-text); font-weight:600}
+.fbnote a:hover{color:var(--ink)}
+@media (max-width:980px){ .fbgrid{grid-template-columns:minmax(0,1fr)} .fbcard{max-width:none} }
+@media (max-width:640px){
+  .fbhero{padding-top:104px; padding-bottom:28px}
+  .fbhero h1{font-size:clamp(26px,7.4vw,34px)}
+  .fbhero .lead{font-size:15px; line-height:1.5; margin-top:12px; color:#B7AEA5}
+  .fbcard{padding:24px 18px}
+  .fbfield textarea{min-height:170px}
+  .fbcard .btnC{width:100%; justify-content:center}
+  .fbnote{padding:20px}
+}
+
+</style>
+</head>
+<body>
+<main class="wrap glow">
+  <nav class="nav">
+    <a class="logo" href="fpl-site-pro-ink.html" style="text-decoration:none">FPL<small>by MAGFACE</small></a>
+    <a href="fpl-games.html">Игры</a><a href="fpl-rating.html">Рейтинг</a><a href="fpl-gallery.html">Галерея</a><a href="fpl-find.html">Найти мастера</a><a href="fpl-about.html">О лиге</a><a href="fpl-rules.html">Правила</a>
+    <div class="lang-dd"><button type="button" class="lang-cur" aria-haspopup="true" aria-expanded="false" aria-label="Язык сайта"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.8 2.6 15.2 0 18M12 3c-2.6 2.8-2.6 15.2 0 18"/></g></svg><span data-lang-label>RU</span><svg viewBox="0 0 10 6" width="9" height="6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button><ul class="lang-list" hidden><li><button type="button" data-lang="ru" data-short="RU" class="on" aria-current="true">Русский</button></li><li><button type="button" data-lang="en" data-short="EN">English</button></li><li><button type="button" data-lang="de" data-short="DE">Deutsch</button></li><li><button type="button" data-lang="es" data-short="ES">Español</button></li><li><button type="button" data-lang="fr" data-short="FR">Français</button></li><li><button type="button" data-lang="zh" data-short="中文">中文</button></li><li><button type="button" data-lang="ja" data-short="日本語">日本語</button></li></ul></div>
+    <button class="btn-outline" style="border-color:var(--indigo); color:var(--indigo); letter-spacing:.08em">Участвовать</button>
+    <button class="burger" type="button" aria-label="Открыть меню" aria-controls="mmenu" aria-expanded="false" data-menu-open><span></span><span></span></button>
+  </nav>
+  <!-- ПОЖЕЛАНИЯ -->
+  <section class="heroC fbhero" aria-labelledby="fbtitle">
+    <span class="eyebrow">Обратная связь</span>
+    <h1 id="fbtitle">Пожелания <span>лиге</span></h1>
+    <p class="lead">Что улучшить в Играх, заданиях, судействе или на сайте? Напишите — анонимно, без входа в кабинет.</p>
+  </section>
+
+  <div class="fbgrid">
+    <div class="fbcard">
+      <form id="fbForm" novalidate>
+        <div class="fbfield">
+          <label for="fbText">Ваше пожелание</label>
+          <textarea id="fbText" name="text" rows="7" maxlength="2000" required aria-describedby="fbCount"></textarea>
+          <div class="fbfoot"><span class="fbcount" id="fbCount">0 / 2000</span></div>
+        </div>
+        <div class="fbfield">
+          <label for="fbContact">Как с вами связаться <small>(необязательно)</small></label>
+          <input id="fbContact" name="contact" type="text" maxlength="200" autocomplete="off" spellcheck="false" aria-describedby="fbContactHint">
+          <p class="fbhint" id="fbContactHint">Telegram, email или телефон — только если хотите, чтобы мы ответили.</p>
+        </div>
+        <div class="fbtrap" aria-hidden="true">
+          <label for="fbWebsite">Не заполняйте это поле</label>
+          <input id="fbWebsite" name="website" type="text" tabindex="-1" autocomplete="off">
+        </div>
+        <button class="btnC" type="submit" id="fbSend">Отправить</button>
+      </form>
+      <div class="fbmsg" id="fbMsg" role="status" aria-live="polite"></div>
+      <button class="btnC fbagain" type="button" id="fbAgain" hidden>Написать ещё</button>
+    </div>
+
+    <aside class="fbaside">
+      <div class="fbnote">
+        <b>Анонимно</b>
+        <p>Сообщение анонимное: оно хранится без IP-адреса и без связи с аккаунтом — мы не знаем, кто его отправил. Контакт видят только организаторы лиги и используют его лишь для ответа.</p>
+        <a href="fpl-privacy.html">Политика конфиденциальности →</a>
+      </div>
+      <div class="fbnote">
+        <b>Личный вопрос?</b>
+        <p>Вопрос по вашей Игре или работе? Удобнее написать в поддержку в личном кабинете.</p>
+        <a href="/kabinet/">Открыть кабинет →</a>
+      </div>
+    </aside>
+  </div>
+<script>
+(function(){
+  var form=document.getElementById('fbForm'); if(!form) return;
+  var T={
+    empty:'Напишите пожелание — поле пока пустое.',
+    sending:'Отправляем…', send:'Отправить',
+    okTitle:'Спасибо! Сообщение получено.', okText:'Организаторы читают все пожелания.',
+    limit:'Слишком много сообщений подряд. Попробуйте через час.',
+    invalid:'Проверьте текст: от 1 до 2000 символов.',
+    fail:'Не получилось отправить. Попробуйте позже или напишите на '
+  };
+  var MAIL='info@maskarad-grim.ru', MAX=2000;
+  var text=document.getElementById('fbText'), contact=document.getElementById('fbContact'), trap=document.getElementById('fbWebsite');
+  var count=document.getElementById('fbCount'), send=document.getElementById('fbSend'), msg=document.getElementById('fbMsg'), again=document.getElementById('fbAgain');
+  function counter(){ var n=text.value.length; count.textContent=n+' / '+MAX; count.classList.toggle('is-near',n>MAX*0.9); }
+  function say(kind,t){
+    msg.className='fbmsg'+(kind==='ok'?' is-ok':''); msg.textContent='';
+    if(kind==='ok'){ var b=document.createElement('b'); b.textContent=T.okTitle; msg.appendChild(b); msg.appendChild(document.createTextNode(T.okText)); }
+    else if(kind==='fail'){ msg.appendChild(document.createTextNode(T.fail)); var a=document.createElement('a'); a.href='mailto:'+MAIL; a.textContent=MAIL; msg.appendChild(a); }
+    else if(t) msg.textContent=t;
+  }
+  function referrerPage(){
+    try{ if(!document.referrer) return null; var u=new URL(document.referrer);
+      return u.origin===location.origin ? u.pathname.slice(0,200) : null; }catch(e){ return null; }
+  }
+  var page=referrerPage();
+  text.addEventListener('input',function(){ counter(); if(text.getAttribute('aria-invalid')==='true' && text.value.trim()){ text.removeAttribute('aria-invalid'); say(''); } });
+  form.addEventListener('submit',function(e){
+    e.preventDefault(); if(send.disabled) return;
+    var t=text.value.trim(), c=contact.value.trim();
+    if(!t){ text.setAttribute('aria-invalid','true'); say('err',T.empty); text.focus(); return; }
+    if(t.length>MAX){ text.setAttribute('aria-invalid','true'); say('err',T.invalid); text.focus(); return; }
+    var hadFocus=document.activeElement===send;
+    send.disabled=true; send.textContent=T.sending; form.setAttribute('aria-busy','true'); say('');
+    fetch('/kabinet/api/public/feedback',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({text:t,contact:c?c.slice(0,200):null,page:page,website:trap.value})})
+    .then(function(r){
+      if(r.status===201||r.ok){ form.reset(); counter(); form.hidden=true; say('ok'); again.hidden=false; again.focus(); }
+      else if(r.status===429) say('err',T.limit);
+      else if(r.status===422) say('err',T.invalid);
+      else say('fail');
+    },function(){ say('fail'); })
+    .then(function(){ send.disabled=false; send.textContent=T.send; form.removeAttribute('aria-busy');
+      // кнопка была выключена — вернуть на неё фокус, если пользователь отправлял с клавиатуры
+      if(hadFocus && !form.hidden && (!document.activeElement || document.activeElement===document.body)) send.focus(); });
+  });
+  again.addEventListener('click',function(){ again.hidden=true; say(''); form.hidden=false; text.focus(); });
+  counter();
+})();
+</script>
+
+  <footer class="site-footer">
+    <div class="f-brand"><span class="f-logo">FPL</span><p>Face Painting League by MAGFACE. Онлайн-лига аквагримёров.</p></div>
+    <div><b>Лига</b><a href="fpl-games.html">Игры и календарь</a><a href="fpl-rating.html">Рейтинг</a><a href="fpl-site-pro-ink.html#archive">Зал славы</a><a href="fpl-about.html#jury">Жюри</a><a href="fpl-find.html">Найти мастера</a></div>
+    <div><b>Участникам</b><a href="fpl-site-pro-ink.html#how">Как участвовать</a><a href="fpl-diploma.html">Проверка диплома</a><a href="fpl-rules.html#faq">Вопросы</a><a aria-current="page" href="fpl-feedback.html">Пожелания лиге</a></div>
+    <div><b>Документы</b><a href="fpl-rules.html">Правила лиги</a><a href="fpl-privacy.html">Политика конфиденциальности</a><a href="fpl-rules.html#docs">Согласие на публикацию работ</a></div>
+    <div><b>Контакты</b><a href="mailto:info@maskarad-grim.ru">info@maskarad-grim.ru</a><a href="#">Telegram</a><a href="#">ВКонтакте</a><a href="#">Instagram*</a></div>
+    <p class="f-note">* Instagram принадлежит компании Meta, признанной экстремистской организацией и запрещённой в России.</p>
+    <p class="f-copy">© 2026 MAGFACE · ИП Афиногенова С. О.</p>
+  </footer>
+</main>
+<div class="mmenu" id="mmenu" hidden>
+  <div class="mmenu-head"><span class="logo">FPL</span><button class="burger is-open" type="button" aria-label="Закрыть меню" data-menu-close><span></span><span></span></button></div>
+  <nav class="mmenu-links" aria-label="Разделы сайта">
+    <a href="fpl-games.html">Игры и календарь <small>сезон 1 · Игры сезона</small></a>
+    <a href="fpl-rating.html">Рейтинг <small>лиги Bronze · Silver · Gold</small></a>
+    <a href="fpl-gallery.html">Галерея работ <small>лучшие работы сезона</small></a>
+    <a href="fpl-find.html">Найти мастера <small>мастера лиги, которые принимают заказы</small></a>
+    <a href="fpl-about.html">О лиге <small>как всё устроено, судьи, награды</small></a>
+    <a href="fpl-rules.html">Правила и вопросы</a>
+  </nav>
+  <div class="mmenu-foot">
+    <button class="btn-wide mm-primary" type="button">Участвовать</button>
+    <button class="btn-wide mm-secondary" type="button">Следить за лигой</button>
+    <p>Telegram-бот · ВКонтакте · Instagram*</p>
+  </div>
+</div>
+<div class="mbar"><button class="btn-wide">Участвовать</button><button class="btn-wide">Следить</button></div>
+<script>
+(function(){
+  var menu=document.getElementById('mmenu'); if(!menu) return;
+  function setOpen(o){ menu.hidden=!o; document.body.classList.toggle('menu-open',o);
+    document.querySelectorAll('[data-menu-open]').forEach(function(b){b.setAttribute('aria-expanded',o)}); }
+  document.querySelectorAll('[data-menu-open]').forEach(function(b){ b.addEventListener('click',function(){setOpen(true)}); });
+  menu.querySelectorAll('[data-menu-close], .mmenu-links a').forEach(function(el){ el.addEventListener('click',function(){setOpen(false)}); });
+  document.addEventListener('keydown',function(e){ if(e.key==='Escape') setOpen(false); });
+})();
+</script>
+<script>
+(function(){
+  // переключатель языка (в прототипе переведены первый экран и полоса доверия)
+  var els=[].slice.call(document.querySelectorAll('[data-en]'));
+  els.forEach(function(el){ el.setAttribute('data-ru', el.innerHTML); });
+  var dd=document.querySelector('.lang-dd');
+  if(dd){ var cur=dd.querySelector('.lang-cur'), list=dd.querySelector('.lang-list');
+    function close(){ list.hidden=true; cur.setAttribute('aria-expanded','false'); }
+    cur.addEventListener('click',function(e){ e.stopPropagation(); list.hidden=!list.hidden; cur.setAttribute('aria-expanded', String(!list.hidden)); });
+    document.addEventListener('click',function(e){ if(!dd.contains(e.target)) close(); });
+    document.addEventListener('keydown',function(e){ if(e.key==='Escape') close(); });
+    list.querySelectorAll('button').forEach(function(btn){ btn.addEventListener('click',function(){
+      var lang=btn.getAttribute('data-lang');
+      list.querySelectorAll('button').forEach(function(b){ b.classList.toggle('on', b===btn); if(b===btn) b.setAttribute('aria-current','true'); else b.removeAttribute('aria-current'); });
+      dd.querySelector('[data-lang-label]').textContent=btn.getAttribute('data-short');
+      // в прототипе переведён только английский; для других языков временно показываем английский текст
+      els.forEach(function(el){ var t=el.getAttribute('data-'+lang)||(lang==='ru'?null:el.getAttribute('data-en')); el.innerHTML = t||el.getAttribute('data-ru'); });
+      document.documentElement.lang = lang; close();
+    }); });
+  }
+})();
+</script>
+</body>
+</html>

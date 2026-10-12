@@ -7,9 +7,11 @@
 - опоздавший (не сдал работу тура в срок) переходит вне конкурса с открытия следующего тура (12.10);
 - не прошедший отбор жюри сам выбирает «Участвовать вне конкурса», вернуться в конкурс нельзя (04–05.10);
 - зачёт Игры — каждая работа сдана в срок своего тура; диплом — все работы сданы до конца Игры (11.10);
-- новая редакция Правил не принята — приём и замена работ закрыты (11.10).
+- новая редакция Правил не принята — приём и замена работ закрыты (11.10);
+- у лиги может быть свой срок сдачи тура (12.10): срок — личное продление → срок лиги → срок задания → срок тура.
 """
 from dataclasses import dataclass
+from datetime import datetime
 
 OPENED = {'open', 'closed', 'judging', 'tie_break', 'results_review', 'published'}
 ACCEPTANCE_OVER = {'closed', 'judging', 'tie_break', 'results_review', 'published'}
@@ -47,6 +49,13 @@ def round_opened(rnd, now):
     if rnd['status'] in OPENED:
         return True
     return rnd['opens_at'] is not None and rnd['opens_at'] <= now
+
+
+def round_opened_any(rnd, variants, now):
+    """Задание тура уже открыто хотя бы одной лиге — по общей дате тура или по своей дате лиги."""
+    if round_opened(rnd, now):
+        return True
+    return any(v['active'] and round_opened(effective_round(rnd, v), now) for v in variants or ())
 
 
 def competition_deadline(rnd, assignment, pa=None):
@@ -179,6 +188,44 @@ def pick_variant(variants, ep):
         return None
     general = [v for v in active if not (v['audience_rules'] or {}).get('leagues')]
     return general[0] if len(general) == 1 else None
+
+
+def variant_date(variant, key):
+    """Своя дата лиги из варианта задания (release_rules.<key>, ISO с часовым поясом). Нет — None."""
+    raw = ((variant or {}).get('release_rules') or {}).get(key)
+    if not raw:
+        return None
+    try:
+        value = datetime.fromisoformat(raw)
+    except (TypeError, ValueError):
+        return None
+    return value if value.tzinfo is not None else None
+
+
+def variant_deadline(variant):
+    """Свой срок сдачи лиги (решение 12.10): в варианте задания, release_rules.deadline. Нет — None."""
+    return variant_date(variant, 'deadline')
+
+
+def variant_opens_at(variant):
+    """Своё открытие задания для лиги (решение 12.10): release_rules.opens_at. Нет — общая дата тура."""
+    return variant_date(variant, 'opens_at')
+
+
+def effective_assignment(assignment, variant):
+    """Задание глазами участницы: срок её лиги заменяет срок задания (личное продление всё равно важнее)."""
+    deadline = variant_deadline(variant)
+    if deadline is None:
+        return assignment
+    return dict(assignment, deadline=deadline)
+
+
+def effective_round(rnd, variant):
+    """Тур глазами участницы: открытие задания её лиги заменяет общую дату открытия тура."""
+    opens = variant_opens_at(variant)
+    if opens is None:
+        return rnd
+    return dict(rnd, opens_at=opens)
 
 
 DEFAULT_FORM = {'photo': 'required', 'link': 'optional', 'photo_max': 1}

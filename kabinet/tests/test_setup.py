@@ -58,7 +58,7 @@ def test_root_path_and_disabled_mail(database_dsn, app):
     """Как на сервере: адрес /kabinet, письма не настроены — сброс отвечает одинаково и пишет ошибку в журнал."""
     app2 = create_app(make_settings(database_dsn, root_path='/kabinet', mail_mode='disabled'))
     with TestClient(app2) as c:   # как за nginx: /kabinet/... приходит без /kabinet
-        for asset in ('/assets/core.js', '/assets/pages.js', '/assets/account.js', '/assets/cabinet.css', '/assets/fonts.css'):
+        for asset in ('/assets/core.js', '/assets/pages.js', '/assets/org.js', '/assets/org-people.js', '/assets/account.js', '/assets/cabinet.css', '/assets/fonts.css'):
             assert c.get(asset).status_code == 200, asset
         page = c.get('/')
         assert 'src="/kabinet/assets/core.js"' in page.text and 'data-root="/kabinet"' in page.text

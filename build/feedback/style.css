@@ -1,0 +1,47 @@
+/* =========================================================
+   ПОЖЕЛАНИЯ ЛИГЕ (анонимная обратная связь)
+   ========================================================= */
+.fbhero{padding-top:120px; padding-bottom:48px}
+.fbhero .lead{margin:20px 0 0; font:400 18px/1.6 var(--f-body); color:#CFC7BE; max-width:620px}
+.fbgrid{display:grid; grid-template-columns:minmax(0,1fr) 340px; gap:32px; align-items:start}
+.fbcard{min-width:0; background:#fff; border-radius:12px; padding:36px 40px; max-width:760px}
+.fbfield{margin:0 0 24px}
+.fbfield label{display:block; font:600 11px/1.3 var(--f-body); letter-spacing:.16em; text-transform:uppercase; color:var(--muted); margin-bottom:10px}
+.fbfield label small{font:500 12px/1.3 var(--f-body); letter-spacing:.01em; text-transform:none; color:#8E857D}
+.fbfield textarea,.fbfield input{display:block; width:100%; min-width:0; background:var(--page); border:1px solid #E2DBD2; color:var(--ink); font:500 16px/1.55 var(--f-body)}
+.fbfield textarea{border-radius:16px; padding:16px 18px; min-height:190px; resize:vertical}
+.fbfield input{border-radius:999px; padding:14px 20px}
+.fbfield textarea:hover,.fbfield input:hover{border-color:#CFC5BA}
+.fbfield textarea:focus-visible,.fbfield input:focus-visible{outline:3px solid var(--indigo); outline-offset:2px; border-color:var(--ink); background:#fff}
+.fbfield textarea[aria-invalid="true"]{border-color:#B3261E}
+.fbfoot{display:flex; justify-content:flex-end; margin:8px 2px 0}
+.fbcount{font:500 13px/1.4 var(--f-body); color:var(--muted); font-variant-numeric:tabular-nums}
+.fbcount.is-near{color:var(--accent-text)}
+.fbhint{margin:10px 2px 0; font:500 13px/1.5 var(--f-body); color:var(--muted)}
+.fbtrap{position:absolute; left:-10000px; top:auto; width:1px; height:1px; overflow:hidden}
+.fbcard .btnC{border:0; cursor:pointer; padding:16px 34px}
+.fbcard .btnC:focus-visible{outline:3px solid var(--ink); outline-offset:3px}
+.fbcard .btnC[disabled]{opacity:.6; cursor:progress}
+.fbmsg{margin:20px 0 0; font:500 15px/1.55 var(--f-body); color:#3A342F; border-left:4px solid var(--c,#B3261E); background:#FBF7F3; border-radius:0 10px 10px 0; padding:14px 18px; overflow-wrap:anywhere}
+.fbmsg:empty{margin:0; padding:0; border:0}
+.fbmsg.is-ok{--c:#3FA34D; background:#F1F8EF; font-size:17px; margin-top:0}
+.fbmsg b{display:block; font:500 20px/1.3 var(--f-display); color:var(--ink); margin-bottom:6px}
+.fbmsg a{color:var(--accent-text)}
+.fbagain{margin-top:22px}
+.fbcard [hidden]{display:none!important}
+.fbaside{display:grid; gap:14px}
+.fbnote{background:var(--blush); border-radius:12px; padding:22px 24px; font:500 14px/1.6 var(--f-body); color:#3A342F}
+.fbnote b{display:block; font:500 17px/1.25 var(--f-display); color:var(--ink); margin-bottom:8px}
+.fbnote p{margin:0}
+.fbnote a{display:inline-block; margin-top:10px; color:var(--accent-text); font-weight:600}
+.fbnote a:hover{color:var(--ink)}
+@media (max-width:980px){ .fbgrid{grid-template-columns:minmax(0,1fr)} .fbcard{max-width:none} }
+@media (max-width:640px){
+  .fbhero{padding-top:104px; padding-bottom:28px}
+  .fbhero h1{font-size:clamp(26px,7.4vw,34px)}
+  .fbhero .lead{font-size:15px; line-height:1.5; margin-top:12px; color:#B7AEA5}
+  .fbcard{padding:24px 18px}
+  .fbfield textarea{min-height:170px}
+  .fbcard .btnC{width:100%; justify-content:center}
+  .fbnote{padding:20px}
+}

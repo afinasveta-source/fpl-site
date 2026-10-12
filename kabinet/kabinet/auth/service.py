@@ -20,8 +20,9 @@ class AuthService:
     def __init__(self, db, settings, mailer):
         self.db, self.settings, self.mailer = db, settings, mailer
 
-    def throttle(self, action, ip, email=None, limit=None, by_ip=True):
+    def throttle(self, action, ip, email=None, limit=None, by_ip=True, window=None):
         s = self.settings
+        window = window or s.rate_window_seconds
         if limit is None:
             limit = s.login_limit if action == 'login' else s.reset_limit
         keys = [token_hash(f'{action}:ip:{ip}')] if by_ip else []
@@ -38,10 +39,10 @@ ON CONFLICT (key_hash) DO UPDATE SET
                     THEN 1 ELSE auth_rate_limits.attempts + 1 END,
     window_start = CASE WHEN auth_rate_limits.window_start <= now() - make_interval(secs => %s)
                        THEN now() ELSE auth_rate_limits.window_start END
-RETURNING attempts''', (key, s.rate_window_seconds, s.rate_window_seconds)).fetchone()
+RETURNING attempts''', (key, window, window)).fetchone()
                 exceeded = exceeded or row['attempts'] > limit
         if exceeded:
-            raise HTTPException(429, 'Too many requests', headers={'Retry-After': str(s.rate_window_seconds)})
+            raise HTTPException(429, 'Too many requests', headers={'Retry-After': str(window)})
 
     def current_user(self, raw):
         with self.db.transaction() as conn:
@@ -134,3 +135,39 @@ AND used_at IS NULL AND expires_at>clock_timestamp() FOR UPDATE''', (digest, kin
             conn.execute('UPDATE auth_tokens SET used_at=now() WHERE user_id=%s AND used_at IS NULL', (user['id'],))
             conn.execute('UPDATE auth_sessions SET revoked_at=now() WHERE user_id=%s AND revoked_at IS NULL', (user['id'],))
             conn.execute("INSERT INTO audit_log(actor_user_id,entity_type,entity_id,action) VALUES (%s,'user',%s,%s)", (user['id'], user['id'], kind))
+
+    # ---------- Приглашение: человек сам указывает email и пароль (этап 3) ----------
+
+    def _invite(self, conn, raw, lock):
+        digest = token_hash(raw)
+        owner = conn.execute("SELECT user_id FROM auth_tokens WHERE token_hash=%s AND token_type='invite'", (digest,)).fetchone()
+        if not owner:
+            raise HTTPException(400, 'Invalid or expired token')
+        user = conn.execute('SELECT * FROM users WHERE id=%s' + (' FOR UPDATE' if lock else ''), (owner['user_id'],)).fetchone()
+        token = conn.execute("""SELECT * FROM auth_tokens WHERE token_hash=%s AND token_type='invite'
+AND used_at IS NULL AND expires_at>clock_timestamp()""" + (' FOR UPDATE' if lock else ''), (digest,)).fetchone()
+        if not token or user['account_status'] != 'imported' or user['deleted_at']:
+            raise HTTPException(400, 'Invalid or expired token')
+        return user
+
+    def check_invite(self, raw):
+        with self.db.transaction() as conn:
+            user = self._invite(conn, raw, lock=False)
+            name = (user['display_name'] or user['full_name'] or '').split(' ')[0] or None
+            return {'name': name, 'email': user['email']}
+
+    def consume_invite(self, raw, email, password):
+        encoded = password_hasher.hash(password)
+        with self.db.transaction() as conn:
+            user = self._invite(conn, raw, lock=True)
+            if user['email'] and user['email'].lower() != email:
+                raise HTTPException(409, 'email_preset')
+            if conn.execute('SELECT 1 FROM users WHERE lower(email)=%s AND id<>%s', (email, user['id'])).fetchone():
+                raise HTTPException(409, 'email_taken')
+            # Ссылку передал организатор лично (писем пока нет), поэтому email считается подтверждённым ею.
+            conn.execute("""UPDATE users SET email=%s, password_hash=%s, email_verified_at=now(), account_status='active'
+WHERE id=%s""", (email, encoded, user['id']))
+            conn.execute('UPDATE auth_tokens SET used_at=now() WHERE user_id=%s AND used_at IS NULL', (user['id'],))
+            conn.execute('UPDATE auth_sessions SET revoked_at=now() WHERE user_id=%s AND revoked_at IS NULL', (user['id'],))
+            conn.execute("INSERT INTO audit_log(actor_user_id,entity_type,entity_id,action) VALUES (%s,'user',%s,'invite_accepted')",
+                         (user['id'], user['id']))

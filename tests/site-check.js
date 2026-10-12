@@ -6,7 +6,7 @@ const { chromium } = require('playwright');
 const tls = require('tls');
 const BASE = (process.argv[2] || 'https://facepaintingleague.com').replace(/\/$/, '');
 const LOCAL = !!process.env.FPL_LOCAL;
-const PAGES = ['index','games','rating','master','gallery','find','diploma','rules','about','privacy'];
+const PAGES = ['index','games','rating','master','gallery','find','diploma','rules','about','privacy','feedback'];
 const PATHS = [].concat(...PAGES.map(p => [p === 'index' ? '/' : '/' + p + '.html', p === 'index' ? '/ru/' : '/ru/' + p + '.html']));
 const PLACEHOLDER = /\[(?:N|X|Y|ник|почта|реквизиты[^\]]*|Имя[^\]]*|имя[^\]]*|фото[^\]]*|работа[^\]]*|город[^\]]*|страна|Страна|СТРАНА|текст[^\]]*|срок[^\]]*|Специализация|стаж|логотип|медиа-партнёр|Победитель|email|organizer[^\]]*|name[^\]]*|photo[^\]]*|work[^\]]*|city[^\]]*|country[^\]]*)\]/g;
 const DEMO_NAMES = ['Анна Петрова','Мария Иванова','Lucía Martín','Nino Beridze','Anna Petrova'];
@@ -82,7 +82,8 @@ function certDays(host) {
     const t = await p.evaluate(() => document.body.innerText); R.diploma_sample = /подтвержд/i.test(t) ? 'подтверждается' : 'не подтверждается'; await p.close();
   } catch (e) { R.problems.push('Проверка диплома: страница не отвечает'); }
   // битые внутренние ссылки
-  for (const l of allLinks) { try { const r = await ctx.request.get(l, { timeout: 20000 }); if (r.status() >= 400) R.links_broken.push(`${l} → ${r.status()}`); } catch (e) { R.links_broken.push(`${l} → не открывается`); } }
+  // /kabinet/ — отдельное приложение на том же домене: в локальной сборке его нет, на живом сайте проверяется как обычная ссылка
+  for (const l of allLinks) { if (LOCAL && new URL(l).pathname.startsWith('/kabinet/')) continue; try { const r = await ctx.request.get(l, { timeout: 20000 }); if (r.status() >= 400) R.links_broken.push(`${l} → ${r.status()}`); } catch (e) { R.links_broken.push(`${l} → не открывается`); } }
   if (R.links_broken.length) R.problems.push(`Битые ссылки: ${R.links_broken.slice(0, 10).join('; ')}`);
   if (typeof R.cert_days_left === 'number' && R.cert_days_left < 21) R.problems.push(`Сертификат HTTPS истекает через ${R.cert_days_left} дн.`);
   if (!LOCAL && typeof R.cert_days_left !== 'number') R.problems.push(`Сертификат HTTPS: не удалось проверить (${R.cert_days_left})`);

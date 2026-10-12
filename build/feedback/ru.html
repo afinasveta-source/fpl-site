@@ -1,0 +1,92 @@
+  <section class="heroC fbhero" aria-labelledby="fbtitle">
+    <span class="eyebrow">Обратная связь</span>
+    <h1 id="fbtitle">Пожелания <span>лиге</span></h1>
+    <p class="lead">Что улучшить в Играх, заданиях, судействе или на сайте? Напишите — анонимно, без входа в кабинет.</p>
+  </section>
+
+  <div class="fbgrid">
+    <div class="fbcard">
+      <form id="fbForm" novalidate>
+        <div class="fbfield">
+          <label for="fbText">Ваше пожелание</label>
+          <textarea id="fbText" name="text" rows="7" maxlength="2000" required aria-describedby="fbCount"></textarea>
+          <div class="fbfoot"><span class="fbcount" id="fbCount">0 / 2000</span></div>
+        </div>
+        <div class="fbfield">
+          <label for="fbContact">Как с вами связаться <small>(необязательно)</small></label>
+          <input id="fbContact" name="contact" type="text" maxlength="200" autocomplete="off" spellcheck="false" aria-describedby="fbContactHint">
+          <p class="fbhint" id="fbContactHint">Telegram, email или телефон — только если хотите, чтобы мы ответили.</p>
+        </div>
+        <div class="fbtrap" aria-hidden="true">
+          <label for="fbWebsite">Не заполняйте это поле</label>
+          <input id="fbWebsite" name="website" type="text" tabindex="-1" autocomplete="off">
+        </div>
+        <button class="btnC" type="submit" id="fbSend">Отправить</button>
+      </form>
+      <div class="fbmsg" id="fbMsg" role="status" aria-live="polite"></div>
+      <button class="btnC fbagain" type="button" id="fbAgain" hidden>Написать ещё</button>
+    </div>
+
+    <aside class="fbaside">
+      <div class="fbnote">
+        <b>Анонимно</b>
+        <p>Сообщение анонимное: оно хранится без IP-адреса и без связи с аккаунтом — мы не знаем, кто его отправил. Контакт видят только организаторы лиги и используют его лишь для ответа.</p>
+        <a href="fpl-privacy.html">Политика конфиденциальности →</a>
+      </div>
+      <div class="fbnote">
+        <b>Личный вопрос?</b>
+        <p>Вопрос по вашей Игре или работе? Удобнее написать в поддержку в личном кабинете.</p>
+        <a href="/kabinet/">Открыть кабинет →</a>
+      </div>
+    </aside>
+  </div>
+<script>
+(function(){
+  var form=document.getElementById('fbForm'); if(!form) return;
+  var T={
+    empty:'Напишите пожелание — поле пока пустое.',
+    sending:'Отправляем…', send:'Отправить',
+    okTitle:'Спасибо! Сообщение получено.', okText:'Организаторы читают все пожелания.',
+    limit:'Слишком много сообщений подряд. Попробуйте через час.',
+    invalid:'Проверьте текст: от 1 до 2000 символов.',
+    fail:'Не получилось отправить. Попробуйте позже или напишите на '
+  };
+  var MAIL='info@maskarad-grim.ru', MAX=2000;
+  var text=document.getElementById('fbText'), contact=document.getElementById('fbContact'), trap=document.getElementById('fbWebsite');
+  var count=document.getElementById('fbCount'), send=document.getElementById('fbSend'), msg=document.getElementById('fbMsg'), again=document.getElementById('fbAgain');
+  function counter(){ var n=text.value.length; count.textContent=n+' / '+MAX; count.classList.toggle('is-near',n>MAX*0.9); }
+  function say(kind,t){
+    msg.className='fbmsg'+(kind==='ok'?' is-ok':''); msg.textContent='';
+    if(kind==='ok'){ var b=document.createElement('b'); b.textContent=T.okTitle; msg.appendChild(b); msg.appendChild(document.createTextNode(T.okText)); }
+    else if(kind==='fail'){ msg.appendChild(document.createTextNode(T.fail)); var a=document.createElement('a'); a.href='mailto:'+MAIL; a.textContent=MAIL; msg.appendChild(a); }
+    else if(t) msg.textContent=t;
+  }
+  function referrerPage(){
+    try{ if(!document.referrer) return null; var u=new URL(document.referrer);
+      return u.origin===location.origin ? u.pathname.slice(0,200) : null; }catch(e){ return null; }
+  }
+  var page=referrerPage();
+  text.addEventListener('input',function(){ counter(); if(text.getAttribute('aria-invalid')==='true' && text.value.trim()){ text.removeAttribute('aria-invalid'); say(''); } });
+  form.addEventListener('submit',function(e){
+    e.preventDefault(); if(send.disabled) return;
+    var t=text.value.trim(), c=contact.value.trim();
+    if(!t){ text.setAttribute('aria-invalid','true'); say('err',T.empty); text.focus(); return; }
+    if(t.length>MAX){ text.setAttribute('aria-invalid','true'); say('err',T.invalid); text.focus(); return; }
+    var hadFocus=document.activeElement===send;
+    send.disabled=true; send.textContent=T.sending; form.setAttribute('aria-busy','true'); say('');
+    fetch('/kabinet/api/public/feedback',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({text:t,contact:c?c.slice(0,200):null,page:page,website:trap.value})})
+    .then(function(r){
+      if(r.status===201||r.ok){ form.reset(); counter(); form.hidden=true; say('ok'); again.hidden=false; again.focus(); }
+      else if(r.status===429) say('err',T.limit);
+      else if(r.status===422) say('err',T.invalid);
+      else say('fail');
+    },function(){ say('fail'); })
+    .then(function(){ send.disabled=false; send.textContent=T.send; form.removeAttribute('aria-busy');
+      // кнопка была выключена — вернуть на неё фокус, если пользователь отправлял с клавиатуры
+      if(hadFocus && !form.hidden && (!document.activeElement || document.activeElement===document.body)) send.focus(); });
+  });
+  again.addEventListener('click',function(){ again.hidden=true; say(''); form.hidden=false; text.focus(); });
+  counter();
+})();
+</script>

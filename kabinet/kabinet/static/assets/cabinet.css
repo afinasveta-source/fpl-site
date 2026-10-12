@@ -365,7 +365,7 @@ details.more.card{padding:14px 18px}
 .pill.always{flex:none}
 
 /* Публичность и правила */
-.btn.danger{color:var(--bad);box-shadow:inset 0 0 0 1.5px var(--bad-soft)}
+.btn.danger{background:transparent;color:var(--bad);box-shadow:inset 0 0 0 1.5px var(--bad)}
 .rules-upd{background:var(--warn-soft)}
 .chg{margin:0;padding-left:18px;display:grid;gap:6px}
 /* Материал к заданию */

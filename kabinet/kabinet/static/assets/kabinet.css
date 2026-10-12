@@ -20,3 +20,68 @@ html{background:var(--bg)}
 [data-s="pre"]{white-space:pre-line;overflow-wrap:anywhere}
 .photo.big img{object-fit:contain}
 .kv a{overflow-wrap:anywhere}
+/* Этап 3: кабинет организатора (/org) — шире, без нижней панели, таблица участниц */
+[data-s="h160"]{height:160px}
+textarea[data-s="h400"]{min-height:400px}
+body.org main{padding-bottom:64px}
+@media (max-width:919px){ body.org .toast{bottom:calc(20px + env(safe-area-inset-bottom,0px))} }
+@media (min-width:920px){
+ body.org .shell{max-width:1240px}
+ body.org main{max-width:none}
+ body.org .hdr{padding-inline:max(24px, calc((100vw - 1240px)/2 + 24px))}
+}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;align-items:end}
+select.input{appearance:auto;padding-right:8px}
+.input[disabled],.input:disabled{opacity:.6;cursor:not-allowed}
+.btn.small{min-height:36px;padding:7px 12px;font-size:13px}
+.note ul{margin:6px 0 0;padding-left:20px;display:grid;gap:4px}
+.tabs{gap:8px;flex-wrap:wrap}
+.search{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
+.copy{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin:8px 0}
+.copy .input{font-size:13px}
+.league-box{border:1.5px solid var(--line);border-radius:12px;padding:10px 14px;margin:0;display:grid;gap:10px;min-width:0}
+.league-box legend{padding:0 6px}
+.league-fields[hidden]{display:none}
+.prize-row{border-bottom:1px solid var(--line);padding-bottom:12px}
+.prize-row .btn{justify-self:start}
+.round-row{display:grid;gap:6px;padding:12px 0;border-top:1px solid var(--line)}
+.round-row:first-of-type{border-top:0;padding-top:0}
+.round-row h3{margin:0;font-size:16px}
+.round-row .btn{justify-self:start}
+.log{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.log li{display:grid;gap:2px;border-left:3px solid var(--line);padding-left:10px}
+.msgs{display:grid;gap:10px}
+.msg p{margin:0}
+.msg.them{justify-self:start}
+.fb-new{box-shadow:inset 3px 0 0 var(--accent)}
+.fb p{margin:0}
+.doc-body{font-size:15px;line-height:1.55}
+.f-season{padding:8px 0 4px}
+fieldset.stack{border:0;padding:0;margin:0}
+fieldset.stack legend{font-weight:700;font-size:14px;margin-bottom:6px}
+.table-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:14px}
+.otable{width:100%;border-collapse:collapse;font-size:14px}
+.otable th,.otable td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+.otable thead th{font-size:12px;color:var(--muted);font-weight:700;white-space:nowrap}
+.otable tbody tr{cursor:pointer}
+.otable tbody tr:hover{background:var(--sunk)}
+.otable tbody th{display:grid;gap:2px;font-weight:400}
+.otable .c{text-align:center}
+.otable td .small{display:block}
+.cell{font-weight:700;white-space:nowrap}
+.cell.sent{color:var(--ok)} .cell.sent_late{color:var(--warn)} .cell.missed{color:var(--bad)}
+.cell.draft,.cell.none{color:var(--muted)}
+@media (max-width:760px){
+ .table-wrap{background:none;border:0;overflow:visible}
+ .otable thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+ .otable,.otable tbody,.otable tr{display:block}
+ .otable tr{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:6px 0;margin-bottom:10px}
+ .otable tbody th,.otable td{display:grid;grid-template-columns:110px minmax(0,1fr);gap:8px;border:0;padding:6px 14px;text-align:left}
+ .otable tbody th{grid-template-columns:minmax(0,1fr)}
+ .otable td::before{content:attr(data-label);font-size:12px;color:var(--muted);font-weight:700}
+ .otable .c{text-align:left}
+}
+.grid2 .field,.grid3 .field{align-content:start}
+body.org main h3{font:700 15px/1.3 var(--f-body);margin:6px 0 0}
+.league-box:has(.league-fields[hidden]){border-color:transparent;padding-block:0}
+.league-dates{margin:0;padding-left:18px;display:grid;gap:2px}

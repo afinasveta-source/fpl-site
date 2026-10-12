@@ -70,7 +70,21 @@ ORDER BY (assignment_type='competition_work') DESC, code''', (ids,)):
     game.all_round_nos = [r['round_no'] for r in conn.execute('SELECT round_no FROM rounds WHERE event_id=%s', (event_id,))]
     if ep:
         _load_participant(conn, game)
+        apply_league_deadlines(game)
     return game
+
+
+def apply_league_deadlines(game):
+    """Даты лиги участницы (решение 12.10): срок сдачи — в её копии задания, открытие задания — в её копии тура;
+    так их видят все правила сроков. Выдано задание — по выданному варианту; ещё нет — по варианту, который ей выдастся.
+    Тур открывается по заданию тура (первому в списке, как и везде в кабинете)."""
+    rounds = []
+    for rnd in game.rounds:
+        items = game.assignments.get(rnd['id'], [])
+        variants = [variant_for(game, a) for a in items]
+        game.assignments[rnd['id']] = [R.effective_assignment(a, v) for a, v in zip(items, variants)]
+        rounds.append(R.effective_round(rnd, variants[0]) if items else rnd)
+    game.rounds = rounds
 
 
 def _load_participant(conn, game):

@@ -142,8 +142,8 @@
       h += '<section class="card"><span class="eyebrow">' + (g ? 'Другие события' : 'Игры лиги') + '</span>' + (others.length ? others.slice(0, 4).map(function (e) {
         return li(esc(e.title), esc(regLine(e)), regPill(e), '/events/' + e.id);
       }).join('') : '<p class="muted small">Новых событий пока нет.</p>') + '<button class="btn ghost" type="button" data-href="/events">Все Игры лиги</button></section></div>';
-      if (me.roles.indexOf('admin') >= 0 || me.roles.indexOf('moderator') >= 0) {
-        h += '<div class="note info small">Раздел организатора переносится следующим этапом. Сейчас здесь — кабинет участника.</div>';
+      if (K.isAdmin()) {
+        h += '<div class="note info small">Вы администратор лиги. <button class="lnk" type="button" data-href="/org">Открыть кабинет организатора</button></div>';
       }
       K.page(h);
     });
@@ -156,6 +156,7 @@
     if ((n.route === 'game' || n.route === 'results') && p.event_id) return '/games/' + p.event_id;
     if (n.route === 'publicity') return '/profile/publicity';
     if (n.route === 'support' && p.thread_no) return '/support/' + p.thread_no;
+    if (n.route === 'document' && p.document_id) return '/documents/' + p.document_id;
     return null;
   }
   K.actions.openNotice = function (b) {

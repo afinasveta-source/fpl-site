@@ -42,7 +42,9 @@
     bad_link: 'Проверьте ссылку: нужен адрес, начинающийся с https://', unknown_photo: 'Фото не найдено. Загрузите его ещё раз.',
     not_an_image: 'Файл не похож на фото. Выберите JPG, PNG или WebP.', too_many_pixels: 'Фото слишком большое по размеру в пикселях. Сохраните его поменьше и загрузите снова.', unsupported_format: 'Выберите фото JPG, PNG или WebP.', too_large: 'Файл слишком большой. До 20 МБ.',
     storage_full: 'На сервере закончилось место. Мы уже знаем — попробуйте позже.', consent_required: 'Чтобы снова показывать работы, нужно согласие на публикацию.',
-    closed: 'Обращение закрыто. Создайте новое.', full_name_locked: 'ФИО меняется через организатора.', not_current: 'Эта редакция уже не действует.', not_allowed: 'Это действие сейчас недоступно.'
+    closed: 'Обращение закрыто. Создайте новое.', email_taken: 'Этот email уже занят. Войдите с ним или напишите организатору.',
+    email_invited: 'Этот email уже есть у участницы из бота. Попросите у организатора ссылку для входа — так сохранится история Игр.',
+    email_preset: 'Для этой ссылки организатор уже указал email. Введите его.', full_name_locked: 'ФИО меняется через организатора.', not_current: 'Эта редакция уже не действует.', not_allowed: 'Это действие сейчас недоступно.'
   };
   K.errorText = function (res) {
     if (res.status === 0) return 'Нет связи с сервером. Проверьте интернет и повторите.';
@@ -98,6 +100,13 @@
     return '<div class="deadline"><span class="d num">' + esc(K.date(iso)) + '</span><span class="tz">' + K.TZ +
       (rel === false ? '' : ' · ' + esc(rel || K.left(iso))) + '</span></div>';
   };
+  /* Поля даты и времени — по Москве (UTC+3, без перехода на летнее время). */
+  K.toInput = function (iso) {
+    if (!iso) return '';
+    var d = new Date(new Date(iso).getTime() + 3 * 3600000);
+    return d.toISOString().slice(0, 16);
+  };
+  K.fromInput = function (v) { return v ? v + ':00+03:00' : null; };
   K.score = function (v) { return v == null ? '—' : String(Math.round(v * 10) / 10).replace('.', ','); };
   /* «Записаться на Игру 02»: название Игры в винительном падеже. */
   K.acc = function (title) { return String(title || '').replace(/^Игра(?=\s)/, 'Игру'); };
@@ -136,19 +145,31 @@
   /* ---------- каркас ---------- */
   var SECTIONS = [['/', 'Главная'], ['/events', 'Игры лиги'], ['/games', 'Мои Игры'], ['/achievements', 'Мои достижения'],
     ['/notifications', 'Уведомления'], ['/support', 'Поддержка'], ['/profile', 'Профиль и настройки']];
+  /* Кабинет организатора — свой раздел /org со своим меню (этап 3). */
+  var ORG = [['/org', 'Обзор'], ['/org/games', 'Игры и туры'], ['/org/people', 'Люди'], ['/org/support', 'Поддержка'],
+    ['/org/feedback', 'Пожелания'], ['/org/documents', 'Документы']];
+  K.inOrg = function () { var p = K.path(); return p === '/org' || p.indexOf('/org/') === 0; };
+  K.isAdmin = function () { return !!(K.state.me && K.state.me.roles && K.state.me.roles.indexOf('admin') >= 0); };
   function section() {
-    var p = K.path();
-    if (p === '/') return '/';
-    for (var i = 1; i < SECTIONS.length; i++) if (p === SECTIONS[i][0] || p.indexOf(SECTIONS[i][0] + '/') === 0) return SECTIONS[i][0];
+    var p = K.path(), list = K.inOrg() ? ORG : SECTIONS;
+    if (p === list[0][0]) return p;
+    for (var i = 1; i < list.length; i++) if (p === list[i][0] || p.indexOf(list[i][0] + '/') === 0) return list[i][0];
     if (p.indexOf('/documents/') === 0) return '/profile';
     return '';
   }
   function navHTML() {
-    var cur = section(), n = K.state.unread;
-    return '<nav class="nav" aria-label="Разделы кабинета">' + SECTIONS.map(function (s) {
-      return '<button type="button" data-href="' + s[0] + '"' + (cur === s[0] ? ' aria-current="page"' : '') + '><span>' + s[1] + '</span>' +
-        (s[0] === '/notifications' && n ? '<span class="cnt">' + n + '</span>' : '') + '</button>';
-    }).join('') + '<div class="sep"></div><button type="button" class="out" data-act="logout"><span>Выйти</span></button></nav>';
+    var cur = section(), n = K.state.unread, org = K.inOrg(), c = K.state.orgCounts || {};
+    var list = org ? ORG : SECTIONS;
+    var badge = function (s) {
+      if (org) { var x = s[0] === '/org/support' ? c.support : s[0] === '/org/feedback' ? c.feedback : 0; return x ? '<span class="cnt">' + x + '</span>' : ''; }
+      return s[0] === '/notifications' && n ? '<span class="cnt">' + n + '</span>' : '';
+    };
+    return '<nav class="nav" aria-label="' + (org ? 'Разделы организатора' : 'Разделы кабинета') + '">' + list.map(function (s) {
+      return '<button type="button" data-href="' + s[0] + '"' + (cur === s[0] ? ' aria-current="page"' : '') + '><span>' + s[1] + '</span>' + badge(s) + '</button>';
+    }).join('') + '<div class="sep"></div>' +
+      (org ? '<button type="button" data-href="/"><span>Кабинет участника</span></button>' :
+        K.isAdmin() ? '<button type="button" data-href="/org"><span>Кабинет организатора</span></button>' : '') +
+      '<button type="button" class="out" data-act="logout"><span>Выйти</span></button></nav>';
   }
   var ICON = {
     '/': '<path d="M4 11l8-6 8 6v8a1 1 0 0 1-1 1h-4v-6h-6v6H5a1 1 0 0 1-1-1z"/>',
@@ -174,7 +195,8 @@
   }
   function header(auth) {
     var n = K.state.unread;
-    return '<header class="hdr"><button class="logo" type="button" data-href="/">FPL<small>КАБИНЕТ</small></button><span class="ctx"></span>' +
+    var org = !auth && K.inOrg();
+    return '<header class="hdr"><button class="logo" type="button" data-href="' + (org ? '/org' : '/') + '">FPL<small>' + (org ? 'ОРГАНИЗАТОР' : 'КАБИНЕТ') + '</small></button><span class="ctx"></span>' +
       (auth ? '' : '<button class="burger" type="button" data-act="menu" aria-label="Открыть меню" aria-expanded="' + K.state.menu + '"><span></span><span></span><span></span></button>' +
         '<button class="bell" type="button" data-href="/notifications" aria-label="Уведомления' + (n ? ', новых: ' + n : '') + '">' +
         '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>' +
@@ -186,8 +208,10 @@
   K.page = function (body, crumbs) {
     K.last = { body: body, crumbs: crumbs };
     var s = K.state;
+    var org = K.inOrg();
+    document.body.classList.toggle('org', org);
     app.innerHTML = header(false) + '<div class="shell"><aside class="rail">' + navHTML() + '</aside><main id="main" tabindex="-1">' +
-      K.crumbs(crumbs) + body + '</main></div>' + tabbarHTML() + (s.more ? moreHTML() : '') +
+      K.crumbs(crumbs) + body + '</main></div>' + (org ? '' : tabbarHTML()) + (s.more ? moreHTML() : '') +
       (s.menu ? '<div class="drawer" data-act="closeMenu"><div class="panel" role="dialog" aria-label="Меню" aria-modal="true"><div class="phead"><b>Меню</b>' +
         '<button class="x" type="button" data-act="closeMenu" aria-label="Закрыть меню">×</button></div>' + navHTML() + '</div></div>' : '');
     document.body.classList.toggle('menu-open', s.menu);
@@ -287,6 +311,8 @@
       '<p class="form-err" role="alert" tabindex="-1" hidden></p><button class="btn wide" type="submit">Войти</button>' +
       (mail ? '<button class="btn ghost" type="button" id="to-reset">Не помню пароль</button>'
         : '<p class="small muted">Забыли пароль? Напишите организатору — он пришлёт ссылку для нового пароля.</p>') + '</form>' +
+      (K.state.config && K.state.config.signup ? '<div class="card"><b>Впервые в лиге?</b><p class="small muted">Заведите кабинет: имя, email и пароль. Участвовали в Играх через бота — попросите у организатора ссылку, чтобы сохранилась история.</p>' +
+        '<button class="btn sec" type="button" id="to-signup">Зарегистрироваться</button></div>' : '') +
       (K.state.config && K.state.config.setup_needed ? '<div class="note info">Администратор ещё не создан. <a href="' + ROOT + '/setup" id="to-setup">Создать первого администратора</a></div>' : ''));
     var f = document.getElementById('f-login');
     f.addEventListener('submit', function (e) {
@@ -302,9 +328,76 @@
     });
     var r = document.getElementById('to-reset');
     if (r) r.addEventListener('click', resetRequestView);
+    var su = document.getElementById('to-signup');
+    if (su) su.addEventListener('click', signupView);
     var s = document.getElementById('to-setup');
     if (s) s.addEventListener('click', function (e) { e.preventDefault(); K.go('/setup'); });
     f.email.focus();
+  }
+
+  function signupView() {
+    K.authPage('<div class="stack"><span class="eyebrow">Face Painting League</span><h1>Регистрация</h1><p class="muted">Пароль — от ' + minLen() + ' до 128 символов. Имя и фамилия нужны для согласий и диплома.</p></div>' +
+      '<form class="card" id="f-signup" novalidate>' + field('full_name', 'Имя и фамилия', 'text', 'autocomplete="name" required maxlength="200"') +
+      field('email', 'Email', 'email', 'autocomplete="username" required') +
+      field('password', 'Пароль', 'password', 'autocomplete="new-password" required minlength="' + minLen() + '" maxlength="128"') +
+      field('password2', 'Пароль ещё раз', 'password', 'autocomplete="new-password" required maxlength="128"') +
+      '<p class="form-err" role="alert" tabindex="-1" hidden></p><button class="btn wide" type="submit">Зарегистрироваться</button>' +
+      '<button class="btn ghost" type="button" id="back">У меня уже есть кабинет</button></form>');
+    var f = document.getElementById('f-signup');
+    document.getElementById('back').addEventListener('click', loginView);
+    f.addEventListener('submit', function (e) {
+      e.preventDefault(); K.formError(f, '');
+      if (!f.full_name.value.trim() || !f.email.value.trim()) { K.formError(f, 'Заполните имя и email.'); return; }
+      if (f.password.value.length < minLen() || f.password.value.length > 128) { K.formError(f, 'Пароль должен содержать от ' + minLen() + ' до 128 символов.'); return; }
+      if (f.password.value !== f.password2.value) { K.formError(f, 'Пароли не совпадают.'); return; }
+      K.busy(f, true);
+      K.api('POST', '/web-auth/register', { full_name: f.full_name.value.trim(), email: f.email.value.trim(), password: f.password.value }).then(function (res) {
+        K.busy(f, false);
+        if (!res.ok) { K.formError(f, res.detail && REASONS[res.detail] ? REASONS[res.detail] : authError(res)); return; }
+        K.state.me = res.data; K.toast('Кабинет создан. Добро пожаловать!');
+        K.refreshUnread().then(function () { K.go('/', true); });
+      });
+    });
+    f.full_name.focus();
+  }
+
+  function inviteView() {
+    var token = new URLSearchParams(location.hash.slice(1)).get('token') || '';
+    if (!token) {
+      K.authPage('<div class="card"><h1>Вход по приглашению</h1><p>В ссылке нет кода. Скопируйте ссылку от организатора целиком.</p><a class="btn sec" href="' + ROOT + '/">Ко входу</a></div>');
+      return;
+    }
+    K.authPage('<div class="card" aria-busy="true"><p class="muted">Проверяем ссылку…</p></div>');
+    K.api('POST', '/web-auth/invite/check', { token: token }).then(function (res) {
+      if (!res.ok) {
+        K.authPage('<div class="card"><h1>Ссылка не работает</h1><p>' + (res.status === 0 ? 'Нет связи с сервером. Обновите страницу.' : 'Ссылка устарела или уже использована. Попросите у организатора новую.') +
+          '</p><a class="btn sec" href="' + ROOT + '/">Ко входу</a></div>');
+        return;
+      }
+      var preset = res.data.email;
+      K.authPage('<div class="stack"><span class="eyebrow">Face Painting League</span><h1>' + (res.data.name ? esc(res.data.name) + ', добро пожаловать' : 'Добро пожаловать') + '</h1>' +
+        '<p class="muted">Это ваш аккаунт лиги — история Игр уже в нём. Укажите email и пароль: дальше вы будете входить с ними. Пароль — от ' + minLen() + ' до 128 символов.</p></div>' +
+        '<form class="card" id="f-inv" novalidate>' + field('email', 'Email', 'email', 'autocomplete="username" required' + (preset ? ' value="' + esc(preset) + '" readonly' : '')) +
+        field('password', 'Пароль', 'password', 'autocomplete="new-password" required minlength="' + minLen() + '" maxlength="128"') +
+        field('password2', 'Пароль ещё раз', 'password', 'autocomplete="new-password" required maxlength="128"') +
+        '<p class="form-err" role="alert" tabindex="-1" hidden></p><button class="btn wide" type="submit">Войти в кабинет</button></form>');
+      var f = document.getElementById('f-inv');
+      f.addEventListener('submit', function (e) {
+        e.preventDefault(); K.formError(f, '');
+        if (!f.email.value.trim()) { K.formError(f, 'Укажите email.'); return; }
+        if (f.password.value.length < minLen() || f.password.value.length > 128) { K.formError(f, 'Пароль должен содержать от ' + minLen() + ' до 128 символов.'); return; }
+        if (f.password.value !== f.password2.value) { K.formError(f, 'Пароли не совпадают.'); return; }
+        K.busy(f, true);
+        K.api('POST', '/web-auth/invite', { token: token, email: f.email.value.trim(), password: f.password.value }).then(function (r) {
+          K.busy(f, false);
+          if (!r.ok) { K.formError(f, r.detail && REASONS[r.detail] ? REASONS[r.detail] : authError(r)); return; }
+          history.replaceState(null, '', ROOT + '/');   // код из ссылки больше не нужен в адресе
+          K.state.me = r.data; K.toast('Готово! Вы в кабинете.');
+          K.refreshUnread().then(function () { K.route(); });
+        });
+      });
+      (preset ? f.password : f.email).focus();
+    });
   }
 
   function resetRequestView() {
@@ -389,6 +482,7 @@
     if (p === '/auth/set-password') return setPasswordView('set');
     if (p === '/auth/reset-password') return setPasswordView('reset');
     if (p === '/setup') return setupView();
+    if (p === '/auth/invite') return inviteView();
     if (!K.state.me) {
       // Проверить сессию заново (например, после 401) и показать вход.
       return K.api('GET', '/web-auth/me').then(function (r) {

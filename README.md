@@ -2,6 +2,7 @@
 
 - `src/` — исходные страницы (RU) и `assets/` (общий CSS, consent.js, шрифты, файлы подтверждения поисковиков).
 - `build/` — сборка, запуск одной командой `bash build/build.sh` (нужен python3 + beautifulsoup4): `build_site.py` → `i18n/build_en.py` (английская версия) → `seo.py` (EN в корне, RU в /ru/, мета, sitemap) → `links.py` (настоящие ссылки: бот, Instagram, соцсети). Пути — в `build/paths.py`; `FPL_DIST=<папка>` собирает в другую папку.
+- `build/privacy/`, `build/feedback/` — политика и «Пожелания лиге»: текст и стили страниц на оболочке «О лиге». RU: `python3 build/<папка>/assemble.py` → `src/fpl-<папка>.html` (политика в `src/` правлена вручную и разошлась с `build/privacy/ru.html` — её не пересобирать без сверки); EN собирается в `i18n/build_en.py`. Форма пожеланий шлёт `POST /kabinet/api/public/feedback` (кабинет на том же домене).
 - `dist/` — готовый сайт, как он должен лежать на сервере (сборка 11.10.2026).
 - `server/` — приёмник данных из бота и шаблон cloud-init сервера (ключ скрыт; настоящий ключ только у Светланы). `server/ops/` — канал обновлений сервера (`apply.sh`, `fpl-sync`, `pack.sh` → `out/fpl-ops.tgz`).
 - `tests/site-check.js` — автоматическая проверка (Playwright): `node tests/site-check.js <базовый URL>`. `bash tests/check-build.sh` — та же проверка по локальной сборке перед push (код выхода 1 — есть поломки; заглушки контента выкладку не блокируют).

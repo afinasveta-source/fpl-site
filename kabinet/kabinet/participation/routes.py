@@ -83,8 +83,17 @@ def event_page(event_id: UUID, request: Request, user=Depends(browser_user)):
         if not event:
             raise HTTPException(404, 'Game not found')
         ep = conn.execute('SELECT * FROM event_participants WHERE event_id=%s AND user_id=%s', (event_id, user['id'])).fetchone()
-        rounds = conn.execute("SELECT round_no, title, opens_at, deadline FROM rounds WHERE event_id=%s AND status<>'draft' ORDER BY round_no",
+        rounds = conn.execute("SELECT id, round_no, title, opens_at, deadline FROM rounds WHERE event_id=%s AND status<>'draft' ORDER BY round_no",
                               (event_id,)).fetchall()
+        if ep:
+            # Записанной — даты её лиги (своё открытие задания и срок сдачи), как на странице её Игры.
+            game = G.load(conn, event_id, user['id'])
+            mine = {}
+            for r in game.rounds:
+                items = game.assignments.get(r['id'], [])
+                deadline = R.competition_deadline(r, items[0], game.pas.get(items[0]['id']))[0] if items else r['deadline']
+                mine[r['id']] = {'opens_at': r['opens_at'], 'deadline': deadline}
+            rounds = [dict(r, **mine.get(r['id'], {})) for r in rounds]
         prizes = conn.execute('SELECT criterion, prize, league FROM event_prizes WHERE event_id=%s ORDER BY sort_order, created_at',
                               (event_id,)).fetchall()
         me = conn.execute('SELECT country_code, city FROM users WHERE id=%s', (user['id'],)).fetchone()

@@ -58,7 +58,7 @@ def setup_needed(request, conn=None):
 @router.get('/web-auth/config')
 def browser_config(request: Request):
     s = request.app.state.settings
-    return {'is_test': s.environment == 'TEST', 'mail_delivery': s.mail_mode == 'smtp',
+    return {'is_test': s.environment == 'TEST', 'mail_delivery': s.mail_mode == 'smtp', 'signup': s.signup_enabled,
             'password_min_length': PASSWORD_MIN, 'setup_needed': setup_needed(request)}
 
 
@@ -86,6 +86,77 @@ def browser_logout(request: Request, auth=Depends(service)):
     response.delete_cookie(cookie_name(request), path='/', secure=request.app.state.settings.environment == 'PROD',
                            httponly=True, samesite='strict')
     return response
+
+
+class InviteCheck(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    token: str = Field(min_length=20, max_length=256)
+
+
+class InviteAccept(EmailInput):
+    model_config = ConfigDict(extra='forbid')
+    token: str = Field(min_length=20, max_length=256)
+    password: str = Field(min_length=PASSWORD_MIN, max_length=128)
+
+
+class Signup(EmailInput):
+    model_config = ConfigDict(extra='forbid')
+    password: str = Field(min_length=PASSWORD_MIN, max_length=128)
+    full_name: str = Field(min_length=1, max_length=200)
+
+    @field_validator('full_name')
+    @classmethod
+    def trim(cls, value):
+        value = value.strip()
+        if not value:
+            raise ValueError('Full name is required')
+        return value
+
+
+@router.post('/web-auth/register', response_model=UserView, status_code=201, dependencies=[Depends(same_origin)])
+def register_account(body: Signup, request: Request, response: Response, auth=Depends(service)):
+    """Новая участница регистрируется сама: email, пароль, имя. Участницы из бота входят по ссылке организатора —
+    так за ними остаётся история Игр."""
+    settings = request.app.state.settings
+    if not settings.signup_enabled:
+        raise HTTPException(404, 'Not found')
+    auth.throttle('signup', client_ip(request), limit=settings.signup_limit)
+    encoded = password_hasher.hash(body.password)
+    with auth.db.transaction() as conn:
+        existing = conn.execute('SELECT account_status FROM users WHERE lower(email)=%s', (body.email,)).fetchone()
+        if existing:
+            raise HTTPException(409, 'email_invited' if existing['account_status'] == 'imported' else 'email_taken')
+        user = conn.execute("""INSERT INTO users(email,password_hash,email_verified_at,account_status,full_name)
+VALUES (%s,%s,now(),'active',%s) RETURNING id""", (body.email, encoded, body.full_name)).fetchone()
+        conn.execute("INSERT INTO user_roles(user_id,role) VALUES (%s,'participant')", (user['id'],))
+        conn.execute("INSERT INTO audit_log(actor_user_id,entity_type,entity_id,action) VALUES (%s,'user',%s,'self_registered')",
+                     (user['id'], user['id']))
+    session = auth.login(body.email, body.password, client_ip(request))
+    old = request.cookies.get(cookie_name(request))
+    if old:
+        auth.logout(old)
+    set_session_cookie(request, response, session)
+    return auth.current_user(session['access_token'])
+
+
+@router.post('/web-auth/invite/check', dependencies=[Depends(same_origin)])
+def invite_check(body: InviteCheck, request: Request, auth=Depends(service)):
+    """Ссылка-приглашение ещё действует? Имя — чтобы поприветствовать; email — если организатор его уже указал."""
+    auth.throttle('consume', client_ip(request))
+    return auth.check_invite(body.token)
+
+
+@router.post('/web-auth/invite', response_model=UserView, dependencies=[Depends(same_origin)])
+def invite_accept(body: InviteAccept, request: Request, response: Response, auth=Depends(service)):
+    """Вход по приглашению: человек сам задаёт email и пароль и сразу попадает в кабинет."""
+    auth.throttle('consume', client_ip(request))
+    auth.consume_invite(body.token, body.email, body.password)
+    session = auth.login(body.email, body.password, client_ip(request))
+    old = request.cookies.get(cookie_name(request))
+    if old:
+        auth.logout(old)
+    set_session_cookie(request, response, session)
+    return auth.current_user(session['access_token'])
 
 
 class Setup(EmailInput):
@@ -203,6 +274,9 @@ def update_profile(body: ProfileChange, user=Depends(browser_user), auth=Depends
 @router.get('/profile/{rest:path}', include_in_schema=False)
 @router.get('/achievements/{rest:path}', include_in_schema=False)
 @router.get('/documents/{rest:path}', include_in_schema=False)
+@router.get('/org', include_in_schema=False)
+@router.get('/org/{rest:path}', include_in_schema=False)
+@router.get('/auth/invite', include_in_schema=False)
 @router.get('/auth/set-password', include_in_schema=False)
 @router.get('/auth/reset-password', include_in_schema=False)
 def page(request: Request):

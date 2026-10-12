@@ -7,4 +7,5 @@ SRC = os.path.join(ROOT, 'src')                  # исходные страни
 DIST = os.environ.get('FPL_DIST') or os.path.join(ROOT, 'dist')   # готовый сайт
 I18N = os.path.join(BUILD, 'i18n')
 PRIVACY = os.path.join(BUILD, 'privacy')
+FEEDBACK = os.path.join(BUILD, 'feedback')
 OG = os.path.join(BUILD, 'og')

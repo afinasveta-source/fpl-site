@@ -24,6 +24,12 @@ class Settings(BaseSettings):
     mail_from: str | None = None
     session_hours: int = 12
     token_minutes: int = 30
+    # Ссылки, которые организатор отправляет сам (писем нет): приглашение — 7 дней, новый пароль — сутки.
+    # Регистрация в кабинете самой участницей (решение 12.10). Email не подтверждается письмом — писем пока нет.
+    signup_enabled: bool = True
+    signup_limit: int = Field(default=5, ge=1, le=100)
+    invite_days: int = Field(default=7, ge=1, le=30)
+    reset_link_hours: int = Field(default=24, ge=1, le=168)
     login_limit: int = 20
     reset_limit: int = 5
     rate_window_seconds: int = 900

@@ -25,7 +25,15 @@ def sync_late(settings):
         except Exception as exc:  # noqa: BLE001 — сверка остальных Игр продолжается, ошибка видна в журнале
             failed += 1
             print(f'sync-late: game {event_id} failed: {type(exc).__name__}: {exc}'[:300])
-    print(f'sync-late: games {len(events)}, moved outside {moved}, failed {failed}')
+    try:
+        from kabinet.org.documents import notify_due_rules
+        with db.transaction() as conn:
+            notified = notify_due_rules(conn, datetime.now(timezone.utc))
+    except Exception as exc:  # noqa: BLE001
+        failed += 1
+        notified = 0
+        print(f'sync-late: rules notice failed: {type(exc).__name__}: {exc}'[:300])
+    print(f'sync-late: games {len(events)}, moved outside {moved}, rules notices {notified}, failed {failed}')
     if failed:
         raise SystemExit(1)
 
