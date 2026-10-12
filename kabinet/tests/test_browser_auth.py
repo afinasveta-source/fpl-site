@@ -103,8 +103,10 @@ def test_frontend_pages_and_local_assets(client):
         assert response.status_code==200 and '<html lang="ru">' in response.text
         assert 'noindex,nofollow' in response.text and 'frame-ancestors' in response.headers['Content-Security-Policy']
         assert '{{ROOT}}' not in response.text and 'src="/assets/app.js"' in response.text
-    for url in ('/assets/app.js','/assets/cabinet.css','/assets/kabinet.css','/assets/fonts.css','/assets/fonts/manrope-cyrillic-400-normal.woff2'):
+    for url in ('/assets/app.js','/assets/cabinet.css','/assets/kabinet.css','/assets/fonts.css'):
         assert client.get(url).status_code==200, url
+    # шрифты — с сайта (тот же домен), а не из кабинета
+    assert "url('/assets/fonts/manrope-cyrillic-400-normal.woff2')" in client.get('/assets/fonts.css').text
     config=client.get('/web-auth/config').json()
     assert config=={'is_test':True,'mail_delivery':False,'password_min_length':12,'setup_needed':True}
 
