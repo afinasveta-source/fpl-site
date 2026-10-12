@@ -78,7 +78,7 @@ def config_defaults(cfg, round_nos):
         weight = 100 if final is None else 0
     points = {**DEFAULT_POINTS, **(cfg.get('points') or {})}
     points['places'] = {**DEFAULT_POINTS['places'], **((cfg.get('points') or {}).get('places') or {})}
-    return {'final_round': final, 'path_rounds': path, 'path_weight': weight, 'points': points,
+    return {'final_round': final, 'path_rounds': path, 'path_weight': weight, 'points': points, 'rounds': rounds,
             'tie_orders': cfg.get('tie_orders', [])}
 
 
@@ -92,6 +92,10 @@ def compute(people, cfg, awards_points=True):
         judged = [n for n in p.scores]
         p.stage = max(judged) if judged else None
         p.finalist = last is not None and last in p.scores and p.excluded is None
+        # выбывшие в 1 туре — вне мест и TOP-10/25 (решение 13.10); зачёт и диплом это не меняет
+        first = (cfg.get('rounds') or [None])[0]
+        if p.excluded is None and not p.finalist and p.stage is not None and p.stage == first and first != last:
+            p.excluded = 'not_qualified_round1'
         path = [p.scores[n] for n in path_rounds if p.scores.get(n) is not None]
         p.path = sum(path) / len(path) if path else None
         p.final = p.scores.get(final) if final is not None else None

@@ -100,3 +100,13 @@ def test_diploma_numbers():
     nums = C.diploma_numbers(people, 1, 2)
     assert nums == {'p1': 'FPL-S1-02-G-0001', 'p2': 'FPL-S1-02-G-0002', 'p3': 'FPL-S1-02-S-0001'}
     assert C.diploma_numbers(people[:1], 1, 2, taken={'gold': 7}) == {'p1': 'FPL-S1-02-G-0008'}
+
+
+def test_round1_eliminated_out_of_standing():
+    """Выбывшие в 1 туре — вне мест и TOP-10/25 (решение 13.10)."""
+    people = [person(i, 'gold', {1: 90 - i, 2: 80 - i}) for i in range(5)] + [person(9, 'gold', {1: 10})]
+    out = {p.id: p for p in C.compute(people, C.config_defaults({'points': {'top10_min': 1}}, [1, 2]))}
+    assert out['p9'].excluded == 'not_qualified_round1' and out['p9'].overall_rank is None and out['p9'].league_rank is None
+    assert not out['p9'].top10 and out['p0'].league_rank == 1
+    one = {p.id: p for p in C.compute([person(1, 'gold', {1: 50}), person(2, 'gold', {1: 40})], C.config_defaults({}, [1]))}
+    assert one['p2'].excluded is None and one['p2'].league_rank == 2           # Игра из одного тура — это и есть финал

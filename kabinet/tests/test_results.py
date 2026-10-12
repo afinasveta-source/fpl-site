@@ -113,7 +113,7 @@ JOIN users u ON u.id=p.user_id WHERE t.evaluation_stream_id=%s''', (st2['id'],))
     for n in ('ann', 'bea', 'cat', 'dia'):
         r = rows[n]
         assert r['finalist'] and abs(r['total'] - round(0.4 * r['scores']['1'] + 0.6 * r['scores']['2'], 2)) < 0.011
-    assert not rows['eve']['finalist'] and rows['eve']['overall_rank'] == 5 and rows['eve']['stage'] == 1
+    assert not rows['eve']['finalist'] and rows['eve']['overall_rank'] is None and rows['eve']['excluded'] == 'not_qualified_round1'
     assert rows['ann']['award_place'] == 1 and rows['dia']['award_place'] == 1        # 1 место в каждой лиге
     assert {rows['bea']['award_place'], rows['cat']['award_place']} == {2, 3}
     # равенства нет — решение не принимается
