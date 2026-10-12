@@ -57,7 +57,9 @@ def test_setup_disabled_without_key(database_dsn):
 def test_root_path_and_disabled_mail(database_dsn, app):
     """Как на сервере: адрес /kabinet, письма не настроены — сброс отвечает одинаково и пишет ошибку в журнал."""
     app2 = create_app(make_settings(database_dsn, root_path='/kabinet', mail_mode='disabled'))
-    with TestClient(app2, root_path='/kabinet') as c:
+    with TestClient(app2) as c:   # как за nginx: /kabinet/... приходит без /kabinet
+        for asset in ('/assets/app.js', '/assets/cabinet.css', '/assets/fonts.css'):
+            assert c.get(asset).status_code == 200, asset
         page = c.get('/')
         assert 'src="/kabinet/assets/app.js"' in page.text and 'data-root="/kabinet"' in page.text
         assert c.get('/web-auth/config').json()['mail_delivery'] is False
