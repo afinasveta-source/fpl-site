@@ -58,10 +58,10 @@ def test_root_path_and_disabled_mail(database_dsn, app):
     """Как на сервере: адрес /kabinet, письма не настроены — сброс отвечает одинаково и пишет ошибку в журнал."""
     app2 = create_app(make_settings(database_dsn, root_path='/kabinet', mail_mode='disabled'))
     with TestClient(app2) as c:   # как за nginx: /kabinet/... приходит без /kabinet
-        for asset in ('/assets/app.js', '/assets/cabinet.css', '/assets/fonts.css'):
+        for asset in ('/assets/core.js', '/assets/pages.js', '/assets/account.js', '/assets/cabinet.css', '/assets/fonts.css'):
             assert c.get(asset).status_code == 200, asset
         page = c.get('/')
-        assert 'src="/kabinet/assets/app.js"' in page.text and 'data-root="/kabinet"' in page.text
+        assert 'src="/kabinet/assets/core.js"' in page.text and 'data-root="/kabinet"' in page.text
         assert c.get('/web-auth/config').json()['mail_delivery'] is False
         with app2.state.db.transaction() as conn:
             conn.execute("""INSERT INTO users(email,password_hash,email_verified_at,account_status)
@@ -90,3 +90,12 @@ def test_ready_accepts_newer_schema(client, app):
 def test_setup_key_hash_matches_server_rule():
     # На сервере в настройки пишется sha256 ключа приёмника — так же, как здесь.
     assert len(hashlib.sha256(SETUP_KEY.encode()).hexdigest()) == 64
+
+
+def test_cabinet_pages_open_from_any_address(client):
+    for url in ('/games', '/games/6f1c2a5e-0000-4000-8000-000000000001/tasks/6f1c2a5e-0000-4000-8000-000000000002',
+                '/events/abc', '/notifications', '/support/12', '/profile/publicity', '/achievements', '/documents/x'):
+        r = client.get(url)
+        assert r.status_code == 200 and 'core.js' in r.text, url
+    assert client.get('/api/nothing').status_code == 404       # адреса API не подменяются страницей
+    assert client.get('/unknown-page').status_code == 404

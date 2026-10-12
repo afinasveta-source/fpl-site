@@ -7,3 +7,16 @@ form.card .lnk{justify-self:start}
 .toast[hidden]{display:none}
 @media (max-width:760px){form.card .btn{justify-self:stretch}}
 html{background:var(--bg)}
+/* Этап 2: вместо атрибутов style (их запрещает политика безопасности страницы) */
+[data-s="g4"]{gap:4px}
+[data-s="g6"]{gap:6px}
+[data-s="auth"]{gap:18px;padding-top:12px}
+[data-s="mb18"]{margin-bottom:18px}
+[data-s="mr8"]{margin-right:8px}
+[data-s="h80"]{min-height:80px}
+[data-s="h120"]{height:120px}
+[data-s="w40"]{width:40%}
+[data-s="w70"]{width:70%}
+[data-s="pre"]{white-space:pre-line;overflow-wrap:anywhere}
+.photo.big img{object-fit:contain}
+.kv a{overflow-wrap:anywhere}

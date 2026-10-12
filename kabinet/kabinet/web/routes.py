@@ -186,8 +186,23 @@ def update_profile(body: ProfileChange, user=Depends(browser_user), auth=Depends
         return user_view(conn, row)
 
 
+# Страницы кабинета: адрес обрабатывает сама страница (core.js); сервер на всех отдаёт один index.html.
+
+
 @router.get('/', include_in_schema=False)
 @router.get('/setup', include_in_schema=False)
+@router.get('/games', include_in_schema=False)
+@router.get('/events', include_in_schema=False)
+@router.get('/notifications', include_in_schema=False)
+@router.get('/support', include_in_schema=False)
+@router.get('/profile', include_in_schema=False)
+@router.get('/achievements', include_in_schema=False)
+@router.get('/games/{rest:path}', include_in_schema=False)
+@router.get('/events/{rest:path}', include_in_schema=False)
+@router.get('/support/{rest:path}', include_in_schema=False)
+@router.get('/profile/{rest:path}', include_in_schema=False)
+@router.get('/achievements/{rest:path}', include_in_schema=False)
+@router.get('/documents/{rest:path}', include_in_schema=False)
 @router.get('/auth/set-password', include_in_schema=False)
 @router.get('/auth/reset-password', include_in_schema=False)
 def page(request: Request):
