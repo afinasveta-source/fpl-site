@@ -26,6 +26,7 @@ class Game:
     versions: dict = field(default_factory=dict)     # submission_id → {'draft': v, 'latest': v}
     media: dict = field(default_factory=dict)        # version_id → [media rows]
     results: dict = field(default_factory=dict)      # round_id → published round_result
+    rating: dict = field(default_factory=dict)       # round_id → изменение FPL Rating за тур
     all_round_nos: list = field(default_factory=list)
 
     @property
@@ -110,6 +111,15 @@ WHERE svm.submission_version_id = ANY(%s) AND svm.field_key='photo' ORDER BY svm
         game.media[m['submission_version_id']].append(m)
     game.results = {r['round_id']: r for r in conn.execute('''SELECT * FROM round_results
 WHERE event_participant_id=%s AND is_current AND status='published' ''', (ep['id'],))}
+    # Изменение FPL Rating за тур (показывается в итоге тура вместе с баллом)
+    game.rating = {}
+    for t in conn.execute('''SELECT * FROM rating_transactions WHERE event_id=%s AND user_id=%s AND status='active'
+AND round_id IS NOT NULL ORDER BY ledger_seq''', (ep['event_id'], ep['user_id'])):
+        before = float(t['rating_before']) if t['rating_before'] is not None else None
+        after = float(t['rating_after'])
+        game.rating[t['round_id']] = {'before': round(before) if before is not None else None, 'after': round(after),
+                                      'delta': round(after) - round(before) if before is not None else None,
+                                      'calibration': t['calibration_rounds_completed_after']}
 
 
 def current_document(conn, kind, now):

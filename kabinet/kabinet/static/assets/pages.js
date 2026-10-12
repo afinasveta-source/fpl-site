@@ -157,6 +157,7 @@
     if (n.route === 'publicity') return '/profile/publicity';
     if (n.route === 'support' && p.thread_no) return '/support/' + p.thread_no;
     if (n.route === 'document' && p.document_id) return '/documents/' + p.document_id;
+    if (n.route === 'judging') return p.stream_id ? '/judging/' + p.stream_id : '/judging';
     return null;
   }
   K.actions.openNotice = function (b) {
@@ -386,9 +387,11 @@
       var adv = res.advanced == null ? '' : res.advanced ? pill(nextR ? 'Проходите в тур ' + nextR.round_no : 'Проходите дальше', 'ok') : pill('В отбор не прошли', 'warn');
       K.page('<div class="stack"><span class="eyebrow">Тур ' + r.round_no + ' · ' + esc(r.title) + '</span><h1>Итог тура ' + r.round_no + '</h1></div>' +
         '<section class="card"><div class="between"><div><div class="score num">' + K.score(res.score) + ' <small>из 100</small></div><p class="small muted">Опубликовано ' + esc(K.date(res.published_at)) + ' МСК</p></div>' +
-        (res.top_work ? pill('TOP WORK', 'acc') : '') + '</div>' + (res.top_work ? '<p class="small">Ваша работа вошла в число лучших работ тура в вашей лиге.</p>' : '') +
+        (res.top_work ? pill('TOP WORK', 'acc') : '') + '</div>' + (res.top_work ? '<p class="small">Ваша работа вошла в число лучших работ тура' + (res.league ? ' в вашей лиге' : '') + '.</p>' : '') +
         '<dl class="kv">' + (adv ? '<dt>Дальше</dt><dd>' + adv + '</dd>' : '') + (res.league ? '<dt>Лига</dt><dd>' + esc(K.LEAGUE[res.league]) + '</dd>' : '') +
-        (res.league_rank ? '<dt>Место в лиге</dt><dd>' + res.league_rank + (res.pool_size ? ' из ' + res.pool_size : '') + '</dd>' : '') + '</dl></section>' +
+        (res.rating ? '<dt>FPL Rating</dt><dd><b class="num">' + res.rating.after + '</b>' + (res.rating.delta != null ? ' <span class="num">(' + (res.rating.delta > 0 ? '+' : '') + res.rating.delta + ')</span>' : '') + '</dd>' +
+          '<dt>Калибровка</dt><dd>' + (res.rating.calibration >= 3 ? 'завершена' : res.rating.calibration + ' из 3') + '</dd>' : '') + '</dl>' +
+        '<p class="small muted">Места в туре не показываются — только в итогах Игры.' + (res.rating ? ' Рейтинг учитывает силу соперников и не равен оценке тура.' : '') + '</p></section>' +
         '<div class="row">' + (idx > 0 && g.rounds[idx - 1].result ? '<button class="btn ghost" type="button" data-href="/games/' + id + '/rounds/' + g.rounds[idx - 1].round_no + '">← Итог тура ' + g.rounds[idx - 1].round_no + '</button>' : '') +
         (nextR && nextR.result ? '<button class="btn ghost" type="button" data-href="/games/' + id + '/rounds/' + nextR.round_no + '">Итог тура ' + nextR.round_no + ' →</button>' : '') +
         '<button class="btn sec" type="button" data-href="/games/' + id + '">Все туры Игры</button>' +

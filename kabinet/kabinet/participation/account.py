@@ -396,7 +396,7 @@ WHERE t.user_id=%s AND t.status='active' ORDER BY t.ledger_seq''', (user['id'],)
         points = conn.execute('''SELECT lifetime_delta, reason_code, reason_text, created_at FROM points_transactions
 WHERE user_id=%s ORDER BY created_at DESC LIMIT 200''', (user['id'],)).fetchall()
         results = conn.execute('''SELECT e.id AS event_id, e.title, r.round_no, r.title AS round_title, rr.display_score, rr.top_work,
-rr.league, rr.league_rank, rr.pool_size, rr.published_at FROM round_results rr
+rr.league, rr.published_at FROM round_results rr
 JOIN event_participants p ON p.id=rr.event_participant_id JOIN events e ON e.id=rr.event_id JOIN rounds r ON r.id=rr.round_id
 WHERE p.user_id=%s AND rr.is_current AND rr.status='published' ORDER BY rr.published_at DESC''', (user['id'],)).fetchall()
         games = conn.execute('''SELECT e.id AS event_id, e.title, er.game_counted, er.league, er.league_rank, er.final_score, er.published_at
@@ -421,7 +421,7 @@ WHERE p.user_id=%s AND c.status='issued' ORDER BY c.issued_at DESC''', (user['id
         'counted_games': sum(1 for g in games if g['game_counted']),
         'results': [{'event_id': str(r['event_id']), 'game': r['title'], 'round_no': r['round_no'], 'round_title': r['round_title'],
                      'score': num(r['display_score']), 'top_work': r['top_work'], 'league': r['league'],
-                     'league_rank': r['league_rank'], 'pool_size': r['pool_size'], 'at': iso(r['published_at'])} for r in results],
+                     'at': iso(r['published_at'])} for r in results],
         'games': [{'event_id': str(g['event_id']), 'game': g['title'], 'counted': g['game_counted'], 'league': g['league'],
                    'league_rank': g['league_rank'], 'score': num(g['final_score']), 'at': iso(g['published_at'])} for g in games],
         'diplomas': [{'number': d['certificate_number'], 'game': d['title'], 'issued_at': iso(d['issued_at']),

@@ -85,3 +85,47 @@ fieldset.stack legend{font-weight:700;font-size:14px;margin-bottom:6px}
 body.org main h3{font:700 15px/1.3 var(--f-body);margin:6px 0 0}
 .league-box:has(.league-fields[hidden]){border-color:transparent;padding-block:0}
 .league-dates{margin:0;padding-left:18px;display:grid;gap:2px}
+
+/* Этап 4: судейство */
+.jbar{height:8px;border-radius:4px;background:var(--sunk);overflow:hidden}
+.jbar span{display:block;height:100%;background:var(--accent);width:0}
+.jbar span[data-w="0"]{width:0%}
+.jbar span[data-w="5"]{width:5%}
+.jbar span[data-w="10"]{width:10%}
+.jbar span[data-w="15"]{width:15%}
+.jbar span[data-w="20"]{width:20%}
+.jbar span[data-w="25"]{width:25%}
+.jbar span[data-w="30"]{width:30%}
+.jbar span[data-w="35"]{width:35%}
+.jbar span[data-w="40"]{width:40%}
+.jbar span[data-w="45"]{width:45%}
+.jbar span[data-w="50"]{width:50%}
+.jbar span[data-w="55"]{width:55%}
+.jbar span[data-w="60"]{width:60%}
+.jbar span[data-w="65"]{width:65%}
+.jbar span[data-w="70"]{width:70%}
+.jbar span[data-w="75"]{width:75%}
+.jbar span[data-w="80"]{width:80%}
+.jbar span[data-w="85"]{width:85%}
+.jbar span[data-w="90"]{width:90%}
+.jbar span[data-w="95"]{width:95%}
+.jbar span[data-w="100"]{width:100%}
+
+.jgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.jside{display:grid;gap:8px;align-content:start;min-width:0}
+.jphoto{display:block;border-radius:10px;overflow:hidden;background:var(--sunk)}
+.jphoto img{display:block;width:100%;max-height:70vh;object-fit:contain}
+.jpair .btn.wide{justify-self:stretch}
+.jthumbs{display:flex;gap:6px}
+.jthumbs img{width:56px;height:56px;object-fit:cover;border-radius:6px;opacity:.45}
+.jthumbs img.won{opacity:1;outline:2px solid var(--accent)}
+.jworks{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px}
+.jwork{all:unset;box-sizing:border-box;cursor:pointer;display:grid;gap:4px;justify-items:start;padding:6px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.jwork img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px}
+.jwork:focus-visible{outline:2px solid var(--accent)}
+.jphotos{display:grid;gap:8px}
+.jt{width:56px;height:56px;object-fit:cover;border-radius:6px;display:block}
+.jtable tr.tied{background:var(--bad-soft)}
+.crit-row{border-bottom:1px solid var(--line);padding-bottom:10px}
+.crit-row .btn{justify-self:start}
+@media (max-width:520px){ .jgrid{gap:8px} .jphoto img{max-height:55vh} .jside .btn{padding-inline:8px} }

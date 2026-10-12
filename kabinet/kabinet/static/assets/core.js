@@ -150,8 +150,14 @@
     ['/org/feedback', 'Пожелания'], ['/org/documents', 'Документы']];
   K.inOrg = function () { var p = K.path(); return p === '/org' || p.indexOf('/org/') === 0; };
   K.isAdmin = function () { return !!(K.state.me && K.state.me.roles && K.state.me.roles.indexOf('admin') >= 0); };
+  /* Судейство (этап 4): раздел видят судьи и администраторы — организатор тоже может судить. */
+  K.isJudge = function () { var r = (K.state.me && K.state.me.roles) || []; return r.indexOf('judge') >= 0 || r.indexOf('admin') >= 0; };
+  function sections() {
+    if (!K.isJudge()) return SECTIONS;
+    return SECTIONS.slice(0, 3).concat([['/judging', 'Судейство']], SECTIONS.slice(3));
+  }
   function section() {
-    var p = K.path(), list = K.inOrg() ? ORG : SECTIONS;
+    var p = K.path(), list = K.inOrg() ? ORG : sections();
     if (p === list[0][0]) return p;
     for (var i = 1; i < list.length; i++) if (p === list[i][0] || p.indexOf(list[i][0] + '/') === 0) return list[i][0];
     if (p.indexOf('/documents/') === 0) return '/profile';
@@ -159,7 +165,7 @@
   }
   function navHTML() {
     var cur = section(), n = K.state.unread, org = K.inOrg(), c = K.state.orgCounts || {};
-    var list = org ? ORG : SECTIONS;
+    var list = org ? ORG : sections();
     var badge = function (s) {
       if (org) { var x = s[0] === '/org/support' ? c.support : s[0] === '/org/feedback' ? c.feedback : 0; return x ? '<span class="cnt">' + x + '</span>' : ''; }
       return s[0] === '/notifications' && n ? '<span class="cnt">' + n + '</span>' : '';
@@ -182,7 +188,7 @@
   function tabbarHTML() {
     var cur = section(), n = K.state.unread;
     var tabs = [['/', 'Главная'], ['/games', 'Мои Игры'], ['/notifications', 'Уведомления'], ['/profile', 'Профиль']];
-    var inMore = ['/events', '/achievements', '/support'].indexOf(cur) >= 0;
+    var inMore = ['/events', '/achievements', '/support', '/judging'].indexOf(cur) >= 0;
     return '<nav class="tabbar" aria-label="Разделы кабинета">' + tabs.map(function (t) {
       return '<button type="button" data-href="' + t[0] + '"' + (cur === t[0] ? ' aria-current="page"' : '') + '>' + ico(t[0]) +
         (t[0] === '/notifications' && n ? '<span class="cnt">' + n + '</span>' : '') + '<span>' + t[1] + '</span></button>';
@@ -190,7 +196,8 @@
   }
   function moreHTML() {
     return '<div class="sheet" data-act="closeMore"><div class="panel" role="dialog" aria-label="Ещё разделы"><span class="grip"></span><div class="list">' +
-      K.li('Игры лиги', 'Каталог Игр и челленджей', '', '/events') + K.li('Мои достижения', 'Рейтинг, баллы, дипломы', '', '/achievements') +
+      K.li('Игры лиги', 'Каталог Игр и челленджей', '', '/events') + (K.isJudge() ? K.li('Судейство', 'Оценка работ туров', '', '/judging') : '') +
+      K.li('Мои достижения', 'Рейтинг, баллы, дипломы', '', '/achievements') +
       K.li('Поддержка', 'Вопросы организатору', '', '/support') + '</div><button class="btn sec" type="button" data-act="logout">Выйти</button></div></div>';
   }
   function header(auth) {

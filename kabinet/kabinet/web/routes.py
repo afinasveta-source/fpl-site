@@ -274,6 +274,8 @@ def update_profile(body: ProfileChange, user=Depends(browser_user), auth=Depends
 @router.get('/profile/{rest:path}', include_in_schema=False)
 @router.get('/achievements/{rest:path}', include_in_schema=False)
 @router.get('/documents/{rest:path}', include_in_schema=False)
+@router.get('/judging', include_in_schema=False)
+@router.get('/judging/{rest:path}', include_in_schema=False)
 @router.get('/org', include_in_schema=False)
 @router.get('/org/{rest:path}', include_in_schema=False)
 @router.get('/auth/invite', include_in_schema=False)

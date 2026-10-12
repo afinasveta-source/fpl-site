@@ -373,8 +373,14 @@ def media(media_id: UUID, request: Request, size: str = Query('view', pattern='^
     with db(request).transaction() as conn:
         row = conn.execute('SELECT * FROM media_files WHERE id=%s AND deleted_at IS NULL', (media_id,)).fetchone()
         staff = conn.execute("SELECT 1 FROM user_roles WHERE user_id=%s AND role IN ('admin','moderator')", (user['id'],)).fetchone()
-    # Своё фото видит автор; организатор и модератор — любое. Чужое — как будто его нет.
-    if not row or (row['uploaded_by'] != user['id'] and not staff):
+        # Судья видит фото работ своего пула (замороженная при запуске судейства версия работы).
+        judge = row and not staff and row['uploaded_by'] != user['id'] and 'judge' in user['roles'] and conn.execute('''SELECT 1 FROM submission_version_media svm
+JOIN evaluation_target_members m ON m.submission_version_id=svm.submission_version_id
+JOIN evaluation_targets t ON t.id=m.evaluation_target_id
+JOIN evaluation_judge_assignments a ON a.evaluation_stream_id=t.evaluation_stream_id AND a.user_id=%s AND a.status='active'
+WHERE svm.media_file_id=%s LIMIT 1''', (user['id'], media_id)).fetchone()
+    # Своё фото видит автор; организатор и модератор — любое; судья — работы своего пула. Чужое — как будто его нет.
+    if not row or (row['uploaded_by'] != user['id'] and not staff and not judge):
         raise HTTPException(404, 'Not found')
     key = row['optimized_storage_key'] if size == 'view' else row['thumbnail_storage_key']
     path = request.app.state.media.path(key)

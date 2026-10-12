@@ -62,12 +62,13 @@ def my_work_state(game, rnd, assignment, now):
     return draft
 
 
-def result_view(res):
+def result_view(res, rating=None):
+    # Места до конца Игры не показываются (Правила, п. 7.3; решение 12.10) — только балл, TOP WORK, проход, рейтинг.
     if not res:
         return None
     return {'score': float(res['display_score']) if res['display_score'] is not None else None,
-            'advanced': res['advanced'], 'league': res['league'], 'league_rank': res['league_rank'],
-            'pool_size': res['pool_size'], 'top_work': res['top_work'], 'published_at': iso(res['published_at'])}
+            'advanced': res['advanced'], 'league': res['league'], 'top_work': res['top_work'],
+            'published_at': iso(res['published_at']), 'rating': rating}
 
 
 def rounds_view(game, now, conn=None, user_id=None, rules_ok=True):
@@ -79,7 +80,7 @@ def rounds_view(game, now, conn=None, user_id=None, rules_ok=True):
                  'state': round_state(rnd, items, game, now), 'opens_at': iso(rnd['opens_at']),
                  'judging_deadline': iso(rnd['judging_deadline']), 'assignment_id': str(main['id']) if main else None,
                  'deadline': None, 'work': None, 'can_submit': False, 'closed_reason': None,
-                 'result': result_view(game.results.get(rnd['id']))}
+                 'result': result_view(game.results.get(rnd['id']), game.rating.get(rnd['id']))}
         if main is not None:
             deadline, _ = R.competition_deadline(rnd, main, game.pas.get(main['id']))
             entry['deadline'] = iso(deadline)
@@ -139,5 +140,5 @@ def task_view(game, assignment, now, rules_ok, root, variant):
         'submitted': version_view(game, versions.get('latest'), root) | {
             'is_on_time': sub['is_on_time'], 'first_submitted_at': iso(sub['first_submitted_at']),
             'counts_for_competition': sub['counts_for_competition']} if sub and versions.get('latest') else None,
-        'result': result_view(game.results.get(rnd['id'])),
+        'result': result_view(game.results.get(rnd['id']), game.rating.get(rnd['id'])),
     }

@@ -379,6 +379,7 @@
     if (!ro && r.status === 'draft' && r.is_last) acts.push('<button class="btn ghost" type="button" data-act="roundDelete">Удалить тур</button>');
     h += '<section class="card"><h2>Состояние</h2><p class="small muted">' + ({ draft: 'Черновик: участницы тур не видят. Заполните даты и задание и опубликуйте.', plan: 'Опубликован: виден в плане Игры. Задание откроется ' + esc(O.when(r.opens_at)) + '.',
       open: 'Идёт сдача до ' + esc(O.when(r.deadline)) + '.', closed: 'Приём работ закрыт.' }[r.state] || '') + '</p>' + ownDatesNote(r) + O.issues(r.checks) + (acts.length ? '<div class="row">' + acts.join('') + '</div>' : '') +
+      (r.status !== 'draft' ? '<div class="row"><button class="btn sec" type="button" data-href="/org/rounds/' + r.id + '/judging">Судейство тура</button></div>' : '') +
       (r.state !== 'draft' ? '<div class="stats"><div class="stat"><span>Участниц в Игре</span><b class="num">' + r.stats.participants + '</b></div><div class="stat"><span>Открыли задание</span><b class="num">' + r.stats.issued + '</b></div>' +
         '<div class="stat"><span>Сдали в срок</span><b class="num">' + r.stats.on_time + '</b></div><div class="stat"><span>Сдали после срока</span><b class="num">' + r.stats.late + '</b></div>' +
         (r.stats.personal_deadlines ? '<div class="stat"><span>Личных продлений</span><b class="num">' + r.stats.personal_deadlines + '</b></div>' : '') + '</div>' : '') + '</section>';
