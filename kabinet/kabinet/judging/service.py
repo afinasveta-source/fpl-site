@@ -357,6 +357,7 @@ def stream_view(conn, st, now):
     cfg = st['configuration'] or {}
     names = {str(t['id']): (t['full_name'] or t['display_name'] or t['email'] or 'Без имени') for t in data['targets']}
     ep_of = {str(t['id']): str(t['event_participant_id']) for t in data['targets']}
+    league_of = {str(t['id']): t['entry_league'] for t in data['targets']}
     return {'id': str(st['id']), 'league': st['league'], 'league_name': LEAGUE_NAME[st['league']], 'method': st['judging_method'],
             'per_target': st['comparisons_per_target_per_judge'], 'quota': cfg.get('quota'),
             'judging_deadline': iso(st['judging_deadline']), 'pool_size': ev['pool_size'], 'works': len(data['targets']),
@@ -367,7 +368,7 @@ def stream_view(conn, st, now):
             'regular_closed': bool(cfg.get('regular_closed')),
             'rows': [{'target': r.target, 'participant_id': ep_of[r.target], 'name': names[r.target], 'score': r.score,
                       'rank': r.rank, 'position': r.position, 'place': r.place, 'tie_group_size': r.tie_group_size,
-                      'top_work': r.top_work, 'left': r.extra.get('left'),
+                      'top_work': r.top_work, 'league': league_of[r.target], 'left': r.extra.get('left'),
                       'advanced': r.advanced, 'wins': r.extra.get('wins'), 'comparisons': r.extra.get('comparisons'),
                       'value': r.extra.get('value'), 'tie_break_wins': r.extra.get('tie_break_wins')} for r in ev['order']],
             'tie_breaks': [{'run_no': tb['run_no'], 'goal': tb['goal'], 'targets': tb['targets'], 'finished': finished,

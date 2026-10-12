@@ -123,6 +123,7 @@ def row_view(p, extra):
             'path': round(p.path, 2) if p.path is not None else None, 'final': p.final, 'total': p.total,
             'league_rank': p.league_rank, 'award_place': p.award_place, 'overall_rank': p.overall_rank, 'tie': p.tie,
             'counted': p.counted, 'diploma': p.diploma, 'top_works': len(p.top_works), 'points': p.points,
+            'top10': p.top10, 'top25': p.top25,
             'scores': {str(k): v for k, v in sorted(p.scores.items())}}
 
 
@@ -160,6 +161,7 @@ ORDER BY er.overall_rank NULLS LAST, er.league, er.league_rank NULLS LAST, u.ful
                     'league_rank': r['league_rank'], 'award_place': r['award_place'], 'overall_rank': r['overall_rank'], 'tie': [],
                     'counted': r['game_counted'], 'diploma': r['diploma_eligible'], 'top_works': snap.get('top_works', 0),
                     'points': {'total': r['points']}, 'certificate': r['certificate_number'],
+                    'top10': bool(snap.get('top10')), 'top25': bool(snap.get('top25')),
                     'scores': snap.get('scores', {})})
     return out
 
@@ -200,14 +202,12 @@ WHERE p.event_id=%s AND c.certificate_number IS NOT NULL''', (e['id'],)):
         taken[league] = max(taken.get(league, 0), n)
     numbers = C.diploma_numbers(order, season['season_no'], e['game_no'], taken) if any(p.diploma for p in order) else {}
     summary = {'results': 0, 'diplomas': 0, 'points': 0}
-    standing = sum(1 for p in order if p.overall_rank is not None)
     for p in order:
         ep = extra[p.id]['ep']
         snap = {'formula': C.FORMULA, 'path_rounds': cfg['path_rounds'], 'final_round': cfg['final_round'],
                 'path_weight': cfg['path_weight'], 'stage': p.stage, 'path': round(p.path, 2) if p.path is not None else None,
                 'final': p.final, 'scores': {str(k): v for k, v in sorted(p.scores.items())}, 'top_works': len(p.top_works),
-                'points': p.points, 'tie': None, 'standing_size': standing,
-                'top25_on': C.top25_on(cfg['points'], standing), 'top10_on': C.top10_on(cfg['points'], standing)}
+                'points': p.points, 'tie': None, 'top10': p.top10, 'top25': p.top25}
         basis, basis_round = (('final', None) if p.finalist and p.total is not None else
                               ('round', p.stage) if p.overall_rank is not None else (None, None))
         er = conn.execute('''INSERT INTO event_results(event_id,event_participant_id,result_kind,version_no,is_current,status,final_score,
@@ -255,7 +255,8 @@ ON CONFLICT (user_id) DO UPDATE SET lifetime_points=participant_stats.lifetime_p
 
 
 def reason_text(e, p, best):
-    what = {'top10': 'TOP-10 Игры', 'top25': 'TOP-25 Игры', 'completion': 'завершение Игры'}.get(best)
+    lg = LEAGUE_NAME.get(p.league, '')
+    what = {'top10': f'TOP-10 · {lg}', 'top25': f'TOP-25 · {lg}', 'completion': 'завершение Игры'}.get(best)
     if best and best.startswith('place_'):
         what = f"{best[-1]} место, лига {LEAGUE_NAME.get(p.league, '')}".strip()
     return f"Итог Игры «{e['title']}»: {what}"
@@ -303,8 +304,8 @@ AND certificate_type='diploma' AND status='issued' ''', (ep_id,)).fetchone()
 AND top_work''', (ep_id,)).fetchone()['n']
     return {'total': float(r['final_score']) if r['final_score'] is not None else None, 'league': r['league'],
             'league_rank': r['league_rank'] if r['standing_basis'] == 'final' else None, 'award_place': r['award_place'],
-            'top10': r['overall_rank'] is not None and r['overall_rank'] <= 10 and bool((r['calculation_snapshot'] or {}).get('top10_on')),
-            'top25': r['overall_rank'] is not None and r['overall_rank'] <= 25 and bool((r['calculation_snapshot'] or {}).get('top25_on')),
+            'top10': bool((r['calculation_snapshot'] or {}).get('top10')),
+            'top25': bool((r['calculation_snapshot'] or {}).get('top25')),
             'overall_rank': r['overall_rank'],
             'game_counted': r['game_counted'], 'diploma': cert['certificate_number'] if cert else None,
             'diploma_title': cert['issue_snapshot'].get('result') if cert else None,

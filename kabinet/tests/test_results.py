@@ -119,8 +119,8 @@ JOIN users u ON u.id=p.user_id WHERE t.evaluation_stream_id=%s''', (st2['id'],))
     # равенства нет — решение не принимается
     assert c.post(url + '/tie', headers=ORIGIN, json={'league': 'gold', 'order': [lst['bea']['id'], lst['cat']['id']],
                                                       'reason': 'x'}).json()['detail'] == 'tie_targets'
-    # очки: ann — 1 место Gold (20) + TOP WORK; dia — 1 место Silver (12, выше TOP-10 = 8); eve — TOP-10 (8)
-    assert rows['ann']['points']['result'] == 20 and rows['dia']['points']['result'] == 12 and rows['eve']['points']['best'] == 'top10'
+    # очки: ann — 1 место Gold (20) + TOP WORK; dia — 1 место Silver (12); eve — нет достижений (не все работы сданы)
+    assert rows['ann']['points']['result'] == 20 and rows['dia']['points']['result'] == 12 and rows['eve']['points']['best'] is None   # в Silver 2 человека: 20% = 0, TOP-10 нет
     assert rows['eve']['diploma'] is False and rows['ann']['diploma'] is True and rows['ann']['counted'] is True
 
     v = ok(c.post(url + '/publish', headers=ORIGIN))
@@ -149,7 +149,7 @@ JOIN users u ON u.id=p.user_id WHERE t.evaluation_stream_id=%s''', (st2['id'],))
         stats = conn.execute('SELECT lifetime_points FROM participant_stats WHERE user_id=%s', (lst['ann']['user_id'],)).fetchone()
         assert stats['lifetime_points'] == res['points']
         n = conn.execute("SELECT count(*) AS n FROM points_transactions WHERE event_id=%s AND reason_code='game_result'", (eid,)).fetchone()['n']
-        assert n == 5                                                              # у каждой — одно достижение
+        assert n == 4                                                              # одно достижение у каждой, у кого оно есть
     titles = [x['title'] for x in ok(people['dia'].get('/api/notifications'))['notifications']]
     assert any(t.startswith('Итоги Игры') for t in titles)
 

@@ -180,7 +180,7 @@
         var same = s.rows.filter(function (x) { return x.place != null && x.place === r.place; }).length > 1;
         return '<tr class="' + (tied.indexOf(r.target) >= 0 ? 'tied' : '') + '"><td data-label="Место">' + (r.place || '—') + (same ? ' <span class="small muted">(делит)</span>' : '') + '</td>' +
           '<td data-label="Работа">' + (r.photos[0] ? '<a href="' + esc(r.photos[0].view_url) + '" target="_blank" rel="noopener"><img class="jt" src="' + esc(r.photos[0].thumb_url) + '" alt="Работа: ' + esc(r.name) + '"></a>' : '—') + '</td>' +
-          '<td data-label="Участница"><button class="lnk" type="button" data-href="/org/participants/' + r.participant_id + '">' + esc(r.name) + '</button>' + (r.top_work ? ' ' + pill('TOP WORK', 'acc') : '') + '</td>' +
+          '<td data-label="Участница"><button class="lnk" type="button" data-href="/org/participants/' + r.participant_id + '">' + esc(r.name) + '</button>' + (r.top_work ? ' ' + pill(K.topWork(r.league), 'acc') : '') + '</td>' +
           '<td class="c" data-label="Балл"><b class="num">' + (r.score == null ? '—' : r.score) + '</b></td>' +
           '<td class="c" data-label="' + (s.method === 'pairwise' ? 'Победы' : 'Оценка') + '">' + (s.method === 'pairwise' ? (r.comparisons ? r.wins + ' / ' + r.comparisons : '—') : (r.value == null ? '—' : String(r.value).replace('.', ','))) +
           (r.tie_break_wins != null ? '<span class="small muted"> · переголосование ' + r.tie_break_wins + '</span>' : '') + '</td>' +

@@ -45,7 +45,9 @@
     var rounds = d.rounds;
     var h = '<form class="card" id="f-rfmt" novalidate><h2>Формат итогов</h2>' +
       '<p class="small muted">Итог Игры = путь × ' + c.path_weight + '% + финал × ' + (100 - c.path_weight) + '%. Путь — средний балл выбранных туров, финал — балл последнего тура. ' +
-      'TOP-10 — если в общем списке Игры не меньше ' + c.points.top10_min + ' человек, TOP-25 — не меньше ' + c.points.top25_min + '. Места 1–3 — в своей лиге, среди дошедших до финала; при равном итоге выше тот, у кого выше финал, дальше решаете вы. Общий список Игры (для TOP-10 и TOP-25): сначала дошедшие до финала — по итогу, потом выбывшие позже — по баллу тура, где выбыли. Опоздавшие, вышедшие и дисквалифицированные в него не входят.</p>' +
+      'Места 1–3 — в своей лиге, среди дошедших до финала; при равном итоге выше тот, у кого выше финал, дальше решаете вы. ' +
+      'Порядок в лиге: сначала дошедшие до финала — по итогу, потом выбывшие позже — по баллу тура, где выбыли. Опоздавшие, вышедшие и дисквалифицированные не входят. ' +
+      'TOP-10 и TOP-25 — тоже в своей лиге: места до 10 (25), но не больше 20% лиги; TOP-10 — если в лиге не меньше ' + c.points.top10_min + ' человек, TOP-25 — не меньше ' + c.points.top25_min + '.</p>' +
       (edit ? '' : '<div class="note small">' + esc(t('locked_after_start')) + '</div>');
     if (!rounds.length) return h + '<p class="muted">Туров пока нет — формат можно задать после того, как они появятся.</p></form>';
     h += '<div class="grid2">' + O.sel('rf-final', 'Финал', [['', 'Без финала (итог — средний балл туров)']].concat(rounds.map(function (r) { return [r.round_no, 'Тур ' + r.round_no + ' · ' + r.title]; })),
@@ -62,9 +64,9 @@
           return '<td class="c" data-label="' + (i + 1) + ' место"><input class="input num-in" type="number" min="0" max="1000" id="pt-' + l[0] + '-' + i + '" value="' + esc(p.places[l[0]][i]) + '" aria-label="' + l[1] + ', ' + (i + 1) + ' место"' + dis + '></td>';
         }).join('') + '</tr>';
       }).join('') + '</tbody></table></div><div class="grid4">' +
-      O.txt('pt-top10', 'TOP-10 Игры', p.top10, ' type="number" min="0" max="1000"' + dis) + O.txt('pt-top25', 'TOP-25 Игры', p.top25, ' type="number" min="0" max="1000"' + dis) +
-      O.txt('pt-top10min', 'TOP-10 — от скольки человек', p.top10_min, ' type="number" min="0" max="100000"' + dis, 'В общем списке Игры. Меньше — TOP-10 нет.') +
-      O.txt('pt-top25min', 'TOP-25 — от скольки человек', p.top25_min, ' type="number" min="0" max="100000"' + dis, 'В общем списке Игры. Меньше — TOP-25 нет.') +
+      O.txt('pt-top10', 'TOP-10 лиги', p.top10, ' type="number" min="0" max="1000"' + dis) + O.txt('pt-top25', 'TOP-25 лиги', p.top25, ' type="number" min="0" max="1000"' + dis) +
+      O.txt('pt-top10min', 'TOP-10 — от скольки человек в лиге', p.top10_min, ' type="number" min="0" max="100000"' + dis, 'Меньше — в этой лиге TOP-10 нет.') +
+      O.txt('pt-top25min', 'TOP-25 — от скольки человек в лиге', p.top25_min, ' type="number" min="0" max="100000"' + dis, 'Меньше — в этой лиге TOP-25 нет.') +
       O.txt('pt-completion', 'Завершение (зачёт)', p.completion, ' type="number" min="0" max="1000"' + dis) + O.txt('pt-tw', 'TOP WORK, за работу', p.top_work, ' type="number" min="0" max="1000"' + dis) + '</div>' +
       (d.event.awards_points ? '' : '<p class="small muted">У этой Игры выключено «Даёт очки FPL» — очки не начисляются.</p>') +
       O.errBox + (edit ? '<button class="btn" type="submit">Сохранить формат</button>' : '') + '</form>';
@@ -109,7 +111,8 @@
     h += '<div class="table-wrap"><table class="otable rtable"><thead><tr><th scope="col">Общее место</th><th scope="col">Участница</th><th scope="col">Лига, место</th>' +
       '<th scope="col" class="c">Путь</th><th scope="col" class="c">Финал</th><th scope="col" class="c">Итог</th><th scope="col">Зачёт, диплом</th><th scope="col" class="c">Очки FPL</th></tr></thead><tbody>' +
       rows.map(function (r) {
-        var place = r.award_place ? pill(r.award_place + ' место', r.award_place === 1 ? 'ok' : 'acc') : r.league_rank ? r.league_rank + ' в лиге' : '—';
+        var place = (r.award_place ? pill(r.award_place + ' место', r.award_place === 1 ? 'ok' : 'acc') : r.league_rank ? r.league_rank + ' в лиге' : '—') +
+          (r.top10 ? ' ' + pill('TOP-10', 'info') : r.top25 ? ' ' + pill('TOP-25', 'info') : '');
         var who = r.excluded ? pill(EXCL[r.excluded] || r.excluded, 'plain') : !r.finalist && r.stage ? '<span class="small muted">выбыла после тура ' + r.stage + '</span>' : !r.stage ? '<span class="small muted">не судилась</span>' : '';
         var dip = (r.counted ? pill('Зачёт', 'ok') : '') + ' ' + (r.certificate ? '<span class="small nowrap">' + esc(r.certificate) + '</span>' : r.diploma ? pill('Диплом', 'acc') : '');
         var pts = r.points && r.points.total != null ? '<b class="num">' + r.points.total + '</b>' + (r.points.best ? '<span class="small muted"> ' + esc(BEST[r.points.best] || '') + (r.points.top_work ? ' + TOP WORK ' + r.points.top_work : '') + '</span>' : '') : '—';

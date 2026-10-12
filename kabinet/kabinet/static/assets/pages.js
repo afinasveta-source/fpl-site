@@ -118,10 +118,10 @@
         if (pubs.length) {
           var lp = pubs[pubs.length - 1];
           h += '<section class="card last-res"><h2>Итоги туров</h2><div class="lr-main"><span class="eyebrow">Последний · Тур ' + lp.round_no + ' · ' + esc(lp.title) + '</span>' +
-            '<div class="between"><div class="score num">' + K.score(lp.result.score) + ' <small>из 100</small></div>' + (lp.result.top_work ? pill('TOP WORK', 'acc') : '') + '</div>' +
+            '<div class="between"><div class="score num">' + K.score(lp.result.score) + ' <small>из 100</small></div>' + (lp.result.top_work ? pill(K.topWork(lp.result.league), 'acc') : '') + '</div>' +
             '<button class="btn sec" type="button" data-href="/games/' + g.event.id + '/rounds/' + lp.round_no + '">Подробнее о туре ' + lp.round_no + '</button></div>' +
             (pubs.length > 1 ? '<div class="lr-prev"><span class="eyebrow">Предыдущие туры</span><div class="list">' + pubs.slice(0, -1).reverse().map(function (x) {
-              return li('Тур ' + x.round_no + ' · ' + esc(x.title), 'Оценка ' + K.score(x.result.score), x.result.top_work ? pill('TOP WORK', 'acc') : '', '/games/' + g.event.id + '/rounds/' + x.round_no);
+              return li('Тур ' + x.round_no + ' · ' + esc(x.title), 'Оценка ' + K.score(x.result.score), x.result.top_work ? pill(K.topWork(x.result.league), 'acc') : '', '/games/' + g.event.id + '/rounds/' + x.round_no);
             }).join('') + '</div></div>' : '') + '</section>';
         }
       }
@@ -334,7 +334,7 @@
     var outside = g.me.mode === 'outside', href = null, sub = '', right;
     var stateP = { pub: pill('Итог опубликован', 'ok'), open: pill('Идёт сдача', 'acc'), judging: pill('Судейство', 'info'), plan: pill('Запланирован', 'plain') }[r.state];
     if (r.state === 'plan') sub = r.opens_at ? 'Откроется ' + K.day(r.opens_at) : 'Дата будет объявлена';
-    else if (r.result) sub = 'Оценка ' + K.score(r.result.score) + (r.result.top_work ? ' · TOP WORK' : '');
+    else if (r.result) sub = 'Оценка ' + K.score(r.result.score) + (r.result.top_work ? ' · ' + K.topWork(r.result.league) : '');
     else if (r.work === 'missed') sub = outside && r.can_submit ? 'Не сдана в срок · можно сдать до конца Игры' : 'Работа не сдана в срок';
     else if (r.work === 'sent_late') sub = 'Сдана после срока · идёт в диплом' + (r.can_submit ? ' · заменить до конца Игры' : '');
     else if (r.work === 'sent') sub = outside ? 'Сдана' + (r.can_submit ? ' · заменить до конца Игры' : '') : 'Работа сдана' + (r.can_submit ? ' · замена до ' + K.date(r.deadline) : '');
@@ -363,13 +363,12 @@
     if (!r) return '';
     var L = r.league ? K.LEAGUE[r.league] : '';
     var head = r.award_place ? ['🥇', '🥈', '🥉'][r.award_place - 1] + ' ' + r.award_place + ' место' + (L ? ' · лига ' + L : '') :
-      r.top10 ? 'TOP-10 Игры' : r.top25 ? 'TOP-25 Игры' : 'Игра завершена';
+      r.top10 ? 'TOP-10' + (L ? ' · ' + L : '') : r.top25 ? 'TOP-25' + (L ? ' · ' + L : '') : 'Игра завершена';
     var cells = [];
     if (r.total != null) cells.push(['Итог Игры', String(r.total).replace('.', ',')]);
     if (r.league_rank) cells.push(['Место в лиге', r.league_rank + (L ? ' · ' + L : '')]);
-    if (r.overall_rank) cells.push(['Место в Игре', String(r.overall_rank)]);
     cells.push(['Очки FPL', '+' + (r.points || 0)]);
-    if (r.top_works) cells.push(['TOP WORK', String(r.top_works)]);
+    if (r.top_works) cells.push([K.topWork(r.league), String(r.top_works)]);
     var h = '<section class="card next-step"><span class="eyebrow">Итоги Игры</span><h2>' + esc(head) + '</h2>' +
       '<div class="res-grid">' + cells.map(function (c) { return '<div><span class="small muted">' + esc(c[0]) + '</span><b class="num">' + esc(c[1]) + '</b></div>'; }).join('') + '</div>';
     h += '<dl class="kv"><dt>Зачёт Игры</dt><dd>' + (r.game_counted ? pill('Засчитана', 'ok') : pill('Не засчитана', 'plain')) + '</dd>' +
@@ -408,7 +407,7 @@
       var adv = res.advanced == null ? '' : res.advanced ? pill(nextR ? 'Проходите в тур ' + nextR.round_no : 'Проходите дальше', 'ok') : pill('В отбор не прошли', 'warn');
       K.page('<div class="stack"><span class="eyebrow">Тур ' + r.round_no + ' · ' + esc(r.title) + '</span><h1>Итог тура ' + r.round_no + '</h1></div>' +
         '<section class="card"><div class="between"><div><div class="score num">' + K.score(res.score) + ' <small>из 100</small></div><p class="small muted">Опубликовано ' + esc(K.date(res.published_at)) + ' МСК</p></div>' +
-        (res.top_work ? pill('TOP WORK', 'acc') : '') + '</div>' + (res.top_work ? '<p class="small">Ваша работа вошла в число лучших работ тура' + (res.league ? ' в вашей лиге' : '') + '.</p>' : '') +
+        (res.top_work ? pill(K.topWork(res.league), 'acc') : '') + '</div>' + (res.top_work ? '<p class="small">Ваша работа вошла в число лучших работ тура' + (res.league ? ' в лиге ' + esc(K.LEAGUE[res.league]) : '') + '.</p>' : '') +
         '<dl class="kv">' + (adv ? '<dt>Дальше</dt><dd>' + adv + '</dd>' : '') + (res.league ? '<dt>Лига</dt><dd>' + esc(K.LEAGUE[res.league]) + '</dd>' : '') +
         (res.rating ? '<dt>FPL Rating</dt><dd><b class="num">' + res.rating.after + '</b>' + (res.rating.delta != null ? ' <span class="num">(' + (res.rating.delta > 0 ? '+' : '') + res.rating.delta + ')</span>' : '') + '</dd>' +
           '<dt>Калибровка</dt><dd>' + (res.rating.calibration >= 3 ? 'завершена' : res.rating.calibration + ' из 3') + '</dd>' : '') + '</dl>' +

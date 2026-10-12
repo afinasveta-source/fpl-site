@@ -57,23 +57,32 @@ def test_tie_needs_decision():
 
 def test_points_best_only_plus_top_work():
     grid = C.DEFAULT_POINTS
-    p = person(1, 'silver', {}, counted=True, top_works=['r1', 'r2'])
-    p.award_place, p.overall_rank = 1, 4
+    p = person(1, 'silver', {}, counted=True, top_works=['r1', 'r2'], top10=True)
+    p.award_place = 1
     assert C.points_for(p, grid) == {'best': 'place_1', 'result': 12, 'top_work': 2, 'total': 14}
-    q = person(2, 'silver', {}, counted=True)
-    q.overall_rank = 9
-    assert C.points_for(q, grid, 30)['best'] == 'top10' and C.points_for(q, grid, 30)['total'] == 8
-    assert C.points_for(q, grid, 29)['best'] == 'completion'           # TOP-10 — от 30 человек в общем списке
+    q = person(2, 'silver', {}, counted=True, top10=True, top25=True)
+    assert C.points_for(q, grid)['best'] == 'top10' and C.points_for(q, grid)['total'] == 8
     r = person(3, 'gold', {}, counted=True)
-    r.overall_rank = 40
     assert C.points_for(r, grid)['total'] == 3
-    # TOP-25 — только в большой Игре (в общем списке не меньше 100 человек)
-    t = person(5, 'gold', {}, counted=True)
-    t.overall_rank = 20
-    assert C.points_for(t, grid, 60)['best'] == 'completion' and C.points_for(t, grid, 100)['best'] == 'top25'
-    assert C.points_for(t, {**grid, 'top25_min': 50}, 60)['best'] == 'top25'
-    d = person(4, 'gold', {}, excluded='disqualified', counted=True, top_works=['x'])
+    t = person(5, 'gold', {}, counted=True, top25=True)
+    assert C.points_for(t, grid)['best'] == 'top25'
+    d = person(4, 'gold', {}, excluded='disqualified', counted=True, top_works=['x'], top10=True)
     assert C.points_for(d, grid)['total'] == 0
+
+
+def test_top10_top25_per_league_capped_20_percent():
+    """TOP-10 / TOP-25 — в своей лиге: места до 10 (25), но не больше 20% лиги; лига от 30 (100) человек (13.10)."""
+    gold = [person(i, 'gold', {1: 100 - i}) for i in range(40)]          # 40 в Gold → 20% = 8
+    silver = [person(100 + i, 'silver', {1: 100 - i}) for i in range(20)]  # 20 в Silver — меньше 30, TOP-10 нет
+    out = C.compute(gold + silver, C.config_defaults({}, [1]))
+    g10 = [p for p in out if p.league == 'gold' and p.top10]
+    assert len(g10) == 8 and max(p.league_rank for p in g10) == 8
+    assert not any(p.top10 for p in out if p.league == 'silver') and not any(p.top25 for p in out)
+    big = [person(i, 'bronze', {1: 200 - i}) for i in range(130)]         # 130 в Bronze → TOP-10 = 10, TOP-25 = 25 (20% = 26)
+    out = C.compute(big, C.config_defaults({}, [1]))
+    assert sum(p.top10 for p in out) == 10 and sum(p.top25 for p in out) == 25
+    small = C.compute([person(i, 'gold', {1: 50 - i}) for i in range(10)], C.config_defaults({'points': {'top10_min': 1}}, [1]))
+    assert sum(p.top10 for p in small) == 2                               # 20% от 10
 
 
 def test_no_final_round():
