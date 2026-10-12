@@ -65,10 +65,10 @@ def main():
     fresh_db(FILES[:6])
     with psycopg.connect(DSN) as c:
         before = rule(c)
-        check('win_share_100_v1' not in before, 'до миграции нового названия нет')
+        check('bt_100_v1' not in before, 'до миграции нового названия нет')
         apply(c, FILES[6])
         after = rule(c)
-        for name in ('win_share_v1', 'bt_v1', 'criteria_mean_v1', 'win_share_100_v1', 'criteria_mean_100_v1'):
+        for name in ('win_share_v1', 'bt_v1', 'criteria_mean_v1', 'bt_100_v1', 'criteria_mean_100_v1'):
             check(name in after, 'способ %s разрешён' % name)
         check('scoring_method IS NULL' in after, 'пустой способ по-прежнему разрешён')
         check(one(c, "SELECT count(*) FROM pg_constraint WHERE conname='lr_stream_scoring_method'") == 1, 'правило одно')

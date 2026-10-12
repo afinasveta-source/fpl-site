@@ -15,7 +15,7 @@
     quota_covers_all: 'Число прохода не меньше числа работ — пройдут все.', no_judging_deadline: 'Не задан срок оценки — укажите его в сроках тура.',
     votes_pending: 'Не все судьи закончили оценку.', tie_break_running: 'Идёт переголосование — дождитесь голосов.', border_tie: 'На границе прохода равные баллы — нужно переголосование или ваше решение.',
     already_published: 'Итоги уже опубликованы.', judging_not_started: 'Судейство ещё не начато.', judge_not_found: 'Этот судья не назначен в пул.',
-    judge_already_in_pool: 'Этот человек уже судит этот пул.', tie_break_targets: 'Выберите хотя бы две работы.', tie_break_not_tied: 'Переголосование — только среди равных работ (одинаковый результат). Иначе оно подняло бы слабую работу над сильной; для другого случая — «Решение по выбранным».', decision_targets: 'Решить самой можно только про равные на границе прохода и работы без оценки.',
+    judge_already_in_pool: 'Этот человек уже судит этот пул.', tie_break_targets: 'Выберите хотя бы две работы.', tie_break_not_tied: 'Переголосование — только среди работ, идущих подряд в таблице, без пропусков. Иначе работа перескочила бы через тех, кто в переголосовании не участвует.', decision_targets: 'Решить самой можно только про равные на границе прохода и работы без оценки.',
     reason_required: 'Укажите причину.', judging_closed: 'Оценка закрыта.',
     unjudged_works: 'У некоторых работ нет ни одной оценки — решите их проход сами (кнопка «Решить самой»).',
     no_tie_break: 'Переголосование не идёт.', regular_locked: 'Основное голосование закрыто.'
@@ -56,7 +56,7 @@
     var c = d.config, ch = d.checks;
     var h = '<form class="card" id="f-jcfg" novalidate><h2>Настройка</h2>' +
       '<fieldset class="stack" data-s="g6"><legend>Способ оценки</legend>' +
-      '<label class="chk"><input type="radio" name="method" value="pairwise"' + (c.method === 'pairwise' ? ' checked' : '') + '> <span>Сравнение пар: судья выбирает сильнейшую из двух работ. Балл = 1 + 99 × доля побед (шкала 1–100).</span></label>' +
+      '<label class="chk"><input type="radio" name="method" value="pairwise"' + (c.method === 'pairwise' ? ' checked' : '') + '> <span>Сравнение пар: судья выбирает сильнейшую из двух работ. Балл 1–100 — по модели Брэдли–Терри: шанс работы обыграть среднюю работу тура с учётом того, кого она обыграла.</span></label>' +
       '<label class="chk"><input type="radio" name="method" value="criteria"' + (c.method === 'criteria' ? ' checked' : '') + '> <span>Оценки по критериям 1–100: среднее с весами критериев, затем среднее по судьям — это и есть балл.</span></label></fieldset>' +
       '<div class="jm-pair"' + (c.method === 'pairwise' ? '' : ' hidden') + '>' + O.sel('j-per', 'Сравнений на работу у каждого судьи', [[2, '2'], [4, '4'], [6, '6']], c.per_target) + '</div>' +
       '<div class="jm-crit"' + (c.method === 'criteria' ? '' : ' hidden') + '><h3>Критерии</h3><div class="stack" id="crit-rows">' +

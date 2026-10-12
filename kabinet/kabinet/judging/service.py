@@ -143,7 +143,7 @@ VALUES (%s,%s,%s,'individual',%s,%s,%s,%s,%s,%s,%s) RETURNING *''', (
             event['id'], rnd['id'], key or 'all', method, event['affects_rating'],
             cfg['per_target'] if method == 'pairwise' else None,
             G.Jsonb({'quota': cfg['quota'].get(key or 'all'), 'tie_breaks': [], 'admin_decisions': []}),
-            key, rnd['judging_deadline'], 'win_share_100_v1' if method == 'pairwise' else 'criteria_mean_100_v1')).fetchone()
+            key, rnd['judging_deadline'], 'bt_100_v1' if method == 'pairwise' else 'criteria_mean_100_v1')).fetchone()
         for i, c in enumerate(cfg['criteria'] if method == 'criteria' else []):
             conn.execute('''INSERT INTO evaluation_criteria(evaluation_stream_id,code,label_i18n,weight,min_score,max_score,sort_order)
 VALUES (%s,%s,%s,%s,%s,%s,%s)''', (st['id'], c['code'], G.Jsonb({'ru': c['label']}), c['weight'], C.CRITERIA_MIN,
@@ -230,6 +230,17 @@ def tally(comps, phases=('regular', 'tie_break'), run=None):
     return wins, total
 
 
+def bt_games(comps, phases):
+    """Сравнения с голосом для модели Брэдли–Терри: (a, b, победитель, в счёт для a, в счёт для b)."""
+    out = []
+    for c in comps:
+        if c['status'] != 'voted' or c['phase'] not in phases:
+            continue
+        cf = c['counts_for']
+        out.append((c['target_a_id'], c['target_b_id'], c['winner_target_id'], cf in ('both', 'target_a'), cf in ('both', 'target_b')))
+    return out
+
+
 def criteria_values(data):
     weights = {c['id']: float(c['weight']) for c in data['criteria']}
     by_target = defaultdict(lambda: defaultdict(dict))
@@ -256,12 +267,14 @@ def evaluate(conn, st, data=None):
     cfg = st['configuration'] or {}
     rows = []
     if st['judging_method'] == 'pairwise':
-        reg_w, reg_t = tally(data['comps'], phases=('regular',))
+        # Брэдли–Терри: порядок — по силе в основном голосовании, балл — по всем сравнениям (с переголосованием)
+        reg = C.bt_shares(C.bradley_terry(bt_games(data['comps'], ('regular',))))
+        full = C.bt_shares(C.bradley_terry(bt_games(data['comps'], ('regular', 'tie_break'))))
         all_w, all_t = tally(data['comps'])
         for t in data['targets']:
-            key = reg_w[t['id']] / reg_t[t['id']] if reg_t[t['id']] else None
-            rows.append(C.Row(str(t['id']), key, C.win_share_score(all_w[t['id']], all_t[t['id']]),
-                              extra={'wins': all_w[t['id']], 'comparisons': all_t[t['id']]}))
+            rows.append(C.Row(str(t['id']), reg.get(t['id']), C.share_score(full.get(t['id'])),
+                              extra={'wins': all_w[t['id']], 'comparisons': all_t[t['id']],
+                                     'strength': round(full[t['id']], 4) if t['id'] in full else None}))
     else:
         values = criteria_values(data)
         for t in data['targets']:
@@ -473,11 +486,11 @@ def start_tie_break(conn, st, targets, goal, actor_id, now):
         raise problem('tie_break_running', 409)
     if ev['pending_regular']:
         raise problem('votes_pending', 409)   # сначала основное голосование (или закрыть недоделанное)
-    # только равные между собой (одинаковая доля побед или оценка, не разведённые прежним переголосованием):
-    # иначе переголосование подняло бы слабую работу над сильной
-    done = [(m, w) for m, w, finished, _ in ev['groups'] if finished]
-    first = rows[targets[0]]
-    if any(not C.tie_unresolved(ev['order'], first, rows[t], done) for t in targets[1:]):
+    # только подряд идущие работы (без пропусков между ними): переголосование переставляет их внутри своих позиций
+    # и не может поднять работу над теми, кто в нём не участвует
+    line = [r.target for r in ev['order'] if r.key is not None and not r.extra.get('left')]
+    pos = sorted(line.index(t) for t in targets)
+    if pos[-1] - pos[0] + 1 != len(pos):
         raise problem('tie_break_not_tied')
     slots = [s for s in data['slots'] if s['assignment_id']]
     if not slots:

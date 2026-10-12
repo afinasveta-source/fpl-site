@@ -113,11 +113,14 @@ def test_pairwise_judging_flow(app, seed, clock):
     view = ok(c.get(url))
     st = view['streams'][0]
     assert st['pending'] == 0
-    # пары жеребьёвки случайны: сильнейшая (ann) всегда со 100, слабейшая (fay) — с 40, но равные им возможны
+    # пары жеребьёвки случайны: сильнейшая (ann) всегда без поражений, слабейшая (fay) — без побед;
+    # Брэдли–Терри: баллы строго внутри 1–100 (поправка), без поражений — выше среднего, без побед — ниже
     by = {r['name'].split('@')[0]: r for r in st['rows']}
-    assert by['ann']['score'] == 100 and by['fay']['score'] == 1 and st['rows'][0]['score'] == 100
+    assert by['ann']['wins'] == by['ann']['comparisons'] and by['fay']['wins'] == 0
+    assert by['ann']['score'] > 51 > by['fay']['score'] and all(1 < r['score'] < 100 for r in st['rows'])
+    assert st['rows'][0]['wins'] == st['rows'][0]['comparisons'] and st['rows'][0]['score'] == max(r['score'] for r in st['rows'])
     tops = [r for r in st['rows'] if r['top_work']]
-    assert by['ann']['top_work'] and all(r['score'] == 100 for r in tops)   # 20% от 6 = 1 (+ равные на границе)
+    assert tops and all(r['wins'] == r['comparisons'] for r in tops)   # 20% от 6 = 1 (+ равные на границе)
     if st['border']['status'] == 'tie':
         tied = st['border']['tied']
         view = ok(c.post(f"/api/org/judging/streams/{st['id']}/tie-break", headers=ORIGIN, json={'targets': tied}))
@@ -135,7 +138,7 @@ def test_pairwise_judging_flow(app, seed, clock):
     # участница видит балл, рейтинг, калибровку, TOP WORK и проход — без места
     ga = ok(people['ann'].get(f'/api/games/{eid}'))
     res = ga['rounds'][0]['result']
-    assert res['score'] == 100 and res['advanced'] is True and res['top_work'] and 'league_rank' not in res
+    assert res['score'] == by['ann']['score'] and res['advanced'] is True and res['top_work'] == by['ann']['top_work'] and 'league_rank' not in res
     assert res['rating']['calibration'] == 1 and res['rating']['delta'] > 0 and res['rating']['before'] == 500
     gf = ok(people['fay'].get(f'/api/games/{eid}'))
     assert gf['rounds'][0]['result']['advanced'] is False and gf['me']['mode'] == 'out_pending'

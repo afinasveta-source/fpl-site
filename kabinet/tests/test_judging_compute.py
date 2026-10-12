@@ -106,3 +106,40 @@ def test_boundary_single_and_unjudged():
     assert b['status'] == 'unjudged' and b['unjudged'] == ['b']
     b = C.boundary(two, 1, [], admin={'b': False})
     assert b['status'] == 'ok' and two[1].advanced is False
+
+
+def test_bradley_terry_strength_of_schedule():
+    """Брэдли–Терри: победа над сильной работой весит больше, чем над слабой; итог не зависит от порядка голосов."""
+    import random as rnd
+    games = []
+    for f in ('f1', 'f2', 'f3', 'f4'):
+        games += [('S', f, 'S', True, True), (f, 'W', f, True, True)]       # S сильная, W слабая
+    games += [('X', 'S', 'X', True, True), ('X', 'S', 'S', True, True)]     # X: 1 из 2 против сильной
+    games += [('Y', 'W', 'Y', True, True), ('Y', 'W', 'W', True, True)]     # Y: 1 из 2 против слабой
+    sh = C.bt_shares(C.bradley_terry(games))
+    assert sh['X'] > sh['Y'] and sh['S'] > sh['X'] and sh['Y'] > sh['W']
+    shuffled = games[:]
+    rnd.Random(5).shuffle(shuffled)
+    sh2 = C.bt_shares(C.bradley_terry(shuffled))
+    assert all(abs(sh[t] - sh2[t]) < 1e-9 for t in sh)
+
+
+def test_bradley_terry_bounds_and_equal():
+    # круговой турнир «каждый с каждым по разу в обе стороны» — все равны: балл 51 у всех (50,5 → 51)
+    names = ['a', 'b', 'c', 'd']
+    games = [(x, y, w, True, True) for i, x in enumerate(names) for y in names[i + 1:] for w in (x, y)]
+    sh = C.bt_shares(C.bradley_terry(games))
+    assert {C.share_score(v) for v in sh.values()} == {51}
+    # 6 из 6 и 0 из 6 — конечные баллы (поправка), не 100 и не 1
+    games = [('top', o, 'top', True, True) for o in 'pqrstu'] + [('low', o, o, True, True) for o in 'pqrstu']
+    sh = C.bt_shares(C.bradley_terry(games))
+    assert 51 < C.share_score(sh['top']) < 100 and 1 < C.share_score(sh['low']) < 51
+    assert C.bradley_terry([]) == {} and C.share_score(None) is None
+
+
+def test_bradley_terry_one_sided():
+    """Сравнение «в счёт только одной стороне» не меняет силу другой стороны."""
+    base = [('a', 'b', 'a', True, True), ('b', 'c', 'b', True, True), ('c', 'a', 'c', True, True)]
+    one = base + [('d', 'a', 'd', True, False)]           # досудейство d: победа над a в счёт только d
+    s0, s1 = C.bradley_terry(base), C.bradley_terry(one)
+    assert abs(s0['a'] - s1['a']) < 1e-9 and 'd' in s1 and s1['d'] > s1['a']
