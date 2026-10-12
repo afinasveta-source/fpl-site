@@ -200,12 +200,14 @@ WHERE p.event_id=%s AND c.certificate_number IS NOT NULL''', (e['id'],)):
         taken[league] = max(taken.get(league, 0), n)
     numbers = C.diploma_numbers(order, season['season_no'], e['game_no'], taken) if any(p.diploma for p in order) else {}
     summary = {'results': 0, 'diplomas': 0, 'points': 0}
+    standing = sum(1 for p in order if p.overall_rank is not None)
     for p in order:
         ep = extra[p.id]['ep']
         snap = {'formula': C.FORMULA, 'path_rounds': cfg['path_rounds'], 'final_round': cfg['final_round'],
                 'path_weight': cfg['path_weight'], 'stage': p.stage, 'path': round(p.path, 2) if p.path is not None else None,
                 'final': p.final, 'scores': {str(k): v for k, v in sorted(p.scores.items())}, 'top_works': len(p.top_works),
-                'points': p.points, 'tie': None}
+                'points': p.points, 'tie': None, 'standing_size': standing,
+                'top25_on': C.top25_on(cfg['points'], standing)}
         basis, basis_round = (('final', None) if p.finalist and p.total is not None else
                               ('round', p.stage) if p.overall_rank is not None else (None, None))
         er = conn.execute('''INSERT INTO event_results(event_id,event_participant_id,result_kind,version_no,is_current,status,final_score,
@@ -302,7 +304,8 @@ AND top_work''', (ep_id,)).fetchone()['n']
     return {'total': float(r['final_score']) if r['final_score'] is not None else None, 'league': r['league'],
             'league_rank': r['league_rank'] if r['standing_basis'] == 'final' else None, 'award_place': r['award_place'],
             'top10': r['overall_rank'] is not None and r['overall_rank'] <= 10,
-            'top25': r['overall_rank'] is not None and r['overall_rank'] <= 25, 'overall_rank': r['overall_rank'],
+            'top25': r['overall_rank'] is not None and r['overall_rank'] <= 25 and bool((r['calculation_snapshot'] or {}).get('top25_on')),
+            'overall_rank': r['overall_rank'],
             'game_counted': r['game_counted'], 'diploma': cert['certificate_number'] if cert else None,
             'diploma_title': cert['issue_snapshot'].get('result') if cert else None,
             'points': r['points'], 'top_works': top, 'published_at': iso(r['published_at'])}

@@ -66,6 +66,11 @@ def test_points_best_only_plus_top_work():
     r = person(3, 'gold', {}, counted=True)
     r.overall_rank = 40
     assert C.points_for(r, grid)['total'] == 3
+    # TOP-25 — только в большой Игре (в общем списке не меньше 100 человек)
+    t = person(5, 'gold', {}, counted=True)
+    t.overall_rank = 20
+    assert C.points_for(t, grid, 60)['best'] == 'completion' and C.points_for(t, grid, 100)['best'] == 'top25'
+    assert C.points_for(t, {**grid, 'top25_min': 50}, 60)['best'] == 'top25'
     d = person(4, 'gold', {}, excluded='disqualified', counted=True, top_works=['x'])
     assert C.points_for(d, grid)['total'] == 0
 

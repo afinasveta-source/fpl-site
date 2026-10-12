@@ -25,6 +25,7 @@ LEAGUE_NAME = {'gold': 'Gold', 'silver': 'Silver', 'bronze': 'Bronze'}
 DEFAULT_POINTS = {
     'places': {'gold': [20, 15, 12], 'silver': [12, 10, 8], 'bronze': [8, 6, 5]},
     'top10': 8, 'top25': 5, 'completion': 3, 'top_work': 1,
+    'top25_min': 100,      # TOP-25 — только в больших Играх: в общем списке не меньше 100 человек (решение 13.10)
 }
 DEFAULT_PATH_WEIGHT = 40
 
@@ -129,7 +130,7 @@ def compute(people, cfg, awards_points=True):
                     p.award_place = p.league_rank
     if awards_points:
         for p in people:
-            p.points = points_for(p, cfg['points'])
+            p.points = points_for(p, cfg['points'], len(ranked))
     rest = [p for p in people if p not in ranked]
     return ranked + sorted(rest, key=lambda p: p.name.lower())
 
@@ -169,8 +170,13 @@ def apply_tie_orders(members, final, orders, league):
     return out
 
 
-def points_for(p, grid):
-    """Очки FPL: одно самое высокое достижение за итог Игры + TOP WORK за каждую работу."""
+def top25_on(grid, standing_size):
+    return standing_size >= grid.get('top25_min', DEFAULT_POINTS['top25_min'])
+
+
+def points_for(p, grid, standing_size=0):
+    """Очки FPL: одно самое высокое достижение за итог Игры + TOP WORK за каждую работу.
+    standing_size — сколько человек в общем списке Игры (TOP-25 есть только в больших Играх)."""
     if p.excluded == 'disqualified':
         return {'best': None, 'result': 0, 'top_work': 0, 'total': 0}
     options = []
@@ -178,7 +184,7 @@ def points_for(p, grid):
         options.append(('place_%d' % p.award_place, grid['places'][p.league][p.award_place - 1]))
     if p.overall_rank is not None and p.overall_rank <= 10:
         options.append(('top10', grid['top10']))
-    if p.overall_rank is not None and p.overall_rank <= 25:
+    if p.overall_rank is not None and p.overall_rank <= 25 and top25_on(grid, standing_size):
         options.append(('top25', grid['top25']))
     if p.counted:
         options.append(('completion', grid['completion']))

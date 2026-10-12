@@ -45,7 +45,7 @@
     var rounds = d.rounds;
     var h = '<form class="card" id="f-rfmt" novalidate><h2>Формат итогов</h2>' +
       '<p class="small muted">Итог Игры = путь × ' + c.path_weight + '% + финал × ' + (100 - c.path_weight) + '%. Путь — средний балл выбранных туров, финал — балл последнего тура. ' +
-      'Места 1–3 — в своей лиге, среди дошедших до финала; при равном итоге выше тот, у кого выше финал, дальше решаете вы. Общий список Игры (для TOP-10 и TOP-25): сначала дошедшие до финала — по итогу, потом выбывшие позже — по баллу тура, где выбыли. Опоздавшие, вышедшие и дисквалифицированные в него не входят.</p>' +
+      'TOP-25 — только если в общем списке не меньше ' + c.points.top25_min + ' человек. Места 1–3 — в своей лиге, среди дошедших до финала; при равном итоге выше тот, у кого выше финал, дальше решаете вы. Общий список Игры (для TOP-10 и TOP-25): сначала дошедшие до финала — по итогу, потом выбывшие позже — по баллу тура, где выбыли. Опоздавшие, вышедшие и дисквалифицированные в него не входят.</p>' +
       (edit ? '' : '<div class="note small">' + esc(t('locked_after_start')) + '</div>');
     if (!rounds.length) return h + '<p class="muted">Туров пока нет — формат можно задать после того, как они появятся.</p></form>';
     h += '<div class="grid2">' + O.sel('rf-final', 'Финал', [['', 'Без финала (итог — средний балл туров)']].concat(rounds.map(function (r) { return [r.round_no, 'Тур ' + r.round_no + ' · ' + r.title]; })),
@@ -63,6 +63,7 @@
         }).join('') + '</tr>';
       }).join('') + '</tbody></table></div><div class="grid4">' +
       O.txt('pt-top10', 'TOP-10 Игры', p.top10, ' type="number" min="0" max="1000"' + dis) + O.txt('pt-top25', 'TOP-25 Игры', p.top25, ' type="number" min="0" max="1000"' + dis) +
+      O.txt('pt-top25min', 'TOP-25 — от скольки человек', p.top25_min, ' type="number" min="0" max="100000"' + dis, 'В общем списке Игры. Меньше — TOP-25 нет.') +
       O.txt('pt-completion', 'Завершение (зачёт)', p.completion, ' type="number" min="0" max="1000"' + dis) + O.txt('pt-tw', 'TOP WORK, за работу', p.top_work, ' type="number" min="0" max="1000"' + dis) + '</div>' +
       (d.event.awards_points ? '' : '<p class="small muted">У этой Игры выключено «Даёт очки FPL» — очки не начисляются.</p>') +
       O.errBox + (edit ? '<button class="btn" type="submit">Сохранить формат</button>' : '') + '</form>';
@@ -80,8 +81,9 @@
       var path = Array.prototype.filter.call(f.querySelectorAll('input[data-no]'), function (x) { return x.checked; }).map(function (x) { return +x.getAttribute('data-no'); });
       var places = {}, bad = false;
       LEAGUES.forEach(function (l) { places[l[0]] = [0, 1, 2].map(function (i) { var v = num('#pt-' + l[0] + '-' + i); if (!(v >= 0 && v <= 1000)) bad = true; return v; }); });
-      var pts = { places: places, top10: num('#pt-top10'), top25: num('#pt-top25'), completion: num('#pt-completion'), top_work: num('#pt-tw') };
+      var pts = { places: places, top10: num('#pt-top10'), top25: num('#pt-top25'), top25_min: num('#pt-top25min'), completion: num('#pt-completion'), top_work: num('#pt-tw') };
       ['top10', 'top25', 'completion', 'top_work'].forEach(function (k) { if (!(pts[k] >= 0 && pts[k] <= 1000) || Math.round(pts[k]) !== pts[k]) bad = true; });
+      if (!(pts.top25_min >= 0 && pts.top25_min <= 100000) || Math.round(pts.top25_min) !== pts.top25_min) bad = true;
       if (bad) { K.formError(f, 'Очки — целые числа от 0 до 1000.'); return; }
       var body = { no_final: final === '', final_round: final === '' ? null : +final, path_rounds: path, path_weight: w, points: pts };
       O.send('PUT', '/api/org/events/' + id + '/results/format', body, f, function (nd) { K.toast('Формат сохранён'); draw(id, nd); });
