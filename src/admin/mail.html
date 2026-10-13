@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>FPL · почта кабинета</title>
+<style>
+:root{--ink:#1E1B18;--paper:#F5F1EB;--line:#DDD5CB;--accent:#F2601F;--ok:#2F7D32;--bad:#B3261E}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+main{max-width:560px;margin:0 auto;padding:32px 16px 64px}
+h1{font-size:26px;margin:0 0 8px}
+p.lead{margin:0 0 24px;color:#5E5650}
+label{display:block;font-weight:600;font-size:14px;margin:16px 0 6px}
+input,select{width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:10px;font:inherit;background:#fff}
+small{display:block;color:#7A716A;margin-top:4px;font-size:13px}
+button{margin-top:24px;width:100%;padding:14px;border:0;border-radius:999px;background:var(--accent);color:#fff;font:600 16px inherit;cursor:pointer}
+button[disabled]{opacity:.6;cursor:wait}
+#out{margin-top:20px;padding:14px 16px;border-radius:10px;display:none}
+#out.ok{display:block;background:#E8F3E8;color:var(--ok)}
+#out.bad{display:block;background:#FBE9E7;color:var(--bad)}
+</style>
+</head>
+<body>
+<main>
+  <h1>Почта кабинета</h1>
+  <p class="lead">Ящик, с которого кабинет отправляет участницам письма «новый пароль». Пароль ящика сохраняется только на сервере. Перед сохранением сервер отправит пробное письмо — настройки сохранятся, только если оно ушло. Через 1–5 минут в кабинете появится кнопка «Не помню пароль».</p>
+  <form id="f" autocomplete="off">
+    <label for="ik">Ключ приёмника данных</label>
+    <input id="ik" type="password" required autocomplete="off">
+    <small>Тот же, что в SaleBot (константа site_ingest_key), — из менеджера паролей.</small>
+
+    <label for="user">Адрес ящика (логин)</label>
+    <input id="user" type="email" required value="noreply@facepaintingleague.com" autocomplete="off">
+
+    <label for="pw">Пароль для внешних приложений</label>
+    <input id="pw" type="password" required autocomplete="new-password">
+    <small>Не обычный пароль ящика: в VK WorkSpace / Почте Mail.ru — «Безопасность» → «Пароли для внешних приложений» → создать (доступ: SMTP / отправка).</small>
+
+    <label for="host">Сервер исходящей почты</label>
+    <select id="host">
+      <option value="smtp.mail.ru|465" selected>smtp.mail.ru — Mail.ru / VK WorkSpace</option>
+      <option value="smtp.yandex.ru|465">smtp.yandex.ru — Яндекс 360</option>
+    </select>
+
+    <label for="name">Имя отправителя</label>
+    <input id="name" value="Face Painting League" maxlength="80">
+
+    <label for="to">Куда отправить пробное письмо</label>
+    <input id="to" type="email" required placeholder="ваша почта">
+
+    <button id="b" type="submit">Отправить пробное письмо и сохранить</button>
+  </form>
+  <div id="out" role="status"></div>
+</main>
+<script>
+(function(){
+  var f=document.getElementById('f'), out=document.getElementById('out'), b=document.getElementById('b');
+  var ERR={bad_key:'Неверный ключ приёмника.',bad_username:'Адрес ящика выглядит неправильно.',bad_password:'Пароль приложения выглядит неправильно — скопируйте его целиком, без пробелов.',
+    bad_test_to:'Адрес для пробного письма выглядит неправильно.',bad_from_name:'Имя отправителя: без кавычек и угловых скобок.',bad_host:'Неизвестный сервер.',bad_port:'Неизвестный порт.',
+    auth_failed:'Почтовый сервер не принял логин и пароль. Нужен именно «пароль для внешних приложений» с доступом к отправке (SMTP), а адрес ящика — полностью.',
+    send_failed:'Пробное письмо не ушло.'};
+  function show(ok,text){out.className=ok?'ok':'bad';out.textContent=text;}
+  f.addEventListener('submit',function(e){
+    e.preventDefault(); b.disabled=true; show(true,'Отправляю пробное письмо…');
+    var hp=document.getElementById('host').value.split('|');
+    fetch('/api/settings/mail',{method:'POST',headers:{'Content-Type':'application/json','X-FPL-Key':document.getElementById('ik').value},
+      body:JSON.stringify({host:hp[0],port:hp[1],username:document.getElementById('user').value.trim(),password:document.getElementById('pw').value.trim(),
+        from_name:document.getElementById('name').value.trim(),test_to:document.getElementById('to').value.trim()})})
+    .then(function(r){return r.json().catch(function(){return {ok:false,error:'http_'+r.status};});})
+    .then(function(j){
+      if(j.ok){
+        document.getElementById('pw').value=''; document.getElementById('ik').value='';
+        show(true,'Готово: пробное письмо отправлено на '+j.test_to+' с адреса '+j.from+'. Проверьте его (и папку «Спам»). Через 1–5 минут кабинет начнёт отправлять письма «новый пароль».');
+      } else {
+        var t=ERR[j.error]||('Ошибка: '+j.error);
+        if(j.error==='send_failed'&&j.detail) t+=' ('+j.detail+'). Проверьте сервер и что ящик уже создан.';
+        show(false,t);
+      }
+    }).catch(function(){show(false,'Сервер не ответил. Попробуйте ещё раз через минуту.');})
+    .then(function(){b.disabled=false;});
+  });
+})();
+</script>
+</body>
+</html>

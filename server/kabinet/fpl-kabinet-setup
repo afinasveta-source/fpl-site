@@ -82,7 +82,7 @@ TMP=$(mktemp)
 {
   echo "FPL_ENVIRONMENT=PROD"
   echo "FPL_DATABASE_DSN=postgresql://fpl_kabinet:$KPW@127.0.0.1:5432/$FPL_DB_NAME"
-  echo "FPL_MAIL_MODE=disabled"
+  if [ -x /usr/local/bin/fpl-kabinet-mail ]; then /usr/local/bin/fpl-kabinet-mail --lines; else echo "FPL_MAIL_MODE=disabled"; fi
   echo "FPL_FRONTEND_URL=https://$DOMAIN/kabinet"
   echo "FPL_ROOT_PATH=/kabinet"
   echo "FPL_MEDIA_DIR=$MEDIA"
@@ -169,6 +169,35 @@ if ! cmp -s "$TMP" /etc/systemd/system/fpl-kabinet-sync.timer; then install -m 0
 rm -f "$TMP"
 if [ "$TCHANGED" = 1 ]; then systemctl daemon-reload; fi
 systemctl enable --now fpl-kabinet-sync.timer >/dev/null 2>&1 || echo "кабинет: таймер сверки не включился"
+
+# 5в. Почта: файл с доступом к ящику изменился (страница /admin/mail.html) — обновить настройки кабинета
+TMP=$(mktemp)
+cat > "$TMP" <<EOF
+[Unit]
+Description=FPL kabinet: почта (настройки изменились)
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/fpl-kabinet-mail --apply
+EOF
+MCHANGED=0
+if ! cmp -s "$TMP" /etc/systemd/system/fpl-kabinet-mail.service; then install -m 0644 "$TMP" /etc/systemd/system/fpl-kabinet-mail.service; MCHANGED=1; fi
+cat > "$TMP" <<EOF
+[Unit]
+Description=FPL kabinet: следить за настройками почты
+
+[Path]
+PathChanged=/var/lib/fpl/private/mail-smtp.json
+
+[Install]
+WantedBy=multi-user.target
+EOF
+if ! cmp -s "$TMP" /etc/systemd/system/fpl-kabinet-mail.path; then install -m 0644 "$TMP" /etc/systemd/system/fpl-kabinet-mail.path; MCHANGED=1; fi
+rm -f "$TMP"
+if [ "$MCHANGED" = 1 ]; then systemctl daemon-reload; fi
+if [ -x /usr/local/bin/fpl-kabinet-mail ]; then
+  systemctl enable --now fpl-kabinet-mail.path >/dev/null 2>&1 || echo "кабинет: слежение за почтой не включилось"
+fi
 
 # 6. nginx: /kabinet/ → служба (во всех блоках server сайта; проверка и откат)
 SN=/etc/nginx/snippets/fpl-kabinet.conf

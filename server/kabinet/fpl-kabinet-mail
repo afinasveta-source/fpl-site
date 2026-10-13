@@ -1,0 +1,47 @@
+#!/bin/bash
+# fpl-kabinet-mail: почта кабинета (письма «новый пароль»).
+# Доступ к почтовому ящику вводится на закрытой странице /admin/mail.html → приёмник данных проверяет его пробным письмом
+# и сохраняет в /var/lib/fpl/private/mail-smtp.json (0600). Пароль ящика — только на сервере.
+#   fpl-kabinet-mail --lines  — строки настроек почты для /etc/fpl-kabinet.env (без файла — почта выключена);
+#   fpl-kabinet-mail --apply  — заменить их в /etc/fpl-kabinet.env и перезапустить кабинет (служба fpl-kabinet-mail.path).
+set -euo pipefail
+JSON=/var/lib/fpl/private/mail-smtp.json
+ENVF=/etc/fpl-kabinet.env
+
+lines() {
+  if [ -s "$JSON" ]; then
+    python3 - "$JSON" <<'PY'
+import json, re, sys
+c = json.load(open(sys.argv[1], encoding='utf-8'))
+q = lambda v: '"' + str(v).replace('\\', '\\\\').replace('"', '\\"') + '"'
+ok = re.match(r'^[a-z0-9.-]+$', c.get('host', '')) and c.get('port') in ('465', '587') and c.get('username') and c.get('password')
+if not ok:
+    print('FPL_MAIL_MODE=disabled'); sys.exit(0)
+name = (c.get('from_name') or 'Face Painting League').replace('"', '')
+print('FPL_MAIL_MODE=smtp')
+print('FPL_SMTP_HOST=' + c['host'])
+print('FPL_SMTP_PORT=' + c['port'])
+print('FPL_SMTP_USERNAME=' + q(c['username']))
+print('FPL_SMTP_PASSWORD=' + q(c['password']))
+print('FPL_MAIL_FROM=' + q('%s <%s>' % (name, c['username'])))
+PY
+  else
+    echo "FPL_MAIL_MODE=disabled"
+  fi
+}
+
+case "${1:-}" in
+  --lines) lines ;;
+  --apply)
+    [ -f "$ENVF" ] || { echo "нет $ENVF — кабинет не установлен"; exit 0; }
+    TMP=$(mktemp)
+    grep -v -E '^FPL_(MAIL_MODE|MAIL_FROM|SMTP_HOST|SMTP_PORT|SMTP_USERNAME|SMTP_PASSWORD)=' "$ENVF" > "$TMP" || true
+    lines >> "$TMP"
+    if ! cmp -s "$TMP" "$ENVF"; then
+      install -m 0640 -o root -g fplkab "$TMP" "$ENVF"
+      systemctl restart fpl-kabinet
+      echo "почта кабинета: настройки обновлены $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    fi
+    rm -f "$TMP" ;;
+  *) echo "usage: fpl-kabinet-mail --lines | --apply"; exit 2 ;;
+esac

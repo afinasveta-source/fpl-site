@@ -87,6 +87,11 @@ fi
 # 9. Кабинет (закрытый адрес /kabinet/). Сбой кабинета не мешает сайту и базе: итог — в /var/lib/fpl/kabinet-status.
 if [ -d kabinet-src ]; then
   install -m 0755 fpl-kabinet-setup /usr/local/bin/fpl-kabinet-setup
+  [ -f fpl-kabinet-mail ] && install -m 0755 fpl-kabinet-mail /usr/local/bin/fpl-kabinet-mail
+  # запасной путь к слежению за файлом: раз в 5 минут сверить настройки почты (без изменений — ничего не делает)
+  if [ -x /usr/local/bin/fpl-kabinet-mail ] && ! grep -q fpl-kabinet-mail /etc/cron.d/fpl; then
+    printf '*/5 * * * * root /usr/local/bin/fpl-kabinet-mail --apply >> /var/log/fpl-kabinet-mail.log 2>&1\n' >> /etc/cron.d/fpl
+  fi
   # ffmpeg — перевод аудиоразборов в m4a (запись с Android приходит в Opus, на iPhone не играет). Ставится один раз,
   # только если на диске больше 3 ГБ; без него разбор сохраняется как есть.
   if ! command -v ffmpeg >/dev/null && [ "$(df -Pm /var/lib/fpl | awk 'NR==2{print $4}')" -gt 3000 ]; then
