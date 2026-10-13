@@ -1,12 +1,22 @@
 #!/usr/bin/env python3
-"""fpl-media-backup: копии фото работ из кабинета в закрытый бакет в другом городе (cron, каждые 15 минут).
+"""fpl-media-backup: копии фото в закрытый бакет в другом городе (cron, каждые 15 минут).
 
-Фото участников хранятся на сервере: /var/lib/fpl/kabinet-media/orig/… (оригиналы; копии для показа
-view/ и thumb/ пересоздаются из оригинала и в бакет не идут). Каждый оригинал отправляется один раз
-в тот же бакет, что и копии базы: media/orig/<…>. Список уже отправленных — в журнале рядом.
+1) Фото работ из кабинета: оригиналы /var/lib/fpl/kabinet-media/orig/… → бакет media/orig/<…>.
+   Копии для показа view/ и thumb/ остаются на сервере и в бакет не идут (пересоздаются из оригинала).
+   Решение 14.10 (место на диске): оригинал, который уже лежит в бакете дольше суток и у которого на сервере
+   есть обе копии для показа, с сервера удаляется. Так одна Игра занимает на диске ~0,5 МБ на фото вместо ~3 МБ.
+   Оригинал при необходимости (диплом, печать, восстановление) берётся из бакета: сервер в бакет может только
+   писать, поэтому для чтения в панели Selectel временно добавляется правило на чтение.
+   Не удалять оригиналы: FPL_MEDIA_KEEP_ORIG=1 в окружении cron.
+2) Архив фото из бота (fpl-photo-archive): /var/lib/fpl/archive/files/… и его index.json → бакет archive/…
+   Там это единственная копия работ из бота, поэтому на сервере они не удаляются.
+
+Отправка подписана хэшем содержимого (SigV4, x-amz-content-sha256): ответ 2xx значит, что в бакет легло ровно это.
+Список отправленного — журнал /var/lib/fpl/kabinet-media-backup.json ({путь: время отправки}).
 Настройки бакета — /var/lib/fpl/private/backup-s3.json (как у fpl-db-backup). Нет настроек — ничего не делает.
 Итог — /var/lib/fpl/kabinet-media-backup-status (попадает в /data/server-status.json).
 """
+import hashlib
 import importlib.util
 import json
 import os
@@ -15,10 +25,14 @@ import tempfile
 import time
 
 MEDIA = os.environ.get('FPL_MEDIA_DIR', '/var/lib/fpl/kabinet-media')
+ARCHIVE = os.environ.get('FPL_ARCHIVE', '/var/lib/fpl/archive')
 JOURNAL = os.environ.get('FPL_MEDIA_JOURNAL', '/var/lib/fpl/kabinet-media-backup.json')
 STATUS = os.environ.get('FPL_MEDIA_STATUS', '/var/lib/fpl/kabinet-media-backup-status')
 S3_LIB = os.environ.get('FPL_S3_LIB', '/opt/fpl/fpl_s3.py')
 PER_RUN = int(os.environ.get('FPL_MEDIA_PER_RUN', '200'))
+GRACE = int(os.environ.get('FPL_MEDIA_PRUNE_AFTER', str(24 * 3600)))   # сколько держать оригинал после отправки
+KEEP_ORIG = os.environ.get('FPL_MEDIA_KEEP_ORIG') == '1'
+ARCHIVE_TAG = 'archive:'   # пути архива бота в журнале — с этой меткой (у кабинета — как раньше, orig/…)
 
 
 def now():
@@ -33,6 +47,57 @@ def write(path, text):
     os.replace(tmp, path)
 
 
+def load_journal():
+    try:
+        with open(JOURNAL, encoding='utf-8') as f:
+            raw = json.load(f)
+    except (OSError, ValueError):
+        return {}
+    if isinstance(raw, list):   # старый журнал — просто список; время отправки неизвестно, считаем «сейчас»
+        t = int(time.time())
+        return {rel: t for rel in raw}
+    return {k: int(v) for k, v in raw.items()} if isinstance(raw, dict) else {}
+
+
+def walk(root, base):
+    out = []
+    for d, _, files in os.walk(root):
+        for name in files:
+            if not name.startswith('tmp') and not name.endswith('.tmp'):
+                out.append(os.path.relpath(os.path.join(d, name), base))
+    return sorted(out)
+
+
+def view_copies_exist(rel):
+    """orig/aa/<sha>.<ext> → есть ли view/aa/<sha>.jpg и thumb/aa/<sha>.jpg."""
+    parts = rel.split('/')
+    if len(parts) != 3 or parts[0] != 'orig':
+        return False
+    digest = parts[2].split('.', 1)[0]
+    return all(os.path.isfile(os.path.join(MEDIA, kind, parts[1], digest + '.jpg')) for kind in ('view', 'thumb'))
+
+
+def prune(done, now_ts):
+    """Удалить с сервера оригиналы, которые давно в бакете. Возвращает (сколько удалено, сколько МБ освобождено)."""
+    if KEEP_ORIG:
+        return 0, 0.0
+    removed, freed = 0, 0
+    for rel, sent_at in done.items():
+        if rel.startswith(ARCHIVE_TAG) or not rel.startswith('orig/') or now_ts - sent_at < GRACE:
+            continue
+        path = os.path.join(MEDIA, rel)
+        if not os.path.isfile(path) or not view_copies_exist(rel):
+            continue
+        try:
+            size = os.path.getsize(path)
+            os.remove(path)
+        except OSError:
+            continue
+        removed += 1
+        freed += size
+    return removed, freed / 1024 / 1024
+
+
 def main():
     spec = importlib.util.spec_from_file_location('fpl_s3', S3_LIB)
     s3 = importlib.util.module_from_spec(spec)
@@ -41,37 +106,57 @@ def main():
         write(STATUS, 'off %s no bucket settings\n' % now())
         return 0
     cfg = s3.load()
-    try:
-        with open(JOURNAL, encoding='utf-8') as f:
-            done = set(json.load(f))
-    except (OSError, ValueError):
-        done = set()
-    root = os.path.join(MEDIA, 'orig')
+    done = load_journal()
+    # что отправить: оригиналы кабинета, затем архив бота
     pending = []
-    for base, _, files in os.walk(root):
-        for name in files:
-            rel = os.path.relpath(os.path.join(base, name), MEDIA)
-            if rel not in done and not name.startswith('tmp'):
-                pending.append(rel)
-    pending.sort()
+    if os.path.isdir(os.path.join(MEDIA, 'orig')):
+        pending += [(rel, os.path.join(MEDIA, rel), 'media/' + rel) for rel in walk(os.path.join(MEDIA, 'orig'), MEDIA) if rel not in done]
+    if os.path.isdir(os.path.join(ARCHIVE, 'files')):
+        pending += [(ARCHIVE_TAG + rel, os.path.join(ARCHIVE, rel), 'archive/' + rel)
+                    for rel in walk(os.path.join(ARCHIVE, 'files'), ARCHIVE) if ARCHIVE_TAG + rel not in done]
     sent, errors = 0, []
-    for rel in pending[:PER_RUN]:
-        with open(os.path.join(MEDIA, rel), 'rb') as f:
-            data = f.read()
-        code, mode, msg = s3.put_bytes(cfg, 'media/' + rel, data, timeout=300)
+    for key, path, remote in pending[:PER_RUN]:
+        try:
+            with open(path, 'rb') as f:
+                data = f.read()
+        except OSError:
+            continue
+        code, mode, msg = s3.put_bytes(cfg, remote, data, timeout=300)
         if 200 <= code < 300:
-            done.add(rel)
+            done[key] = int(time.time())
             sent += 1
         else:
             errors.append('%s %s' % (code, msg))
             if len(errors) >= 3:
                 break
-    write(JOURNAL, json.dumps(sorted(done)))
+    # журнал архива бота (какая работа — какой файл): отправлять, когда изменился
+    index = os.path.join(ARCHIVE, 'index.json')
+    if not errors and os.path.isfile(index):
+        try:
+            with open(index, 'rb') as f:
+                data = f.read()
+            tag = ARCHIVE_TAG + 'index.json#' + hashlib.sha256(data).hexdigest()[:16]
+            if tag not in done:
+                code, mode, msg = s3.put_bytes(cfg, 'archive/index-%s.json' % time.strftime('%Y%m%d-%H%M', time.gmtime()), data,
+                                               'application/json', timeout=120)
+                if 200 <= code < 300:
+                    for k in [k for k in done if k.startswith(ARCHIVE_TAG + 'index.json#')]:
+                        del done[k]
+                    done[tag] = int(time.time())
+                else:
+                    errors.append('%s %s' % (code, msg))
+        except OSError:
+            pass
+    write(JOURNAL, json.dumps(done, sort_keys=True))
     left = len(pending) - sent
+    pruned, freed = prune(done, int(time.time()))
+    kab = sum(1 for k in done if k.startswith('orig/'))
+    arch = sum(1 for k in done if k.startswith(ARCHIVE_TAG + 'files/'))
+    tail = 'files %d sent %d left %d archive %d pruned %d freed_mb %.1f' % (kab, sent, left, arch, pruned, freed)
     if errors:
-        write(STATUS, 'error %s sent %d left %d %s\n' % (now(), sent, left, errors[0][:120]))
+        write(STATUS, 'error %s %s %s\n' % (now(), tail, errors[0][:120]))
         return 1
-    write(STATUS, 'ok %s files %d sent %d left %d\n' % (now(), len(done), sent, left))
+    write(STATUS, 'ok %s %s\n' % (now(), tail))
     return 0
 
 
