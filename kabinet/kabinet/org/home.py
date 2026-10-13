@@ -20,7 +20,8 @@ ORDER BY coalesce(starts_at, created_at)''').fetchall()
             rounds = conn.execute("SELECT * FROM rounds WHERE event_id=%s AND status<>'draft' ORDER BY round_no", (e['id'],)).fetchall()
             people = conn.execute('''SELECT count(*) AS n FROM event_participants WHERE event_id=%s
 AND registration_status='participating' ''', (e['id'],)).fetchone()['n']
-            briefs = [round_brief(conn, r, now) for r in rounds]
+            # туры, прошедшие в боте (Игра 01, туры 1–2), — не «текущие»: их работы были в боте, в кабинете «0 сдали»
+            briefs = [round_brief(conn, r, now) for r in rounds if (r['settings'] or {}).get('source') != 'bot']
             current = next((b for b in reversed(briefs) if b['state'] in ('open', 'closed')), None)
             upcoming = next((b for b in briefs if b['state'] == 'plan'), None)
             # подсказки организатору: шаги, которые кабинет сам не сделает (репетиция-проверка 13.10)

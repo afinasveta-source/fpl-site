@@ -32,7 +32,7 @@ META = {
   'rules':  ('Rules & FAQ — Face Painting League', 'The Face Painting League rules in plain words: how to join, submit a work, how judging, rating and leagues work, certificates and the Super Final.'),
   'privacy':('Privacy policy — Face Painting League', 'How Face Painting League processes the personal data of participants and website visitors: what we collect, why, where it is stored and how to exercise your rights.'),
   'feedback':('Ideas for the league — Face Painting League', 'Send the Face Painting League organizers an anonymous suggestion about the Games, briefs, judging or the website. No sign-in needed.'),
-  'review':('Review by a judge — Face Painting League', 'Order a 5-minute audio review of your Game work from a Face Painting League judge: what worked and what to improve.'),
+  'review':('Review by a judge — Face Painting League', 'A Face Painting League judge looks at your Game work: what worked and what to improve. Details will appear after the Game ends.'),
   'about':  ('About Face Painting League by MAGFACE', 'Face Painting League is an online league for face painters by MAGFACE, grown out of seven years of face painting marathons with 1,400+ artists.'),
  },
  'ru': {
@@ -46,7 +46,7 @@ META = {
   'rules':  ('Правила и вопросы — Face Painting League', 'Правила лиги простыми словами: как участвовать и сдать работу, как устроены оценка, рейтинг и лиги, диплом и Суперфинал.'),
   'privacy':('Политика конфиденциальности — Face Painting League', 'Как Face Painting League обрабатывает персональные данные участников и посетителей сайта: что собираем, зачем, где храним и как реализовать свои права.'),
   'feedback':('Пожелания лиге — Face Painting League', 'Анонимно напишите организаторам Face Painting League, что улучшить в Играх, заданиях, судействе или на сайте. Без входа в кабинет.'),
-  'review':('Разбор от судьи — Face Painting League', 'Закажите аудиоразбор вашей работы Игры от судьи Face Painting League: что получилось и что улучшить. Около 5 минут.'),
+  'review':('Разбор от судьи — Face Painting League', 'Судья Face Painting League посмотрит вашу работу Игры: что получилось и что улучшить. Подробности появятся после окончания Игры.'),
   'about':  ('О лиге — Face Painting League by MAGFACE', 'Face Painting League — онлайн-лига аквагримёров от MAGFACE. Выросла из семи лет марафонов по аквагриму, в которых участвовали 1400+ мастеров.'),
  }
 }

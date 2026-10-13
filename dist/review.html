@@ -5,7 +5,7 @@
 <!-- SEO -->
 <meta charset="utf-8">
 <title>Review by a judge — Face Painting League</title>
-<meta name="description" content="Order a 5-minute audio review of your Game work from a Face Painting League judge: what worked and what to improve.">
+<meta name="description" content="A Face Painting League judge looks at your Game work: what worked and what to improve. Details will appear after the Game ends.">
 <link rel="canonical" href="https://facepaintingleague.com/review.html">
 <link rel="alternate" hreflang="en" href="https://facepaintingleague.com/review.html">
 <link rel="alternate" hreflang="ru" href="https://facepaintingleague.com/ru/review.html">
@@ -20,7 +20,7 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Face Painting League">
 <meta property="og:title" content="Review by a judge — Face Painting League">
-<meta property="og:description" content="Order a 5-minute audio review of your Game work from a Face Painting League judge: what worked and what to improve.">
+<meta property="og:description" content="A Face Painting League judge looks at your Game work: what worked and what to improve. Details will appear after the Game ends.">
 <meta property="og:url" content="https://facepaintingleague.com/review.html">
 <meta property="og:image" content="https://facepaintingleague.com/assets/og-en.png">
 <meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
@@ -28,7 +28,7 @@
 <meta property="og:locale:alternate" content="ru_RU">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Review by a judge — Face Painting League">
-<meta name="twitter:description" content="Order a 5-minute audio review of your Game work from a Face Painting League judge: what worked and what to improve.">
+<meta name="twitter:description" content="A Face Painting League judge looks at your Game work: what worked and what to improve. Details will appear after the Game ends.">
 <meta name="twitter:image" content="https://facepaintingleague.com/assets/og-en.png">
 <script type="application/ld+json">
 {
@@ -52,7 +52,7 @@
    "@id": "https://facepaintingleague.com/review.html#page",
    "url": "https://facepaintingleague.com/review.html",
    "name": "Review by a judge — Face Painting League",
-   "description": "Order a 5-minute audio review of your Game work from a Face Painting League judge: what worked and what to improve.",
+   "description": "A Face Painting League judge looks at your Game work: what worked and what to improve. Details will appear after the Game ends.",
    "inLanguage": "en",
    "isPartOf": {
     "@id": "https://facepaintingleague.com/#site"
@@ -174,13 +174,13 @@
 <section id="content" class="heroC fbhero" aria-labelledby="rvtitle">
     <span class="eyebrow">For Game participants</span>
     <h1 id="rvtitle">Review <span>by a judge</span></h1>
-    <p class="lead">A league judge will look at your work and record an audio review of about five minutes: what worked, what to improve and how — with technical details. Reviews are in Russian.</p>
+    <p class="lead">A league judge will look at your work and tell you what worked and what could be improved.</p>
   </section>
 
   <div class="fbgrid">
     <div class="fbcard">
-      <p class="rvclosed" id="rvClosed" hidden>Reviews open after a Game ends, for 30 days. You cannot order right now — come back after the final.</p>
-      <form id="rvForm" novalidate>
+      <p class="rvclosed" id="rvClosed" hidden>Details about reviews will appear after the Game ends.</p>
+      <form id="rvForm" novalidate hidden>
         <fieldset class="rvopts">
           <legend>What to review</legend>
           <label class="rvopt"><input type="radio" name="scope" value="one" checked>
@@ -211,7 +211,7 @@
       </form>
       <div class="fbmsg" id="rvMsg" role="status" aria-live="polite"></div>
 
-      <div class="rvterms" id="rvterms">
+      <div class="rvterms" id="rvterms" hidden>
         <h2>Terms</h2>
         <ol>
           <li>The review is an audio recording of about 5 minutes by a league judge (<span data-rv="reviewer">Milena</span>), in Russian. It is the expert's personal opinion and does not affect round results, rating or certificates.</li>
@@ -225,7 +225,7 @@
     </div>
 
     <aside class="fbaside">
-      <div class="fbnote">
+      <div class="fbnote" id="rvHow" hidden>
         <b>How it works</b>
         <p>1. After the Game ends, you order here. 2. You get an invoice. 3. The judge looks at your works and records the review. 4. You listen in your account whenever you like, as often as you like.</p>
       </div>
@@ -262,9 +262,10 @@
     document.querySelectorAll('[data-rv]').forEach(function(el){ var k=el.getAttribute('data-rv'), v=o[k]; if(v!=null) el.textContent = k.indexOf('price')===0 ? v+' ₽' : v; });
     sel.innerHTML=''; (o.rounds||[]).forEach(function(r){ var op=document.createElement('option'); op.value=r.no; var t=f(T.round,{n:r.no}); op.textContent=t+(r.title && r.title.indexOf(t)!==0 && !/^(Тур|Round) \d+$/.test(r.title)?' · '+r.title:''); sel.appendChild(op); });
     if(!o.enabled){ form.hidden=true; document.getElementById('rvClosed').hidden=false; return; }
+    form.hidden=false; document.getElementById('rvterms').hidden=false; document.getElementById('rvHow').hidden=false;
     if(!(o.rounds||[]).length){ var one=form.querySelector('input[value=one]'); one.disabled=true; form.querySelector('input[value=all]').checked=true; }
     sync();
-  }).catch(function(){ sync(); });
+  }).catch(function(){ document.getElementById('rvClosed').hidden=false; });
   form.addEventListener('submit',function(e){
     e.preventDefault(); if(send.disabled) return;
     var name=document.getElementById('rvName').value.trim(), contact=document.getElementById('rvContact').value.trim();

@@ -4,7 +4,7 @@
 <!-- SEO -->
 <meta charset="utf-8">
 <title>Разбор от судьи — Face Painting League</title>
-<meta name="description" content="Закажите аудиоразбор вашей работы Игры от судьи Face Painting League: что получилось и что улучшить. Около 5 минут.">
+<meta name="description" content="Судья Face Painting League посмотрит вашу работу Игры: что получилось и что улучшить. Подробности появятся после окончания Игры.">
 <link rel="canonical" href="https://facepaintingleague.com/ru/review.html">
 <link rel="alternate" hreflang="en" href="https://facepaintingleague.com/review.html">
 <link rel="alternate" hreflang="ru" href="https://facepaintingleague.com/ru/review.html">
@@ -19,7 +19,7 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Face Painting League">
 <meta property="og:title" content="Разбор от судьи — Face Painting League">
-<meta property="og:description" content="Закажите аудиоразбор вашей работы Игры от судьи Face Painting League: что получилось и что улучшить. Около 5 минут.">
+<meta property="og:description" content="Судья Face Painting League посмотрит вашу работу Игры: что получилось и что улучшить. Подробности появятся после окончания Игры.">
 <meta property="og:url" content="https://facepaintingleague.com/ru/review.html">
 <meta property="og:image" content="https://facepaintingleague.com/assets/og-ru.png">
 <meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
@@ -27,7 +27,7 @@
 <meta property="og:locale:alternate" content="en_US">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Разбор от судьи — Face Painting League">
-<meta name="twitter:description" content="Закажите аудиоразбор вашей работы Игры от судьи Face Painting League: что получилось и что улучшить. Около 5 минут.">
+<meta name="twitter:description" content="Судья Face Painting League посмотрит вашу работу Игры: что получилось и что улучшить. Подробности появятся после окончания Игры.">
 <meta name="twitter:image" content="https://facepaintingleague.com/assets/og-ru.png">
 <script type="application/ld+json">
 {
@@ -51,7 +51,7 @@
    "@id": "https://facepaintingleague.com/ru/review.html#page",
    "url": "https://facepaintingleague.com/ru/review.html",
    "name": "Разбор от судьи — Face Painting League",
-   "description": "Закажите аудиоразбор вашей работы Игры от судьи Face Painting League: что получилось и что улучшить. Около 5 минут.",
+   "description": "Судья Face Painting League посмотрит вашу работу Игры: что получилось и что улучшить. Подробности появятся после окончания Игры.",
    "inLanguage": "ru",
    "isPartOf": {
     "@id": "https://facepaintingleague.com/#site"
@@ -172,13 +172,13 @@
   <section id="content" class="heroC fbhero" aria-labelledby="rvtitle">
     <span class="eyebrow">Для участниц Игры</span>
     <h1 id="rvtitle">Разбор <span>от судьи</span></h1>
-    <p class="lead">Судья лиги посмотрит вашу работу и запишет аудиоразбор минут на пять: что получилось, что и как улучшить — с техническими деталями.</p>
+    <p class="lead">Судья лиги посмотрит вашу работу и расскажет, что получилось и что можно улучшить.</p>
   </section>
 
   <div class="fbgrid">
     <div class="fbcard">
-      <p class="rvclosed" id="rvClosed" hidden>Заказ разбора открывается после окончания Игры — на 30 дней. Сейчас заказать нельзя: заходите после финала.</p>
-      <form id="rvForm" novalidate>
+      <p class="rvclosed" id="rvClosed" hidden>Информация о разборах появится после окончания Игры.</p>
+      <form id="rvForm" novalidate hidden>
         <fieldset class="rvopts">
           <legend>Что разобрать</legend>
           <label class="rvopt"><input type="radio" name="scope" value="one" checked>
@@ -209,7 +209,7 @@
       </form>
       <div class="fbmsg" id="rvMsg" role="status" aria-live="polite"></div>
 
-      <div class="rvterms" id="rvterms">
+      <div class="rvterms" id="rvterms" hidden>
         <h2>Условия</h2>
         <ol>
           <li>Разбор — аудиозапись около 5 минут от судьи лиги (<span data-rv="reviewer">Милена</span>). Это личное мнение эксперта: на итоги туров, рейтинг и дипломы он не влияет.</li>
@@ -223,7 +223,7 @@
     </div>
 
     <aside class="fbaside">
-      <div class="fbnote">
+      <div class="fbnote" id="rvHow" hidden>
         <b>Как это устроено</b>
         <p>1. После окончания Игры вы заказываете здесь. 2. Получаете счёт на оплату. 3. Судья смотрит ваши работы и записывает разбор. 4. Слушаете его в кабинете, когда удобно, сколько угодно раз.</p>
       </div>
@@ -260,9 +260,11 @@
     document.querySelectorAll('[data-rv]').forEach(function(el){ var k=el.getAttribute('data-rv'), v=o[k]; if(v!=null) el.textContent = k.indexOf('price')===0 ? v+' ₽' : v; });
     sel.innerHTML=''; (o.rounds||[]).forEach(function(r){ var op=document.createElement('option'); op.value=r.no; var t=f(T.round,{n:r.no}); op.textContent=t+(r.title && r.title.indexOf(t)!==0 && !/^(Тур|Round) \d+$/.test(r.title)?' · '+r.title:''); sel.appendChild(op); });
     if(!o.enabled){ form.hidden=true; document.getElementById('rvClosed').hidden=false; return; }
+    // заказ открыт — показать форму, условия и «как устроено» (пока закрыт, подробностей нет: решение 14.10)
+    form.hidden=false; document.getElementById('rvterms').hidden=false; document.getElementById('rvHow').hidden=false;
     if(!(o.rounds||[]).length){ var one=form.querySelector('input[value=one]'); one.disabled=true; form.querySelector('input[value=all]').checked=true; }
     sync();
-  }).catch(function(){ sync(); });
+  }).catch(function(){ document.getElementById('rvClosed').hidden=false; });
   form.addEventListener('submit',function(e){
     e.preventDefault(); if(send.disabled) return;
     var name=document.getElementById('rvName').value.trim(), contact=document.getElementById('rvContact').value.trim();

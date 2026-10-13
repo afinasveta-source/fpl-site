@@ -1,13 +1,13 @@
   <section class="heroC fbhero" aria-labelledby="rvtitle">
     <span class="eyebrow">For Game participants</span>
     <h1 id="rvtitle">Review <span>by a judge</span></h1>
-    <p class="lead">A league judge will look at your work and record an audio review of about five minutes: what worked, what to improve and how — with technical details. Reviews are in Russian.</p>
+    <p class="lead">A league judge will look at your work and tell you what worked and what could be improved.</p>
   </section>
 
   <div class="fbgrid">
     <div class="fbcard">
-      <p class="rvclosed" id="rvClosed" hidden>Reviews open after a Game ends, for 30 days. You cannot order right now — come back after the final.</p>
-      <form id="rvForm" novalidate>
+      <p class="rvclosed" id="rvClosed" hidden>Details about reviews will appear after the Game ends.</p>
+      <form id="rvForm" novalidate hidden>
         <fieldset class="rvopts">
           <legend>What to review</legend>
           <label class="rvopt"><input type="radio" name="scope" value="one" checked>
@@ -38,7 +38,7 @@
       </form>
       <div class="fbmsg" id="rvMsg" role="status" aria-live="polite"></div>
 
-      <div class="rvterms" id="rvterms">
+      <div class="rvterms" id="rvterms" hidden>
         <h2>Terms</h2>
         <ol>
           <li>The review is an audio recording of about 5 minutes by a league judge (<span data-rv="reviewer">Milena</span>), in Russian. It is the expert's personal opinion and does not affect round results, rating or certificates.</li>
@@ -52,7 +52,7 @@
     </div>
 
     <aside class="fbaside">
-      <div class="fbnote">
+      <div class="fbnote" id="rvHow" hidden>
         <b>How it works</b>
         <p>1. After the Game ends, you order here. 2. You get an invoice. 3. The judge looks at your works and records the review. 4. You listen in your account whenever you like, as often as you like.</p>
       </div>
@@ -89,9 +89,10 @@
     document.querySelectorAll('[data-rv]').forEach(function(el){ var k=el.getAttribute('data-rv'), v=o[k]; if(v!=null) el.textContent = k.indexOf('price')===0 ? v+' ₽' : v; });
     sel.innerHTML=''; (o.rounds||[]).forEach(function(r){ var op=document.createElement('option'); op.value=r.no; var t=f(T.round,{n:r.no}); op.textContent=t+(r.title && r.title.indexOf(t)!==0 && !/^(Тур|Round) \d+$/.test(r.title)?' · '+r.title:''); sel.appendChild(op); });
     if(!o.enabled){ form.hidden=true; document.getElementById('rvClosed').hidden=false; return; }
+    form.hidden=false; document.getElementById('rvterms').hidden=false; document.getElementById('rvHow').hidden=false;
     if(!(o.rounds||[]).length){ var one=form.querySelector('input[value=one]'); one.disabled=true; form.querySelector('input[value=all]').checked=true; }
     sync();
-  }).catch(function(){ sync(); });
+  }).catch(function(){ document.getElementById('rvClosed').hidden=false; });
   form.addEventListener('submit',function(e){
     e.preventDefault(); if(send.disabled) return;
     var name=document.getElementById('rvName').value.trim(), contact=document.getElementById('rvContact').value.trim();
