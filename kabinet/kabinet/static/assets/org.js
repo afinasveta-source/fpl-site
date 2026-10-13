@@ -391,7 +391,7 @@
   });
 
   var FIELD = [['required', 'Обязательно'], ['optional', 'Можно добавить'], ['none', 'Не нужно']];
-  function drawRound(r, drafts) {
+  function drawRound(r) {
     O.round = r;
     var ro = r.readonly, t = r.task || { title: '', form: { photo: 'required', link: 'required', photo_max: 1 }, variants: [{ league: null, instructions: '' }] };
     var byLeague = {};
@@ -434,7 +434,6 @@
       }).join('') + O.errBox + (ro ? '' : '<button class="btn" type="submit">Сохранить</button>') + '</form>';
     h += relayCard(r, ro);
     K.page(h, crumbs);
-    restoreDrafts(drafts);
     ['f-round', 'f-task', 'f-relay'].forEach(function (fid) {
       var form = document.getElementById(fid);
       if (form) form.addEventListener('submit', function (ev) { ev.preventDefault(); saveRoundPage(r, fid); });
@@ -458,24 +457,6 @@
     return x.value !== x.defaultValue;
   }
   function formDirty(form) { return !!form && fieldsOf(form).some(function (x) { return !x.disabled && isDirty(x); }); }
-  function pageDrafts(only) {
-    var out = {};
-    (only || ROUND_FORMS).forEach(function (fid) {
-      var form = document.getElementById(fid);
-      if (form) fieldsOf(form).forEach(function (x) { if (!x.disabled && isDirty(x)) out[x.id] = x.type === 'checkbox' ? x.checked : x.value; });
-    });
-    return out;
-  }
-  function restoreDrafts(d) {
-    if (!d) return;
-    Object.keys(d).forEach(function (id) {
-      var x = document.getElementById(id);
-      if (!x || x.disabled) return;
-      if (x.type === 'checkbox') { x.checked = d[id]; if (x.getAttribute('data-act') === 'toggleLeague') K.actions.toggleLeague(x); }
-      else x.value = d[id];
-    });
-    if (Object.keys(d).length) K.toast('Есть несохранённые изменения — нажмите «Сохранить»');
-  }
   function roundBody(r, f) {
     var title = f.querySelector('#r-title').value.trim();
     if (!title) return { err: 'Название не может быть пустым.' };
@@ -527,23 +508,20 @@
       job.fid = steps[i]; jobs.push(job);
     }
     setBusy(true);
+    K.drafts.manual = true;   // черновики забываем сами — по каждому сохранённому блоку
     var last = null, notified = 0;
     (function next(k) {
       if (k >= jobs.length) {
-        setBusy(false);
+        setBusy(false); K.drafts.manual = false;
         K.toast(notified ? 'Сохранено. Уведомление получили: ' + notified : 'Сохранено');
         drawRound(last);
         return;
       }
       K.api(jobs[k].method, jobs[k].path, jobs[k].body).then(function (res) {
-        if (res.ok) { last = res.data; notified += res.data.notified || 0; next(k + 1); return; }
-        setBusy(false);
+        if (res.ok) { K.drafts.forget(document.getElementById(jobs[k].fid)); last = res.data; notified += res.data.notified || 0; next(k + 1); return; }
+        setBusy(false); K.drafts.manual = false;
         var failed = jobs[k].fid, msg = O.err(res);
-        if (last) {
-          // Часть уже сохранена — показать свежие данные, но вернуть то, что ещё не сохранилось.
-          var keep = pageDrafts(jobs.slice(k).map(function (j) { return j.fid; }));
-          drawRound(last, keep);
-        }
+        if (last) drawRound(last);   // часть сохранилась — свежие данные; несохранённое вернётся само (K.drafts)
         var f2 = document.getElementById(failed);
         if (f2) K.formError(f2, msg); else K.toast(msg);
       });
@@ -586,7 +564,7 @@
       open_now: ['Открыть задание сейчас?', 'Задание сразу увидят участницы всех лиг (свои будущие даты открытия у лиг снимутся). Срок сдачи — ' + O.when(r.deadline) + (ownDates(r).length ? ', у лиг со своим сроком — свой' : '') + '.', 'Открыть всем'],
       unpublish: ['Вернуть тур в черновик?', 'Участницы перестанут видеть его в плане Игры.', 'В черновик'] }[a];
     O.confirm({ title: info[0], html: '<p>' + esc(info[1]) + '</p>' + (a === 'publish' && r.checks.warnings.length ? O.issues({ problems: [], warnings: r.checks.warnings }) : ''), ok: info[2],
-      path: '/api/org/rounds/' + r.id + '/status', body: function () { return { action: a }; }, done: function (d) { var keep = pageDrafts(); K.toast('Готово'); drawRound(d, keep); } });
+      path: '/api/org/rounds/' + r.id + '/status', body: function () { return { action: a }; }, done: function (d) { K.toast('Готово'); drawRound(d); } });
   };
   function ownDates(r) {
     return ((r.task && r.task.variants) || []).filter(function (v) { return v.league && (v.opens_at || v.deadline); });

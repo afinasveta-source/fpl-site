@@ -28,6 +28,7 @@
       timer = setTimeout(function () { ctl.abort(); }, raw ? 300000 : 30000);   // фото на мобильном — до 5 минут
     }
     var fail = { status: 0, ok: false, data: null, detail: null };
+    var acting = method !== 'GET' && K.drafts ? K.drafts.acting : null;
     return fetch(ROOT + path, opts).then(function (r) {
       return r.text().then(function (t) {
         var data = null;
@@ -35,7 +36,11 @@
         if (r.status === 401 && path.indexOf('/web-auth/') !== 0) { K.state.me = null; }
         return { status: r.status, ok: r.ok, data: data, detail: data && typeof data.detail === 'string' ? data.detail : null };
       });
-    }).catch(function () { return fail; }).then(function (res) { if (timer) clearTimeout(timer); return res; });
+    }).catch(function () { return fail; }).then(function (res) {
+      if (timer) clearTimeout(timer);
+      if (res.ok && acting && !K.drafts.manual) K.drafts.forget(acting);   // сохранилось — черновик этого блока больше не нужен
+      return res;
+    });
   };
 
   var REASONS = {
@@ -254,8 +259,130 @@
         '<button class="x" type="button" data-act="closeMenu" aria-label="Закрыть меню">×</button></div>' + navHTML() + '</div></div>' : '');
     document.body.classList.toggle('menu-open', s.menu);
     if (s.menu) { var x = app.querySelector('.drawer .x'); if (x) x.focus(); }
+
+    setTimeout(K.drafts.restore, 0);   // после того, как страница навесит свои обработчики
   };
   K.rerender = function () { K.page(K.last.body, K.last.crumbs); };
+  /* ---------- Черновики полей (решение 14.10) ----------
+     Что человек ввёл и ещё не сохранил, не стирается: ни при ошибке и перерисовке страницы, ни при открытии меню,
+     ни после повторного входа. Хранится только в этой вкладке (sessionStorage). Пароли и файлы не хранятся.
+     Поле не запоминается, если у него data-nodraft (переключатели, которые сохраняются сразу).
+     Успешное сохранение (POST/PUT/PATCH/DELETE с ответом 2xx) забывает черновик блока, из которого пришло действие. */
+  var DRAFT_ACTS = { toggleLeague: 1 };   // data-act у поля, который безопасно повторить при восстановлении
+  var D = K.drafts = { acting: null, manual: false };
+  function dPathKey() { return 'kdraft:' + location.pathname; }
+  function dLoad() { try { return JSON.parse(sessionStorage.getItem(dPathKey()) || '{}') || {}; } catch (e) { return {}; } }
+  function dPut(obj) {
+    try { if (Object.keys(obj).length) sessionStorage.setItem(dPathKey(), JSON.stringify(obj)); else sessionStorage.removeItem(dPathKey()); } catch (e) { /* нет хранилища — просто не помним */ }
+  }
+  function dMain() { return document.getElementById('main'); }
+  function dRadios(x) {
+    var scope = x.form || dMain();
+    return scope ? Array.prototype.filter.call(scope.querySelectorAll('input[type=radio]'), function (r) { return r.name === x.name; }) : [x];
+  }
+  function dKey(x) {
+    var f = x.form ? (x.form.id || 'form') : '-';
+    if (x.type === 'radio') return x.name ? 'r:' + f + ':' + x.name : null;
+    if (x.id) return '#' + x.id;
+    return x.name ? 'n:' + f + ':' + x.name : null;
+  }
+  function dTrackable(x) {
+    var main = dMain();
+    if (!main || !main.contains(x)) return false;
+    if (/^(password|file|hidden|submit|button|reset|image)$/i.test(x.type || '')) return false;
+    if (x.closest('[data-nodraft]')) return false;
+    if (x.hasAttribute('data-act') && !DRAFT_ACTS[x.getAttribute('data-act')]) return false;
+    return !!dKey(x);
+  }
+  function dValue(x) {
+    if (x.type === 'checkbox') return x.checked;
+    if (x.type === 'radio') { var on = dRadios(x).filter(function (r) { return r.checked; })[0]; return on ? on.value : ''; }
+    return x.value;
+  }
+  function dDefault(x) {
+    if (x.type === 'checkbox') return x.defaultChecked;
+    if (x.type === 'radio') { var on = dRadios(x).filter(function (r) { return r.defaultChecked; })[0]; return on ? on.value : ''; }
+    if (x.tagName === 'SELECT') {
+      var d = Array.prototype.filter.call(x.options, function (o) { return o.defaultSelected; })[0] || x.options[0];
+      return d ? d.value : '';
+    }
+    return x.defaultValue;
+  }
+  function dFields(root) { return root ? Array.prototype.filter.call(root.querySelectorAll('input, select, textarea'), dTrackable) : []; }
+  /* Запомнить всё несохранённое на странице (то, что отличается от пришедшего с сервера). */
+  D.collect = function () {
+    var main = dMain();
+    if (!main) return;
+    var out = dLoad();
+    // Поля, которых на экране нет (страница ещё грузится, блок закрыт), не трогаем; видимые — пересчитываем.
+    Object.keys(out).forEach(function (key) { var x = dFind(key); if (x && main.contains(x) && !x.disabled) delete out[key]; });
+    dFields(main).forEach(function (x) { if (!x.disabled && dValue(x) !== dDefault(x)) out[dKey(x)] = dValue(x); });
+    dPut(out);
+  };
+  /* Забыть черновик блока (форма или карточка), который только что сохранился. */
+  D.forget = function (block) {
+    if (!block || !block.isConnected) return;
+    var cur = dLoad(), n = Object.keys(cur).length;
+    dFields(block).forEach(function (x) { delete cur[dKey(x)]; });
+    if (Object.keys(cur).length !== n) dPut(cur);
+  };
+  D.clear = function () { dPut({}); };
+  function dFind(key) {
+    var main = dMain();
+    if (!main) return null;
+    if (key.charAt(0) === '#') return document.getElementById(key.slice(1));
+    var m = /^([rn]):([^:]*):(.*)$/.exec(key);
+    if (!m) return null;
+    var scope = m[2] === '-' ? main : (m[2] === 'form' ? main : document.getElementById(m[2]));
+    if (!scope) return null;
+    var list = Array.prototype.filter.call(scope.querySelectorAll('input, select, textarea'), function (x) { return x.name === m[3] && (m[1] === 'r') === (x.type === 'radio'); });
+    return list[0] || null;
+  }
+  /* Вернуть несохранённое после отрисовки страницы. */
+  D.restore = function () {
+    var saved = dLoad(), keys = Object.keys(saved), back = 0;
+    keys.forEach(function (key) {
+      var x = dFind(key);
+      if (!x || !dTrackable(x) || x.disabled) return;
+      var v = saved[key];
+      if (dValue(x) === v) return;
+      if (x.type === 'checkbox') {
+        x.checked = !!v;
+        var act = x.getAttribute('data-act');
+        if (act && DRAFT_ACTS[act] && K.actions[act]) K.actions[act](x, { target: x });
+      } else if (x.type === 'radio') {
+        var r = dRadios(x).filter(function (y) { return y.value === v; })[0];
+        if (!r) return;
+        r.checked = true; x = r;
+      } else {
+        x.value = v;
+        if (x.value !== v) return;   // такого варианта в списке больше нет
+      }
+      back++;
+      x.dispatchEvent(new Event('input', { bubbles: true }));
+      x.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    var main = dMain();
+    if (back && main && !main.querySelector('.draft-note')) {
+      var n = document.createElement('div');
+      n.className = 'note warn small draft-note';
+      n.innerHTML = 'Мы вернули то, что вы ввели и ещё не сохранили. Проверьте и нажмите «Сохранить». ' +
+        '<button class="lnk" type="button" data-act="dropDrafts">Вернуть как было</button>';
+      main.insertBefore(n, main.firstChild);
+    }
+  };
+  K.actions.dropDrafts = function () { D.clear(); K.route(); };
+  document.addEventListener('input', function (e) { if (e.isTrusted && dTrackable(e.target)) D.collect(); }, true);
+  document.addEventListener('change', function (e) { if (e.isTrusted && dTrackable(e.target)) D.collect(); }, true);
+  // Откуда действие: кнопка или отправка формы на странице. Блок — форма, иначе карточка/раздел вокруг кнопки.
+  function dActing(el) {
+    var main = dMain();
+    if (!el || !main || !main.contains(el)) return;
+    D.acting = el.closest('form, fieldset, .card, section') || null;
+  }
+  document.addEventListener('submit', function (e) { dActing(e.target); }, true);
+  document.addEventListener('click', function (e) { var b = e.target.closest && e.target.closest('button, [data-act], input[type=submit]'); if (b) dActing(b); }, true);
+  window.addEventListener('beforeunload', D.collect);
   /* Экран до входа. */
   K.authPage = function (body) {
     app.innerHTML = header(true) + '<main id="main" tabindex="-1"><div class="auth stack" data-s="auth">' + body +
@@ -330,7 +457,13 @@
     el.textContent = text || ''; el.hidden = !text;
     if (text) el.focus();
   };
-  K.busy = function (form, on) { Array.prototype.forEach.call(form.querySelectorAll('button, input, select, textarea'), function (b) { b.disabled = on; }); };
+  K.busy = function (form, on) {
+    Array.prototype.forEach.call(form.querySelectorAll('button, input, select, textarea'), function (b) {
+      if (on) { if (!b.hasAttribute('data-busy')) b.setAttribute('data-busy', b.disabled ? '1' : '0'); b.disabled = true; }
+      else if (b.hasAttribute('data-busy')) { b.disabled = b.getAttribute('data-busy') === '1'; b.removeAttribute('data-busy'); }
+      else b.disabled = false;
+    });
+  };
   function authError(res) {
     if (res.status === 401) return 'Неверный email или пароль. Проверьте раскладку.';
     if (res.status === 403 && res.detail === 'Invalid setup key') return 'Ключ сервера не подходит.';

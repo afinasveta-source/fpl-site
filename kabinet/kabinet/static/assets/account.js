@@ -234,7 +234,7 @@
   };
 
   function sw(id, title, sub, on, extra) {
-    return '<div class="switch"><div><b>' + title + '</b><div class="small muted">' + sub + '</div></div><input class="tg" type="checkbox" id="' + id + '" aria-label="' + esc(title) + '"' +
+    return '<div class="switch"><div><b>' + title + '</b><div class="small muted">' + sub + '</div></div><input class="tg" type="checkbox" data-nodraft id="' + id + '" aria-label="' + esc(title) + '"' +
       (on ? ' checked' : '') + (extra || '') + '></div>';
   }
   K.on(/^\/profile\/notifications$/, function () {
