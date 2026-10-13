@@ -238,6 +238,10 @@ def window(conn, game, assignment, now, user_id):
     rnd = game.round_of(assignment)
     w = R.submission_window(game.event, rnd, assignment, game.pas.get(assignment['id']), game.mode, now,
                             rules_ok(conn, user_id, now))
+    if w.open and game.mode == R.IN and game.ep['entry_league'] and conn.execute(
+            'SELECT 1 FROM evaluation_streams WHERE round_id=%s AND active AND league=%s', (rnd['id'], game.ep['entry_league'])).fetchone():
+        # эстафета: лигу уже судят (раньше остального тура) — работа в конкурсе зафиксирована, даже если срок продлили
+        return R.Window(False, 'judging_started', w.deadline, w.deadline_source)
     if w.open and needs_source(game, rnd) and not relay.has_source(conn, rnd['id'], game.ep['id']):
         # до «Отправить исходники» организатор проверяет работы — исходник ещё готовится
         reason = 'no_source' if relay.released(conn.execute('SELECT settings FROM rounds WHERE id=%s', (rnd['id'],)).fetchone()) \

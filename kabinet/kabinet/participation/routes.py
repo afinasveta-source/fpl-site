@@ -284,15 +284,16 @@ def render_task(conn, request, game, assignment, user_id, now):
     rules_ok = G.rules_ok(conn, user_id, now)
     out = V.task_view(game, assignment, now, rules_ok, root(request), variant)
     rnd = game.round_of(assignment)
+    if game.ep is not None:
+        w = G.window(conn, game, assignment, now, user_id)
+        if not w.open and w.reason in ('judging_started', 'no_source', 'source_pending'):
+            out['window'] = {'open': False, 'reason': w.reason, 'deadline': V.iso(w.deadline), 'source': w.deadline_source}
     if G.needs_source(game, rnd):
         photos = relay.source_rows(conn, rnd['id'], [game.ep['id']]).get(game.ep['id'], [])
         cfg = relay.relay_of(rnd)
         out['source'] = {'league': cfg['from'], 'photos': [V.photo_view(m, root(request)) for m in photos]} \
             if photos and R.round_opened(rnd, now) else None
         out['source_expected'] = True
-        w = G.window(conn, game, assignment, now, user_id)
-        if not w.open and w.reason in ('no_source', 'source_pending'):
-            out['window'] = {'open': False, 'reason': w.reason, 'deadline': V.iso(w.deadline), 'source': w.deadline_source}
     return out
 
 

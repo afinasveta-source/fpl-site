@@ -43,7 +43,8 @@ BOT_ROUNDS = {
     2: dict(title='Бабочка', opens=datetime(2026, 10, 5, 12, 0, tzinfo=MSK), deadline=datetime(2026, 10, 8, 2, 0, tzinfo=MSK),
             published=datetime(2026, 10, 9, 22, 0, tzinfo=MSK)),
 }
-NEXT_ROUNDS = {3: ('Цветы Пандоры', {'from': 'gold', 'to': 'silver'}), 4: ('Тур 4', {'from': 'silver', 'to': 'gold'}), 5: ('Финал', None)}
+NEXT_ROUNDS = {3: ('Цветы Пандоры', {'from': 'gold', 'to': 'silver', 'sources': 'top', 'top_n': 10}),
+               4: ('Тур 4', {'from': 'silver', 'to': 'gold', 'sources': 'top', 'top_n': 10}), 5: ('Финал', None)}
 LEAGUE = {'а': 'gold', 'a': 'gold', 'лига а': 'gold', 'gold': 'gold', 'б': 'silver', 'b': 'silver', 'лига б': 'silver',
           'silver': 'silver'}
 YES = {'да', 'yes', '1', 'true', '+'}

@@ -23,11 +23,46 @@ MSK = timezone(timedelta(hours=3))
 LEAGUES = ('bronze', 'silver', 'gold')
 
 
+TOP_DEFAULT = 10
+
+
 def relay_of(rnd):
+    """Настройка эстафеты: from / to — лиги; sources — 'all' (все работы в конкурсе) или 'top' (лучшие по судейству первой
+    лиги: её судят раньше второй); top_n — сколько лучших (равные на границе входят все)."""
     cfg = ((rnd or {}).get('settings') or {}).get('relay') or {}
     if cfg.get('from') in LEAGUES and cfg.get('to') in LEAGUES and cfg['from'] != cfg['to']:
-        return {'from': cfg['from'], 'to': cfg['to']}
+        top = cfg.get('sources') == 'top'
+        n = cfg.get('top_n') if isinstance(cfg.get('top_n'), int) and 1 <= cfg.get('top_n') <= 100 else TOP_DEFAULT
+        return {'from': cfg['from'], 'to': cfg['to'], 'sources': 'top' if top else 'all', 'top_n': n if top else None}
     return None
+
+
+def early_stream(conn, rnd, cfg):
+    return conn.execute('''SELECT * FROM evaluation_streams WHERE round_id=%s AND active AND league=%s''',
+                        (rnd['id'], cfg['from'])).fetchone()
+
+
+def top_versions(conn, rnd, cfg, skip=()):
+    """Лучшие top_n работ первой лиги по её судейству (порядок с переголосованиями; равные на границе — все).
+    Только в конкурсе. None — судейство первой лиги не начато или не закончено."""
+    from kabinet.judging import service as S
+    st = early_stream(conn, rnd, cfg)
+    if st is None:
+        return None
+    ev = S.evaluate(conn, st)
+    if ev['pending_regular'] or ev['pending_tie_break']:
+        return None
+    version = {str(m['evaluation_target_id']): m['submission_version_id'] for m in conn.execute(
+        '''SELECT m.evaluation_target_id, m.submission_version_id FROM evaluation_target_members m
+JOIN evaluation_targets t ON t.id=m.evaluation_target_id WHERE t.evaluation_stream_id=%s''', (st['id'],))}
+    # убранные организатором — не в счёт: на их место встаёт следующая
+    rows = [r for r in ev['order'] if r.key is not None and not r.extra.get('left') and version.get(r.target) not in set(skip)]
+    if not rows:
+        return []
+    n = cfg['top_n']
+    cut = rows[min(n, len(rows)) - 1]
+    keep = [r for r in rows[:n]] + [r for r in rows[n:] if r.place is not None and r.place == cut.place]
+    return [version[r.target] for r in keep]
 
 
 def main_task(conn, round_id):
@@ -82,8 +117,9 @@ def _lock(conn, round_id):
 
 
 def _pool(conn, rnd, cfg, assignment_id):
-    """Работы первой лиги для исходников: только участницы в конкурсе, работа сдана в конкурс в срок, есть фото."""
-    return conn.execute('''SELECT p.id AS ep_id, s.competition_version_id AS version_id, v.submitted_at
+    """Работы первой лиги для исходников: только участницы в конкурсе, работа сдана в конкурс в срок, есть фото;
+    при «лучшие по судейству» — только они."""
+    rows = conn.execute('''SELECT p.id AS ep_id, s.competition_version_id AS version_id, v.submitted_at
 FROM event_participants p
 JOIN participant_assignments pa ON pa.event_participant_id=p.id AND pa.assignment_id=%s AND pa.active
 JOIN submissions s ON s.participant_assignment_id=pa.id AND s.deleted_at IS NULL
@@ -92,6 +128,15 @@ WHERE p.event_id=%s AND p.entry_league=%s AND p.registration_status='participati
 AND (p.competition_status IS NULL OR p.competition_status='active') AND s.counts_for_competition
 AND EXISTS (SELECT 1 FROM submission_version_media m WHERE m.submission_version_id=v.id AND m.field_key='photo')''',
                         (assignment_id, rnd['event_id'], cfg['from'])).fetchall()
+    if cfg['sources'] == 'top':
+        # версия — та, что судили (замороженная при старте судейства первой лиги)
+        skip = [r['source_submission_version_id'] for r in conn.execute('''SELECT source_submission_version_id FROM exchange_items
+WHERE round_id=%s AND exchange_group_key=%s AND excluded_at IS NOT NULL''', (rnd['id'], GROUP))]
+        best = top_versions(conn, rnd, cfg, skip) or []
+        return conn.execute('''SELECT m.event_participant_id AS ep_id, m.submission_version_id AS version_id, v.submitted_at
+FROM evaluation_target_members m JOIN submission_versions v ON v.id=m.submission_version_id
+WHERE m.submission_version_id = ANY(%s::uuid[])''', ([str(x) for x in best],)).fetchall()
+    return rows
 
 
 def _recipients(conn, rnd, cfg, only_ep=None, lock=False):
@@ -141,22 +186,38 @@ def ready(conn, rnd, now):
     if not cfg or rnd['status'] == 'draft' or main_task(conn, rnd['id']) is None:
         return False
     deadline = source_deadline(conn, rnd, cfg)
-    return deadline is not None and now > deadline
+    if deadline is None or now <= deadline:
+        return False
+    if cfg['sources'] == 'top':
+        return top_versions(conn, rnd, cfg) is not None      # судейство первой лиги закончено
+    return True
 
 
 def _fill_pool(conn, rnd, cfg):
-    """Набор исходников закрепляется при первой подготовке раздачи."""
-    if conn.execute('SELECT 1 FROM exchange_items WHERE round_id=%s AND exchange_group_key=%s LIMIT 1', (rnd['id'], GROUP)).fetchone():
+    """Набор исходников. «Все работы» — закрепляется при первой подготовке раздачи. «Лучшие» — до отправки пересобирается
+    по текущему судейству первой лиги (голос поменяли, переголосовали, работу убрали — на её место встаёт следующая)."""
+    exists = conn.execute('SELECT 1 FROM exchange_items WHERE round_id=%s AND exchange_group_key=%s LIMIT 1', (rnd['id'], GROUP)).fetchone()
+    if exists and (cfg['sources'] != 'top' or released(rnd)):
         return
     a = main_task(conn, rnd['id'])
     works = _pool(conn, rnd, cfg, a['id'])
+    stale = []
+    if exists:
+        want = {w['version_id'] for w in works}
+        stale = [r['id'] for r in conn.execute('''SELECT id, source_submission_version_id AS v FROM exchange_items
+WHERE round_id=%s AND exchange_group_key=%s AND excluded_at IS NULL''', (rnd['id'], GROUP)) if r['v'] not in want]
+        if stale:
+            conn.execute('DELETE FROM exchange_assignments WHERE exchange_item_id = ANY(%s)', (stale,))
+            conn.execute('DELETE FROM exchange_items WHERE id = ANY(%s)', (stale,))
+    added = 0
     for w in works:
-        conn.execute('''INSERT INTO exchange_items(round_id,event_participant_id,assignment_id,exchange_group_key,item_type,
+        added += conn.execute('''INSERT INTO exchange_items(round_id,event_participant_id,assignment_id,exchange_group_key,item_type,
 source_submission_version_id,submitted_at) VALUES (%s,%s,%s,%s,'media',%s,%s)
 ON CONFLICT (round_id, exchange_group_key, source_submission_version_id) WHERE source_submission_version_id IS NOT NULL DO NOTHING''',
-                     (rnd['id'], w['ep_id'], a['id'], GROUP, w['version_id'], w['submitted_at']))
-    conn.execute("INSERT INTO audit_log(entity_type,entity_id,action,after_data) VALUES ('round',%s,'relay_pool_fixed',%s)",
-                 (rnd['id'], _json({'from': cfg['from'], 'to': cfg['to'], 'works': len(works)})))
+                              (rnd['id'], w['ep_id'], a['id'], GROUP, w['version_id'], w['submitted_at'])).rowcount
+    if added or not exists or (exists and stale):
+        conn.execute("INSERT INTO audit_log(entity_type,entity_id,action,after_data) VALUES ('round',%s,'relay_pool_fixed',%s)",
+                     (rnd['id'], _json({'from': cfg['from'], 'to': cfg['to'], 'mode': cfg['sources'], 'works': len(works)})))
 
 
 def _assign(conn, rnd, cfg, now, rng, only_ep=None):
@@ -345,7 +406,11 @@ FROM exchange_items WHERE round_id=%s AND exchange_group_key=%s''', (rnd['id'], 
     first_deadline = source_deadline(conn, rnd, cfg)
     second_opens, _ = league_dates(conn, rnd, cfg['to'])
     rel = (((rnd.get('settings') or {}).get('relay')) or {}).get('released_at')
-    return {'from': cfg['from'], 'to': cfg['to'], 'sources': items['n'], 'excluded': items['x'], 'given': given,
+    early = early_stream(conn, rnd, cfg) if cfg['sources'] == 'top' else None
+    return {'from': cfg['from'], 'to': cfg['to'], 'mode': cfg['sources'], 'top_n': cfg['top_n'],
+            'early_judging': None if cfg['sources'] != 'top' else ('done' if top_versions(conn, rnd, cfg) is not None else
+                                                                   'running' if early else 'not_started'),
+            'sources': items['n'], 'excluded': items['x'], 'given': given,
             'waiting': max(0, waiting), 'started': bool(items['n'] or items['x']), 'released': bool(rel), 'released_at': rel,
             'ready': ready(conn, rnd, now), 'second_open': second_open(conn, rnd, now),
             'source_deadline': first_deadline.isoformat() if first_deadline else None,

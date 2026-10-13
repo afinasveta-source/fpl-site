@@ -574,11 +574,17 @@ WHERE assignment_variant_id = ANY(%s) AND active''', (changed,)).fetchall()
         return round_detail(conn, r, now) | {'notified': notified}
 
 
+def S_streams(conn, round_id):
+    return conn.execute('SELECT 1 FROM evaluation_streams WHERE round_id=%s AND active LIMIT 1', (round_id,)).fetchone()
+
+
 class RelayIn(BaseModel):
     """Тур-эстафета: лига-исходник (делает первой) и лига, которая получает её работы. Обе пустые — выключить."""
     model_config = ConfigDict(extra='forbid')
     source: Literal['bronze', 'silver', 'gold'] | None = None
     target: Literal['bronze', 'silver', 'gold'] | None = None
+    mode: Literal['all', 'top'] | None = None   # исходники: все работы в конкурсе / лучшие по судейству первой лиги; нет — как было
+    top_n: int | None = Field(default=None, ge=1, le=100)
 
     @model_validator(mode='after')
     def pair(self):
@@ -609,7 +615,12 @@ def put_relay(round_id: UUID, body: RelayIn, request: Request, user=Depends(org_
         if body.source is None:
             settings.pop('relay', None)
         else:
-            settings['relay'] = {'from': body.source, 'to': body.target}
+            if S_streams(conn, r['id']):
+                raise problem('judging_started', 409)
+            cur = relay.relay_of(r) or {}
+            mode = body.mode or cur.get('sources') or 'all'
+            top_n = body.top_n or cur.get('top_n') or relay.TOP_DEFAULT
+            settings['relay'] = {'from': body.source, 'to': body.target, 'sources': mode, **({'top_n': top_n} if mode == 'top' else {})}
         r = conn.execute('UPDATE rounds SET settings=%s WHERE id=%s RETURNING *', (Jsonb(settings), round_id)).fetchone()
         if body.source is not None and r['status'] != 'draft':
             found = relay.problems(conn, r)

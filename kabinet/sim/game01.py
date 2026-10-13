@@ -135,21 +135,21 @@ def setup_round(w, eid, no, first, second, opens, first_hours, gap_hours, second
     return {'id': rid, 'aid': aid, 'first_dl': f_dl, 'second_open': s_open, 'deadline': s_dl}
 
 
-def judge_pairs(w, rnd, quota, strength):
-    o = w.org
+def configure(w, rnd, quota):
     jids = [j[1] for j in w.judges]
-    o.put(f"/api/org/rounds/{rnd['id']}/judging", {'method': 'pairwise', 'pools': 'leagues', 'per_target': 4,
-                                                   'judges': {'gold': jids, 'silver': jids}, 'quota': {'gold': quota, 'silver': quota}})
-    v = o.post(f"/api/org/rounds/{rnd['id']}/judging/start", expect=(200, 409))
-    if not P.check(v and v.get('started'), 'critical', AREA, f"судейство тура не стартовало: {v}"):
-        return None
+    w.org.put(f"/api/org/rounds/{rnd['id']}/judging", {'method': 'pairwise', 'pools': 'leagues', 'per_target': 4,
+                                                       'judges': {'gold': jids, 'silver': jids}, 'quota': {'gold': quota, 'silver': quota}})
+
+
+def vote(w, rnd, strength, league=None):
+    """Судьи голосуют по силе работы; возвращает, сколько раз судья видел исходник рядом с работой."""
     tm = {str(r['t']): str(r['u']) for r in w.q('''SELECT t.id AS t, p.user_id AS u FROM evaluation_targets t
 JOIN evaluation_target_members m ON m.evaluation_target_id=t.id JOIN event_participants p ON p.id=m.event_participant_id
 JOIN evaluation_streams s ON s.id=t.evaluation_stream_id WHERE s.round_id=%s''', (rnd['id'],))}
-    seen_source = 0
+    seen = 0
     for jc, _ in w.judges:
         for st in jc.get('/api/judging')['streams']:
-            if st['round_no'] != rnd['no']:
+            if st['round_no'] != rnd['no'] or (league and st['league'] != league):
                 continue
             while True:
                 s = jc.get(f"/api/judging/streams/{st['id']}")
@@ -157,11 +157,27 @@ JOIN evaluation_streams s ON s.id=t.evaluation_stream_id WHERE s.round_id=%s''',
                     break
                 c = w.q1('SELECT target_a_id, target_b_id FROM pairwise_comparisons WHERE id=%s', (s['next']['id'],))
                 if s['next']['a'].get('source'):
-                    seen_source += 1
+                    seen += 1
                 a, b = strength.get(tm[str(c['target_a_id'])], 0), strength.get(tm[str(c['target_b_id'])], 0)
                 jc.post(f"/api/judging/comparisons/{s['next']['id']}", {'winner': 'a' if a >= b else 'b'})
+    return seen
+
+
+def early(w, rnd, quota, strength):
+    """Тур-эстафета, исходники — лучшие: судейство первой лиги сразу после её срока."""
+    configure(w, rnd, quota)
+    v = w.org.post(f"/api/org/rounds/{rnd['id']}/judging/start-early", expect=(200, 409))
+    P.check(v and len(v['streams']) == 1 and not v['started'], 'critical', AREA, f"судейство первой лиги не стартовало: {v and (v.get('early'), v.get('started'))}")
+    vote(w, rnd, strength)
+
+
+def finish_round(w, rnd, quota, strength):
+    o = w.org
+    v = o.post(f"/api/org/rounds/{rnd['id']}/judging/start", expect=(200, 409))
+    if not P.check(v and v.get('started'), 'critical', AREA, f"судейство тура не стартовало: {v and v.get('checks')}"):
+        return None
+    seen = vote(w, rnd, strength)
     pre = o.get(f"/api/org/rounds/{rnd['id']}/judging")
-    # граница прохода: равные — решает организатор
     for st in pre['streams']:
         b = st.get('border') or {}
         tied = list(b.get('tied') or []) + list(b.get('unjudged') or [])
@@ -171,7 +187,7 @@ JOIN evaluation_streams s ON s.id=t.evaluation_stream_id WHERE s.round_id=%s''',
                                                                       'reason': 'прогон: равные на границе'}, expect=(200,))
     pub = o.post(f"/api/org/rounds/{rnd['id']}/judging/publish", expect=(200, 409))
     P.check(pub and pub.get('published'), 'critical', AREA, f"итоги тура {rnd['no']} не публикуются: {pub and pub.get('publish_problems')}")
-    return seen_source
+    return seen
 
 
 STOP = '--stop3' in sys.argv     # для проверки экранов: остановиться в туре 3 (судейство запущено, голосов нет; 5 заявок ждут)
@@ -234,7 +250,14 @@ def main():
         res12 = [r for r in (g or {}).get('rounds', []) if r.get('round_no') in (1, 2) and r.get('result')]
         P.check(len(res12) == 2, 'major', AREA, f"итоги туров 1–2 в Игре у участницы: {[(r.get('round_no'), bool(r.get('result'))) for r in (g or {}).get('rounds', [])]}")
 
-        # --- тур 3: Gold → Silver
+        strength = {}
+        for x in people:
+            u = w.q1("SELECT user_id FROM external_identities WHERE provider='salebot_client' AND external_id=%s", (x['cid'],))
+            x['uid'] = str(u['user_id'])
+            strength[x['uid']] = rnd.random()
+
+        # --- тур 3: Gold → Silver, исходники — топ-10 Gold по судейству
+        
         r3 = setup_round(w, eid, 3, 'gold', 'silver', T0 + timedelta(hours=1), 72, 1, 72, 'Цветы Пандоры')
         r3['no'] = 3
         w.clock.set(T0 + timedelta(hours=2))
@@ -247,8 +270,10 @@ def main():
         sil = [x for x in people if x['league'] == 'silver' and x['cid'] in hs]
         t = hs[sil[0]['cid']].get(f"/api/games/{eid}/tasks/{r3['aid']}")
         P.check(t and t['window']['reason'] == 'not_open' and not t.get('source'), 'critical', AREA, f"Silver видит задание раньше: {t and t['window']}")
+        w.clock.set(r3['first_dl'] + timedelta(minutes=10))
+        early(w, r3, 27, strength)
         w.clock.set(r3['second_open'] + timedelta(minutes=10))
-        # организатор проверяет раздачу и отправляет исходники
+        # организатор проверяет раздачу (топ-10 Gold) и отправляет исходники
         d = o.get(f"/api/org/rounds/{r3['id']}/relay")
         P.check(d and d['overview']['ready'] and not d['overview']['released'], 'critical', AREA, f"раздача не готова к проверке: {d and d['overview']}")
         o.post(f"/api/org/rounds/{r3['id']}/relay/prepare")
@@ -277,17 +302,13 @@ AND registration_status='participating' AND (competition_status IS NULL OR compe
         out_sil = w.q1('''SELECT count(*) AS n FROM event_participants p JOIN exchange_assignments ea ON ea.recipient_event_participant_id=p.id
 AND ea.round_id=%s WHERE p.event_id=%s AND p.entry_league='silver' AND p.competition_status='diploma_only' ''', (r3['id'], eid))['n']
         P.check(out_sil == 9, 'critical', AREA, f'Silver вне конкурса с исходником: {out_sil} из 9')
+        P.check(10 <= len(cnt) <= 12, 'critical', AREA, f'исходников не топ-10: {len(cnt)}')
         print(f'  тур 3: открыли {opened}, сверка выдала {given}, исходников {len(cnt)}, на работу {min(cnt.values())}–{max(cnt.values())}')
         for i, x in enumerate(sil):
             if i % 11 == 7:
                 continue
             send(w, hs[x['cid']], eid, r3['aid'], seed=2000 + i)
         w.clock.set(r3['deadline'] + timedelta(minutes=10))
-        strength = {}
-        for x in people:
-            u = w.q1("SELECT user_id FROM external_identities WHERE provider='salebot_client' AND external_id=%s", (x['cid'],))
-            x['uid'] = str(u['user_id'])
-            strength[x['uid']] = rnd.random()
         if STOP:
             jids = [j[1] for j in w.judges]
             o.put(f"/api/org/rounds/{r3['id']}/judging", {'method': 'pairwise', 'pools': 'leagues', 'per_target': 4,
@@ -298,7 +319,7 @@ AND ea.round_id=%s WHERE p.event_id=%s AND p.entry_league='silver' AND p.competi
                                       'judge': w.judges[0][0].email, 'org': w.org.email, 'at': w.clock().isoformat(),
                                       'db': w.name, 'media': w.media}))
             raise Stop()
-        seen = judge_pairs(w, r3, 27, strength)
+        seen = finish_round(w, r3, 27, strength)
         P.check(seen and seen > 0, 'critical', AREA, 'судьи не видели исходник рядом с работой Silver')
         # снимок рейтинга = рейтинг после тура 2 из таблицы
         bad = 0
@@ -314,6 +335,8 @@ AND ea.round_id=%s WHERE p.event_id=%s AND p.entry_league='silver' AND p.competi
         w.clock.set(r4['first_dl'] - timedelta(hours=1))
         for i, x in enumerate(sil):
             send(w, hs[x['cid']], eid, r4['aid'], seed=3000 + i)
+        w.clock.set(r4['first_dl'] + timedelta(minutes=5))
+        early(w, r4, 13, strength)
         w.clock.set(r4['second_open'] + timedelta(minutes=5))
         o.post(f"/api/org/rounds/{r4['id']}/relay/release")
         for i, x in enumerate(gold_in):
@@ -322,7 +345,7 @@ AND ea.round_id=%s WHERE p.event_id=%s AND p.entry_league='silver' AND p.competi
                 P.check(t.get('source'), 'critical', AREA, f"Gold без исходника в туре 4: {t['window']}")
                 send(w, hs[x['cid']], eid, r4['aid'], seed=4000 + i)
         w.clock.set(r4['deadline'] + timedelta(minutes=10))
-        judge_pairs(w, r4, 13, strength)
+        finish_round(w, r4, 13, strength)
 
         # --- финал: критерии, общий пул
         rid5 = str(w.q1('SELECT id FROM rounds WHERE event_id=%s AND round_no=5', (eid,))['id'])

@@ -46,12 +46,17 @@ def judging_view(conn, event, rnd, now, root):
                      'deadline': iso(rnd['deadline']), 'judging_deadline': iso(rnd['judging_deadline'])},
            'event': {'id': str(event['id']), 'title': event['title'], 'status': event['status'],
                      'affects_rating': event['affects_rating']},
-           'config': cfg, 'started': bool(streams), 'published': rnd['status'] == 'published',
+           'config': cfg, 'started': rnd['status'] in ('judging', 'tie_break', 'results_review', 'published'),
+           'published': rnd['status'] == 'published',
            'judges': [{'id': str(j['id']), 'name': person_name(j), 'is_judge': j['is_judge']} for j in judges]}
-    if not streams:
+    if not out['started']:
         out['checks'] = S.start_checks(conn, event, rnd, cfg, now)
         out['acceptance_end'] = iso(S.acceptance_end(conn, rnd))
-        return out
+        if S.early_league(rnd):
+            out['early'] = S.early_checks(conn, event, rnd, cfg, now)
+        if not streams:
+            out['streams'] = []
+            return out
     views = []
     for st in streams:
         v = S.stream_view(conn, st, now)
@@ -64,6 +69,22 @@ def judging_view(conn, event, rnd, now, root):
     out['streams'] = views
     out['publish_problems'] = S.publish_checks(conn, rnd) if rnd['status'] != 'published' else []
     return out
+
+
+@org.post('/rounds/{round_id}/judging/start-early', dependencies=WRITE)
+def start_early(round_id: UUID, request: Request, user=Depends(org_user)):
+    """Тур-эстафета, исходники — лучшие по судейству: начать судейство первой лиги до срока второй."""
+    now = now_of(request)
+    with db(request).transaction() as conn:
+        locked_admin(conn, user)
+        rnd = load_round(conn, round_id, lock=True)
+        event = load_event(conn, rnd['event_id'], lock=True)
+        league = S.early_league(rnd)
+        if league is None:
+            raise problem('not_relay_top', 409)
+        S.start(conn, event, rnd, user['id'], now, only_league=league)
+        rnd = load_round(conn, round_id)
+        return judging_view(conn, event, rnd, now, request.app.state.settings.root_path)
 
 
 @org.get('/rounds/{round_id}/judging')
@@ -113,15 +134,28 @@ def set_judging(round_id: UUID, body: JudgingConfig, request: Request, user=Depe
         locked_admin(conn, user)
         rnd = load_round(conn, round_id, lock=True)
         event = load_event(conn, rnd['event_id'])
-        if S.streams_of(conn, rnd['id']):
-            raise problem('judging_started', 409)
-        eligible = {str(j['id']) for j in S.eligible_judges(conn, event['id'])}
-        if any(str(u) not in eligible for v in body.judges.values() for u in v):
-            raise problem('judge_not_eligible')
+        streams = S.streams_of(conn, rnd['id'])
         cfg = {'method': body.method, 'pools': body.pools, 'per_target': body.per_target,
                'criteria': [{'code': f'c{i + 1}', 'label': c.label, 'weight': c.weight} for i, c in enumerate(body.criteria)],
                'judges': {k: [str(u) for u in v] for k, v in body.judges.items() if v},
                'quota': {k: v for k, v in body.quota.items() if v is not None}}
+        if streams:
+            # эстафета: первую лигу уже судят, остальные — ещё нет. Способ, пулы и критерии не меняются;
+            # судей и проход ещё не начатых лиг поправить можно (иначе тур не запустить).
+            if rnd['status'] not in ('scheduled', 'open', 'closed'):
+                raise problem('judging_started', 409)
+            old = S.config_of(rnd)
+            if (cfg['method'], cfg['pools'], cfg['per_target'], cfg['criteria']) != (old['method'], old['pools'], old['per_target'], old['criteria']):
+                raise problem('judging_started', 409)
+            started = {(s['league'] or 'all') for s in streams}
+            cfg['judges'] = {k: v for k, v in cfg['judges'].items() if k not in started} | \
+                {k: v for k, v in old['judges'].items() if k in started}
+            cfg['quota'] = {k: v for k, v in cfg['quota'].items() if k not in started} | \
+                {k: v for k, v in old['quota'].items() if k in started}
+        eligible = {str(j['id']) for j in S.eligible_judges(conn, event['id'])}
+        started_keys = {(s['league'] or 'all') for s in streams}
+        if any(str(u) not in eligible for k, v in cfg['judges'].items() if k not in started_keys for u in v):
+            raise problem('judge_not_eligible')
         settings = dict(rnd['settings'] or {})
         settings['judging'] = cfg
         rnd = conn.execute('UPDATE rounds SET settings=%s WHERE id=%s RETURNING *', (S.G.Jsonb(settings), rnd['id'])).fetchone()

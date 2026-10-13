@@ -78,7 +78,7 @@
   };
 
   /* ---------- Тур-эстафета: проверка и отправка исходников ---------- */
-  O.addText({ relay_released: 'Исходники уже отправлены — раздача не меняется.', relay_not_ready: 'Первая лига ещё сдаёт работы — раздачу готовить рано.',
+  O.addText({ relay_released: 'Исходники уже отправлены — раздача не меняется.', relay_not_ready: 'Рано: первая лига ещё сдаёт работы или (для «лучших») её ещё судят — раздача будет после всех голосов.',
     relay_no_sources: 'Нет ни одной работы-исходника: никто из первой лиги в конкурсе не сдал работу в срок (или все убраны).', not_relay: 'Это не тур-эстафета.' });
   O.on(/^\/org\/rounds\/([0-9a-f-]{36})\/relay$/, function (id) {
     K.load(['/api/org/rounds/' + id, '/api/org/rounds/' + id + '/relay'], function (r, d) { RL.round = r; drawRelay(r, d); },
@@ -103,7 +103,9 @@
           '<span class="small muted">' + (it.recipients.length ? 'Получат: ' + it.recipients.map(function (x) { return esc(x.name) + (x.outside ? ' (вне конкурса)' : ''); }).join(', ') : 'Пока никому') + '</span>') +
         (rel ? '' : '<div class="row"><button class="btn ghost small" type="button" data-act="rlToggle" data-id="' + it.id + '" data-x="' + (it.excluded ? '0' : '1') + '">' +
           (it.excluded ? 'Вернуть в исходники' : 'Убрать из исходников') + '</button></div>') + '</div></div></section>';
-    }).join('') + '</div>' : '<div class="note">' + (ov.ready ? 'Раздача ещё не готовилась — нажмите «Подготовить раздачу».' : 'Первая лига ещё сдаёт работы.') + '</div>';
+    }).join('') + '</div>' : '<div class="note">' + (ov.ready ? 'Раздача ещё не готовилась — нажмите «Подготовить раздачу».' : ov.mode === 'top' ?
+      (ov.early_judging === 'running' ? 'Идёт судейство ' + LG[ov.from] + ' — раздача появится, когда все голоса соберутся.' : 'Сначала начните судейство ' + LG[ov.from] + ' (страница «Судейство тура»).') :
+      'Первая лига ещё сдаёт работы.') + '</div>';
     K.page(h, [['Игры и туры', '/org/games'], ['Тур ' + r.round_no, '/org/rounds/' + r.id], ['Исходники']]);
   }
   function relayCall(path, body, done) {

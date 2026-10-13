@@ -251,6 +251,15 @@ def league_event(conn, event_id):
 def apply_league(conn, e, ep, league, actor_id, now):
     if ep['entry_league'] == league:
         return ep, False
+    # Судейство тура уже идёт по лигам (в том числе ранний пул эстафеты), итоги не опубликованы — лигу участницы,
+    # которая в нём (или в лиге, которую уже судят), не менять: работа выпала бы из судейства или судилась дважды.
+    busy = conn.execute('''SELECT 1 FROM evaluation_streams s JOIN rounds r ON r.id=s.round_id
+WHERE s.event_id=%s AND s.active AND r.status<>'published' AND (s.league = ANY(%s) OR EXISTS (
+  SELECT 1 FROM evaluation_targets t JOIN evaluation_target_members m ON m.evaluation_target_id=t.id
+  WHERE t.evaluation_stream_id=s.id AND m.event_participant_id=%s)) LIMIT 1''',
+                        (e['id'], [x for x in (ep['entry_league'], league) if x], ep['id'])).fetchone()
+    if busy:
+        raise problem('league_locked_judging', 409)
     ep = conn.execute('UPDATE event_participants SET entry_league=%s WHERE id=%s RETURNING *', (league, ep['id'])).fetchone()
     if e['season_id']:
         # лига в сезоне — для рейтинга на сайте (последняя назначенная; лигу сняли — и в сезоне пусто)

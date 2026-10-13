@@ -103,7 +103,10 @@ def start_checks(conn, event, rnd, cfg, now):
     if cfg['method'] == 'criteria' and not cfg['criteria']:
         problems.append('no_criteria')
     eligible = {str(j['id']) for j in eligible_judges(conn, event['id'])}
+    started = {s['league'] for s in streams_of(conn, rnd['id'])}
     for key in pools:
+        if key in started:
+            continue        # этот пул уже судят (первая лига эстафеты)
         judges = cfg['judges'].get(key or 'all') or []
         if not judges:
             problems.append('no_judges')
@@ -126,17 +129,82 @@ def start_checks(conn, event, rnd, cfg, now):
                        'quota': cfg['quota'].get(k or 'all')} for k, n in sorted(pools.items(), key=lambda x: ORDER[x[0]])]}
 
 
-def start(conn, event, rnd, actor_id, now, seed=None):
-    """Запуск: пулы, судьи, работы (замороженная версия), снимок рейтингов, жеребьёвка пар. Тур → «судейство»."""
+def early_league(rnd):
+    """Тур-эстафета с исходниками «лучшие по судейству»: первую лигу судят раньше (до срока второй), чтобы раздать её лучшие
+    работы. Возвращает лигу или None."""
+    from kabinet import relay
+    cfg = relay.relay_of(rnd)
+    return cfg['from'] if cfg and cfg.get('sources') == 'top' else None
+
+
+def early_checks(conn, event, rnd, cfg, now):
+    """Что мешает начать судейство первой лиги эстафеты раньше остального тура."""
+    from kabinet import relay
+    league = early_league(rnd)
+    if league is None:
+        return {'league': None, 'available': False, 'started': False, 'problems': ['not_relay_top']}
+    started = any(s['league'] == league for s in streams_of(conn, rnd['id']))
+    problems = []
+    if event['status'] != 'active':
+        problems.append('game_not_active')
+    if rnd['status'] == 'draft':
+        problems.append('round_not_published')
+    elif rnd['status'] not in ('scheduled', 'open', 'closed'):
+        problems.append('judging_started')
+    if started:
+        problems.append('early_started')
+    if cfg['pools'] != 'leagues':
+        problems.append('early_needs_leagues')
+    deadline = relay.source_deadline(conn, rnd, relay.relay_of(rnd))
+    if deadline is None or now <= deadline:
+        problems.append('acceptance_not_over')
+    works, pending = candidates(conn, event, rnd, now)
+    mine = [w for w in works if w['entry_league'] == league]
+    if any(conn.execute('SELECT entry_league FROM event_participants WHERE id=%s', (p['id'],)).fetchone()['entry_league'] == league for p in pending):
+        problems.append('personal_deadlines_pending')
+    if not mine:
+        problems.append('no_works')
+    # судьи — для всех лиг тура сразу (после раннего старта способ и пулы не меняются)
+    eligible = {str(j['id']) for j in eligible_judges(conn, event['id'])}
+    for lg in {league, relay.relay_of(rnd)['to']} | {w['entry_league'] for w in works if w['entry_league']}:
+        judges = cfg['judges'].get(lg) or []
+        if not judges:
+            problems.append('no_judges')
+        elif any(j not in eligible for j in judges):
+            problems.append('judge_not_eligible')
+    if cfg['method'] == 'criteria' and not cfg['criteria']:
+        problems.append('no_criteria')
+    return {'league': league, 'available': not problems, 'started': started, 'works': len(mine),
+            'problems': sorted(set(problems), key=problems.index), 'deadline': iso(deadline)}
+
+
+def start(conn, event, rnd, actor_id, now, seed=None, only_league=None):
+    """Запуск: пулы, судьи, работы (замороженная версия), снимок рейтингов, жеребьёвка пар. Тур → «судейство».
+    only_league — судить сейчас только первую лигу тура-эстафеты (тур остаётся открытым для второй лиги); при полном запуске
+    уже начатые пулы пропускаются."""
     cfg = config_of(rnd)
     G.sync_event(conn, event['id'], now)   # опоздавшие — вне конкурса до жеребьёвки
-    checks = start_checks(conn, event, rnd, cfg, now)
+    if only_league is not None:
+        checks = early_checks(conn, event, rnd, cfg, now)
+        if checks['league'] != only_league:
+            raise problem('not_relay_top', 409)
+    else:
+        checks = start_checks(conn, event, rnd, cfg, now)
     if checks['problems']:
         raise problem(checks['problems'][0], 409)
     works, _ = candidates(conn, event, rnd, now)
+    done = {s['league'] for s in streams_of(conn, rnd['id'])}
+    judged = {r['event_participant_id'] for r in conn.execute('''SELECT m.event_participant_id FROM evaluation_target_members m
+JOIN evaluation_targets t ON t.id=m.evaluation_target_id JOIN evaluation_streams s ON s.id=t.evaluation_stream_id
+WHERE s.round_id=%s AND s.active''', (rnd['id'],))}
     by_pool = defaultdict(list)
     for w in works:
-        by_pool[pool_key(w, cfg)].append(w)
+        key = pool_key(w, cfg)
+        if w['id'] in judged or (only_league is not None and key != only_league):
+            continue
+        if key in done:
+            raise problem('work_outside_started_pool', 409)   # работа лиги, которую уже судят, но её в пуле нет
+        by_pool[key].append(w)
     method = cfg['method']
     for key, items in sorted(by_pool.items(), key=lambda x: ORDER[x[0]]):
         st = conn.execute('''INSERT INTO evaluation_streams(event_id,round_id,code,target_type,judging_method,affects_rating,
@@ -172,8 +240,9 @@ submission_version_id) VALUES (%s,%s,%s,%s,%s)''', (event['id'], t, w['id'], w['
                     conn.execute('''INSERT INTO pairwise_comparisons(evaluation_stream_id,judge_slot_id,target_a_id,target_b_id)
 VALUES (%s,%s,%s,%s)''', (st['id'], slot, a, b))
         notify_judges(conn, event, rnd, st, cfg['judges'].get(key or 'all') or [], 'start')
-    conn.execute("UPDATE rounds SET status='judging' WHERE id=%s", (rnd['id'],))
-    G.audit(conn, actor_id, 'round', rnd['id'], 'judging_started',
+    if only_league is None:
+        conn.execute("UPDATE rounds SET status='judging' WHERE id=%s", (rnd['id'],))
+    G.audit(conn, actor_id, 'round', rnd['id'], 'judging_started_early' if only_league else 'judging_started',
             {'pools': {(k or 'all'): len(v) for k, v in by_pool.items()}, 'method': method})
 
 

@@ -6,7 +6,8 @@
   var LEAGUES = [['bronze', 'Bronze'], ['silver', 'Silver'], ['gold', 'Gold']];
   var TEXT = {
     game_not_active: 'Игра ещё не началась (или уже завершена).', round_not_published: 'Тур ещё черновик.',
-    judging_started: 'Судейство уже начато — настройка не меняется.', acceptance_not_over: 'Приём работ в конкурсе ещё идёт (общий срок или срок лиги не прошёл).',
+    judging_started: 'Судейство уже начато — настройка не меняется.', early_started: 'Первую лигу уже судят.',
+    early_needs_leagues: 'Чтобы судить первую лигу раньше, пулы должны быть по лигам.', not_relay_top: 'Это не тур-эстафета с лучшими работами.', acceptance_not_over: 'Приём работ в конкурсе ещё идёт (общий срок или срок лиги не прошёл).',
     personal_deadlines_pending: 'У кого-то из участниц личный срок ещё не прошёл, а работы нет. Дождитесь срока или уберите продление.',
     participants_without_league: 'Пулы по лигам, но у некоторых участниц лига не указана. Укажите лигу или выберите общий пул.',
     no_works: 'Нет работ в конкурсе, сданных в срок.', no_criteria: 'Добавьте хотя бы один критерий.', no_judges: 'В каком-то пуле нет судей.',
@@ -39,9 +40,10 @@
     O.jd = d; O.jid = id;
     var h = '<div class="stack" data-s="g6"><span class="eyebrow">' + esc(d.event.title + ' · Тур ' + d.round.round_no + ' · ' + d.round.title) + '</span>' +
       '<div class="between"><h1>Судейство тура</h1>' + (d.published ? pill('Итоги опубликованы', 'ok') : d.started ? pill('Идёт оценка', 'acc') : pill('Не начато', 'plain')) + '</div></div>';
-    h += d.started ? started(d) : setup(d);
+    var early = !d.started && d.streams && d.streams.length;     // эстафета: первую лигу уже судят, остальных — ещё нет
+    h += d.started ? started(d) : early ? earlyStage(d) : setup(d) + earlyCard(d);
     K.page(h, crumbsOf(d));
-    if (!d.started) bindSetup(d);
+    if (!d.started && !early) bindSetup(d);
   }
 
   /* ---------- до запуска ---------- */
@@ -126,6 +128,31 @@
       O.send('PUT', '/api/org/rounds/' + O.jid + '/judging', body, f, function (nd) { K.toast('Настройка сохранена'); draw(O.jid, nd); });
     });
   }
+  /* ---------- тур-эстафета: первую лигу судят раньше, чтобы раздать её лучшие работы ---------- */
+  var LNAME = { bronze: 'Bronze', silver: 'Silver', gold: 'Gold' };
+  function earlyCard(d) {
+    var e = d.early;
+    if (!e) return '';
+    return '<section class="card"><h2>Сначала — ' + esc(LNAME[e.league]) + '</h2><p class="small">Это тур-эстафета: исходники для второй лиги — лучшие работы ' + esc(LNAME[e.league]) +
+      ' по судейству. Поэтому ' + esc(LNAME[e.league]) + ' судят сразу после её срока' + (e.deadline ? ' (' + esc(O.when(e.deadline)) + ')' : '') +
+      ', а вторую лигу — после её срока. Итоги тура публикуются одной кнопкой, всем сразу. Сначала сохраните настройку — для обеих лиг.</p>' +
+      issues(e.problems.filter(function (p) { return p !== 'early_started'; }), 'bad') +
+      '<button class="btn" type="button" data-act="jStartEarly"' + (e.available ? '' : ' disabled') + '>Начать судейство ' + esc(LNAME[e.league]) + '</button></section>';
+  }
+  function earlyStage(d) {
+    var ch = d.checks;
+    return '<div class="note info">Тур-эстафета: ' + esc(LNAME[(d.early || {}).league] || '') + ' уже судят. Когда голоса соберутся, раздача её лучших работ появится на странице тура — ' +
+      'проверьте и отправьте исходники. Вторую лигу судят после её срока; итоги тура — одной кнопкой, всем сразу.</div>' +
+      d.streams.map(streamCard).join('') +
+      '<section class="card"><h2>Остальные лиги</h2>' + (d.acceptance_end ? '<p class="small muted">Приём работ — до ' + esc(O.when(d.acceptance_end)) + '.</p>' : '') +
+      issues(ch.problems, 'bad') + issues(ch.warnings, 'warn') +
+      '<button class="btn" type="button" data-act="jStart"' + (ch.problems.length ? ' disabled' : '') + '>Начать судейство остальных лиг</button></section>';
+  }
+  K.actions.jStartEarly = function () {
+    var e = O.jd.early;
+    O.confirm({ title: 'Начать судейство ' + LNAME[e.league] + '?', text: 'Судьи ' + LNAME[e.league] + ' получат работы. Вторая лига в это время продолжает тур. Итоги участницы увидят только после публикации всего тура.',
+      ok: 'Начать', path: '/api/org/rounds/' + O.jid + '/judging/start-early', done: function (nd) { K.toast('Судейство начато'); draw(O.jid, nd); } });
+  };
   K.actions.jStart = function () {
     O.confirm({ title: 'Начать судейство?', text: 'Судьи получат работы и уведомление. Настройка после этого не меняется; судью можно будет заменить.',
       ok: 'Начать', path: '/api/org/rounds/' + O.jid + '/judging/start', done: function (nd) { K.toast('Судейство начато'); draw(O.jid, nd); } });

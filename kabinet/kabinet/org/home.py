@@ -31,7 +31,19 @@ AND registration_status='participating' ''', (e['id'],)).fetchone()['n']
             if e['status'] == 'active':
                 from kabinet import relay
                 for r in rounds:
-                    if relay.relay_of(r) and not relay.released(r) and relay.ready(conn, r, now):
+                    rc = relay.relay_of(r)
+                    if rc and rc['sources'] == 'top' and r['status'] in ('scheduled', 'open', 'closed') \
+                            and relay.early_stream(conn, r, rc) is None:
+                        dl = relay.source_deadline(conn, r, rc)
+                        from kabinet.judging import service as JS
+                        blocked = {'no_works', 'early_needs_leagues'} & set(JS.early_checks(conn, e, r, JS.config_of(r), now)['problems'])
+                        if blocked and dl and dl < now:
+                            alerts.append({'title': f'«{title}», тур {r["round_no"]}: эстафета без исходников', 'href': f'/org/rounds/{r["id"]}',
+                                           'text': 'В первой лиге нет работ для судейства (или пулы не по лигам). Вторая лига ждёт исходник — выключите эстафету или поменяйте настройку.'})
+                        elif dl and dl < now:
+                            alerts.append({'title': f'«{title}», тур {r["round_no"]}: начните судейство первой лиги', 'href': f'/org/rounds/{r["id"]}/judging',
+                                           'text': 'Срок первой лиги прошёл. Её судят раньше, чтобы раздать второй лиге лучшие работы.'})
+                    if rc and not relay.released(r) and relay.ready(conn, r, now):
                         alerts.append({'title': f'«{title}», тур {r["round_no"]}: проверьте исходники', 'href': f'/org/rounds/{r["id"]}',
                                        'text': 'Первая лига сдала работы. Проверьте раздачу и нажмите «Отправить исходники» — до этого вторая лига работать не может.'})
                 for b in briefs:

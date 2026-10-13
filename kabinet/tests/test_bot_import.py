@@ -51,7 +51,7 @@ def test_preview_and_import_are_idempotent(app, seed, clock):
         assert conn.execute("SELECT count(*) AS n FROM rating_transactions WHERE event_id=%s AND status='active'", (eid,)).fetchone()['n'] == 9
         rounds = {r['round_no']: r for r in conn.execute('SELECT * FROM rounds WHERE event_id=%s', (eid,))}
         assert [rounds[i]['status'] for i in range(1, 6)] == ['published', 'published', 'draft', 'draft', 'draft']
-        assert rounds[3]['settings']['relay'] == {'from': 'gold', 'to': 'silver'} and rounds[4]['settings']['relay']['to'] == 'gold'
+        assert rounds[3]['settings']['relay'] == {'from': 'gold', 'to': 'silver', 'sources': 'top', 'top_n': 10} and rounds[4]['settings']['relay']['to'] == 'gold'
         st = {r['full_name']: r for r in conn.execute('''SELECT u.full_name, p.competition_status, p.elimination_reason, p.entry_league,
 s.current_rating, s.calibration_rounds_completed FROM event_participants p JOIN users u ON u.id=p.user_id
 LEFT JOIN participant_stats s ON s.user_id=u.id WHERE p.event_id=%s''', (eid,))}

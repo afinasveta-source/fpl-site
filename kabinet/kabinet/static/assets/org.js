@@ -31,6 +31,8 @@
     wrong_status: 'Статус уже изменился. Обновите страницу.', has_participants: 'В Игру уже записались — снять с публикации или удалить нельзя.', not_draft: 'Удалить можно только черновик.',
     relay_opens_before_source_deadline: 'Эстафета: вторая лига должна открываться не раньше срока сдачи первой — иначе исходников ещё нет. Поставьте лиге-получателю своё открытие задания.',
     relay_dates_missing: 'Эстафета: у обеих лиг должны быть дата открытия и срок сдачи.', relay_started: 'Исходники уже розданы — эстафету не поменять.',
+    league_locked_judging: 'Лигу сейчас не поменять: в туре идёт судейство этой лиги. После публикации итогов тура — можно.',
+    work_outside_started_pool: 'Работа участницы относится к лиге, которую уже судят, но в её пуле работы нет (лигу поменяли?). Напишите в поддержку кабинета.',
     relay_second_open: 'Второй лиге задание уже открылось — эстафету не поменять.', relay_open_now: 'В туре-эстафете лиги открываются по своим датам — «Открыть сейчас» недоступно.',
     relay_both_leagues: 'Выберите обе лиги.', relay_same_league: 'Лиги должны быть разными.',
     missing_opens_at: 'Укажите дату открытия тура.', missing_deadline: 'Укажите срок сдачи.', deadline_before_open: 'Срок сдачи должен быть позже открытия тура.',
@@ -436,7 +438,8 @@
     if (fr) fr.addEventListener('submit', function (ev) {
       ev.preventDefault();
       var on = fr.querySelector('#rl-on').checked;
-      var body = on ? { source: fr.querySelector('#rl-from').value, target: fr.querySelector('#rl-to').value } : { source: null, target: null };
+      var body = on ? { source: fr.querySelector('#rl-from').value, target: fr.querySelector('#rl-to').value, mode: fr.querySelector('#rl-mode').value,
+        top_n: +fr.querySelector('#rl-top').value || 10 } : { source: null, target: null };
       O.send('PUT', '/api/org/rounds/' + r.id + '/relay', body, fr, function (d) { K.toast(on ? 'Эстафета сохранена' : 'Эстафета выключена'); drawRound(d); });
     });
     var f = document.getElementById('f-round');
@@ -479,9 +482,12 @@
       'Второй лиге поставьте в задании своё открытие — не раньше срока первой лиги. Судьи видят исходник рядом с работой.</p>' +
       O.chk('rl-on', 'Тур-эстафета', !!rl, locked ? ' disabled' : '') +
       '<div class="grid2">' + O.sel('rl-from', 'Делает первой (исходники)', O.LEAGUES, rl ? rl.from : 'gold', locked ? ' disabled' : '') +
-      O.sel('rl-to', 'Получает исходники', O.LEAGUES, rl ? rl.to : 'silver', locked ? ' disabled' : '') + '</div>';
+      O.sel('rl-to', 'Получает исходники', O.LEAGUES, rl ? rl.to : 'silver', locked ? ' disabled' : '') + '</div>' +
+      '<div class="grid2">' + O.sel('rl-mode', 'Какие работы раздавать', [['all', 'Все работы в конкурсе'], ['top', 'Лучшие по судейству первой лиги']], rl ? rl.mode : 'all', locked ? ' disabled' : '') +
+      O.txt('rl-top', 'Сколько лучших', rl && rl.top_n ? rl.top_n : 10, ' type="number" min="1" max="100" inputmode="numeric"' + (locked ? ' disabled' : ''), 'Для «лучших»: первую лигу судят раньше, равные на границе входят все.') + '</div>';
     if (rl) {
       var st = rl.released ? 'Отправлены участницам ' + O.when(rl.released_at) : rl.ready ? (rl.started ? 'Черновик готов — проверьте и отправьте' : 'Можно готовить раздачу') :
+        rl.mode === 'top' ? (rl.early_judging === 'running' ? 'Идёт судейство первой лиги — раздача после него' : 'После срока первой лиги начните её судейство (страница «Судейство тура»)') :
         'Раздача подготовится после срока первой лиги';
       h += '<dl class="kv"><dt>Срок первой лиги</dt><dd>' + esc(O.when(rl.source_deadline)) + '</dd><dt>Открытие для ' + esc(name(rl.to)) + '</dt><dd>' + esc(O.when(rl.second_opens_at)) + '</dd>' +
         '<dt>Исходники</dt><dd>' + esc(st) + '</dd>' +
