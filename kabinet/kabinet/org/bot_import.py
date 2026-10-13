@@ -129,6 +129,9 @@ def parse(text):
             row = dict(line=no, cid=cid, name=name[:200], league=league, s1=_num(get('s1')), r1_first=_num(get('r1_first')),
                        r1=_num(get('r1')), s2=_num(get('s2')), advanced=adv in YES, r2=_num(get('r2')), d2=_num(get('d2')),
                        tw1=get('tw1').lower() in YES, tw2=get('tw2').lower() in YES, note=get('note')[:300] or None)
+            if row['r1'] is None and row['r1_first'] is not None:
+                row['r1'] = row['r1_first']      # без тура 2 пересчёта не было — действует первоначальный рейтинг
+                row['r1_from_first'] = True
             if row['s1'] is None or not 0 <= row['s1'] <= 100:
                 raise ValueError('bad_score_1')
             if row['r1'] is None or not 0 < row['r1'] < 5000:
@@ -149,6 +152,8 @@ def parse(text):
         seen.add(cid)
         if row['r2'] is not None and row['d2'] is not None and abs(round(row['r2']) - round(row['r1']) - round(row['d2'])) > 1:
             warnings.append({'line': no, 'problem': 'delta_mismatch'})
+        if row.get('r1_from_first'):
+            warnings.append({'line': no, 'problem': 'rating_1_first'})
         rows.append(row)
     if not rows and not errors:
         errors.append({'line': 1, 'problem': 'no_rows'})
