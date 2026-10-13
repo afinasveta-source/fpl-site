@@ -137,3 +137,44 @@ SELECT p.user_id, p.event_id, %s, 'pairwise_elo', 'x', 500, 'elo:test:' || p.use
     p2 = ok(c.post('/api/org/import/game01/preview', headers=ORIGIN, json={'csv': table()}))
     assert p2['event']['locked']
     assert c.post('/api/org/import/game01/apply', headers=ORIGIN, json={'csv': table(), 'sha256': p2['sha256']}).json()['detail'] == 'cabinet_rating_started'
+
+
+def test_undo_wrong_table_then_import_right_one(app, seed, clock):
+    """13.10: перенесли тестовую таблицу вместо настоящей — «Отменить перенос» удаляет всё перенесённое, пока Игра не началась."""
+    clock.set(h())
+    with app.state.db.transaction() as conn:
+        add_docs(conn)
+    c = org(app, seed)
+    assert not ok(c.get('/api/org/import/game01'))['moved']
+    _, res = do_import(c)
+    eid = res['event_id']
+    st = ok(c.get('/api/org/import/game01'))
+    assert st['moved'] and st['participants'] == 5 and st['undo_blockers'] == [] and len(st['sample']) == 5
+    assert c.post('/api/org/import/game01/undo', headers=ORIGIN, json={'confirm': 'да'}).json()['detail'] == 'confirm_word'
+    d = ok(c.post('/api/org/import/game01/undo', headers=ORIGIN, json={'confirm': 'отменить'}))
+    assert d['participants'] == 5 and d['users'] == 5
+    with app.state.db.transaction() as conn:
+        assert conn.execute('SELECT count(*) AS n FROM event_participants WHERE event_id=%s', (eid,)).fetchone()['n'] == 0
+        assert conn.execute("SELECT count(*) AS n FROM users WHERE account_status='imported'").fetchone()['n'] == 0
+        assert conn.execute('SELECT count(*) AS n FROM rating_transactions WHERE event_id=%s', (eid,)).fetchone()['n'] == 0
+        assert conn.execute('SELECT count(*) AS n FROM round_results WHERE event_id=%s', (eid,)).fetchone()['n'] == 0
+        assert conn.execute("SELECT count(*) AS n FROM import_row_map WHERE source_table IN ('salebot_client','salebot_participant')").fetchone()['n'] == 0
+        assert conn.execute('SELECT count(*) AS n FROM rounds WHERE event_id=%s', (eid,)).fetchone()['n'] == 5
+    assert not ok(TestClient(app).get('/api/public/claims/config'))['open']          # заявки закрыты до нового переноса
+    assert not ok(c.get('/api/org/import/game01'))['moved']
+    # правильная таблица — другие люди
+    right = [r.replace('100000000', '200000000').replace('Иванова', 'Орлова') for r in ROWS[:4]]
+    p = ok(c.post('/api/org/import/game01/preview', headers=ORIGIN, json={'csv': table(right)}))
+    assert p['sample'][0].startswith('Орлова')
+    _, res2 = do_import(c, table(right))
+    assert res2['event_id'] == eid
+    with app.state.db.transaction() as conn:
+        assert conn.execute('SELECT count(*) AS n FROM event_participants WHERE event_id=%s', (eid,)).fetchone()['n'] == 4
+        r3 = conn.execute('SELECT count(*) AS n FROM assignments a JOIN rounds r ON r.id=a.round_id WHERE r.event_id=%s AND r.round_no=3', (eid,)).fetchone()['n']
+    assert r3 == 1
+    # вошла хоть одна — отменить уже нельзя
+    no = ok(claim(app, full_name='Орлова Анна Петровна'), 201)['claim_no']
+    uid = ok(c.get('/api/org/claims'))['items'][0]['suggestions'][0]['user_id']
+    ok(c.post(f'/api/org/claims/{no}/approve', headers=ORIGIN, json={'user_id': uid}))
+    assert ok(c.get('/api/org/import/game01'))['undo_blockers'] == ['participants_logged_in']
+    assert c.post('/api/org/import/game01/undo', headers=ORIGIN, json={'confirm': 'ОТМЕНИТЬ'}).json()['detail'] == 'participants_logged_in'

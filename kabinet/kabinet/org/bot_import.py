@@ -217,7 +217,7 @@ AND NOT EXISTS (SELECT 1 FROM users u WHERE u.id=p.user_id AND u.account_status=
     if no_rules:
         warnings = warnings + [{'line': 1, 'problem': 'no_rules'}]
     return {'sha256': digest(body.csv), 'rows': len(rows), 'errors': errors[:200], 'error_count': len(errors),
-            'warnings': warnings[:200], 'leagues': summary(rows), 'already_known': known,
+            'warnings': warnings[:200], 'leagues': summary(rows), 'already_known': known, 'sample': [r['name'] for r in rows[:3]],
             'event': {'exists': ev is not None, 'title': ev['title'] if ev else GAME['title'], 'moved': moved,
                       'id': str(ev['id']) if ev else None, 'locked': locked}}
 
@@ -476,3 +476,85 @@ VALUES ('salebot',%s,%s,'started',%s,%s,%s) RETURNING id''', (PROJECT, self.sha,
 
 def _uuid(v):
     return v if isinstance(v, UUID) else UUID(str(v))
+
+
+# --- Отмена переноса (13.10: перенесли не ту таблицу). Удаляет всё, что создал перенос, пока Игра в кабинете не началась.
+def undo_blockers(conn, ev):
+    out = []
+    if not ev or not (ev['settings'] or {}).get('moved_to_kabinet'):
+        return ['not_moved']
+    if cabinet_rating(conn):
+        out.append('cabinet_rating_started')
+    if conn.execute('''SELECT 1 FROM event_participants p JOIN users u ON u.id=p.user_id
+WHERE p.event_id=%s AND u.account_status<>'imported' LIMIT 1''', (ev['id'],)).fetchone():
+        out.append('participants_logged_in')
+    if conn.execute('''SELECT 1 FROM submissions s JOIN event_participants p ON p.id=s.event_participant_id
+WHERE p.event_id=%s LIMIT 1''', (ev['id'],)).fetchone() or \
+            conn.execute('SELECT 1 FROM exchange_items WHERE round_id IN (SELECT id FROM rounds WHERE event_id=%s) LIMIT 1', (ev['id'],)).fetchone() or \
+            conn.execute('SELECT 1 FROM evaluation_targets WHERE event_id=%s LIMIT 1', (ev['id'],)).fetchone():
+        out.append('game_has_works')
+    if conn.execute("SELECT 1 FROM rounds WHERE event_id=%s AND round_no>=3 AND status<>'draft' LIMIT 1", (ev['id'],)).fetchone():
+        out.append('rounds_published')
+    return out
+
+
+@router.get('/game01', dependencies=[])
+def moved_state(request: Request, user=Depends(org_user)):
+    with db(request).transaction() as conn:
+        ev = existing_event(conn)
+        moved = bool(ev and (ev['settings'] or {}).get('moved_to_kabinet'))
+        if not moved:
+            return {'moved': False}
+        n = conn.execute('SELECT count(*) AS n FROM event_participants WHERE event_id=%s', (ev['id'],)).fetchone()['n']
+        sample = [r['full_name'] for r in conn.execute('''SELECT u.full_name FROM event_participants p JOIN users u ON u.id=p.user_id
+WHERE p.event_id=%s ORDER BY p.joined_at, u.full_name LIMIT 5''', (ev['id'],))]
+        return {'moved': True, 'event_id': str(ev['id']), 'title': ev['title'], 'participants': n, 'sample': sample,
+                'at': (ev['settings']['moved_to_kabinet'] or {}).get('at'), 'undo_blockers': undo_blockers(conn, ev)}
+
+
+class UndoIn(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    confirm: str = Field(min_length=1, max_length=40)
+
+
+@router.post('/game01/undo', dependencies=WRITE)
+def undo(body: UndoIn, request: Request, user=Depends(org_user)):
+    if body.confirm.strip().upper() != 'ОТМЕНИТЬ':
+        raise problem('confirm_word')
+    with db(request).transaction() as conn:
+        locked_admin(conn, user)
+        conn.execute("SELECT pg_advisory_xact_lock(hashtextextended('bot-import-game01', 0))")
+        ev = existing_event(conn)
+        blockers = undo_blockers(conn, ev)
+        if blockers:
+            raise problem(blockers[0], 409)
+        e = ev['id']
+        parts = [r['id'] for r in conn.execute('SELECT id FROM event_participants WHERE event_id=%s', (e,))]
+        users = [r['id'] for r in conn.execute('''SELECT DISTINCT p.user_id AS id FROM event_participants p JOIN users u ON u.id=p.user_id
+WHERE p.event_id=%s AND u.account_status='imported'
+AND NOT EXISTS (SELECT 1 FROM event_participants o WHERE o.user_id=p.user_id AND o.event_id<>%s)''', (e, e))]
+        n = {}
+
+        def run(key, q, args):
+            n[key] = conn.execute(q, args).rowcount
+
+        run('round_rating_snapshots', 'DELETE FROM round_rating_snapshots WHERE event_id=%s', (e,))
+        run('round_results', 'DELETE FROM round_results WHERE event_id=%s', (e,))
+        run('event_results', 'DELETE FROM event_results WHERE event_id=%s', (e,))
+        run('participant_assignments', 'DELETE FROM participant_assignments WHERE event_id=%s', (e,))
+        run('league_history', 'DELETE FROM league_history WHERE event_id=%s OR user_id = ANY(%s)', (e, users))
+        conn.execute('UPDATE rating_transactions SET superseded_by_id=NULL WHERE event_id=%s OR user_id = ANY(%s)', (e, users))
+        run('rating_transactions', 'DELETE FROM rating_transactions WHERE event_id=%s OR user_id = ANY(%s)', (e, users))
+        run('points_transactions', 'DELETE FROM points_transactions WHERE event_id=%s OR user_id = ANY(%s)', (e, users))
+        run('notifications', 'DELETE FROM notifications WHERE event_id=%s OR user_id = ANY(%s)', (e, users))
+        run('import_row_map', '''DELETE FROM import_row_map WHERE target_id = ANY(%s) OR target_id = ANY(%s)
+OR (source_table='bot_csv_round_result' AND source_key LIKE %s)''', (users, parts, MARATHON + ':%'))
+        run('event_participants', 'DELETE FROM event_participants WHERE event_id=%s', (e,))
+        for t in ('season_participants', 'participant_stats', 'external_identities', 'user_contacts', 'communication_preferences', 'user_roles'):
+            run(t, f'DELETE FROM {t} WHERE user_id = ANY(%s)', (users,))
+        run('users', 'DELETE FROM users WHERE id = ANY(%s)', (users,))
+        settings = dict(ev['settings'] or {})
+        settings.pop('moved_to_kabinet', None)
+        conn.execute('UPDATE events SET settings=%s WHERE id=%s', (Jsonb(settings), e))
+        audit(conn, user['id'], 'event', e, 'bot_import_game01_undo', {'deleted': n})
+        return {'event_id': str(e), 'participants': len(parts), 'users': len(users), 'deleted': n}

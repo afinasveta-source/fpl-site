@@ -18,26 +18,58 @@
     not_in_table: 'В Игре есть участницы, которых нет в таблице (без входа в кабинет), — они перейдут вне конкурса; вернуть можно в списке участниц Игры',
     no_rules: 'В кабинете не опубликованы Правила. Сначала опубликуйте Правила 1.8 (Документы), потом переносите — иначе у Игры не будет редакции Правил'
   };
+  O.addText({ confirm_word: 'Напишите слово ОТМЕНИТЬ.', not_moved: 'Игра 01 ещё не переносилась.', participants_logged_in: 'Отменить нельзя: кто-то из перенесённых уже вошёл в кабинет.',
+    game_has_works: 'Отменить нельзя: в Игре уже есть сданные работы или судейство.', rounds_published: 'Отменить нельзя: тур 3 или следующий уже опубликован.' });
   O.addText({ cabinet_rating_started: 'Кабинет уже начислил рейтинг за туры Игры 01 — перенос повторить нельзя.', preview_first: 'Сначала нажмите «Проверить» — переносится ровно то, что вы видели.', table_has_errors: 'В таблице есть ошибки — исправьте их и проверьте снова.',
     claim_decided: 'Заявку уже рассмотрели.', person_has_login: 'У этой записи уже есть вход — выберите другую.',
     person_not_in_game: 'Этой участницы нет в Игре.', email_taken: 'Этот email уже у другого аккаунта.' });
 
   /* ---------- Перенос из бота ---------- */
   var IMP = { text: null, name: null, preview: null };
-  O.on(/^\/org\/import$/, function () { drawImport(); });
+  O.on(/^\/org\/import$/, function () { loadImport(); });
+  function loadImport() {
+    K.api('GET', '/api/org/import/game01').then(function (r) { IMP.state = r.ok ? r.data : null; drawImport(); });
+  }
+  var UNDO_WHY = { cabinet_rating_started: 'кабинет уже начислил рейтинг за туры Игры 01',
+    participants_logged_in: 'кто-то из перенесённых уже вошёл в кабинет', game_has_works: 'в Игре уже есть сданные работы или судейство',
+    rounds_published: 'тур 3 или следующий уже опубликован' };
+  function movedCard(s) {
+    if (!s || !s.moved) return '';
+    var h = '<section class="card"><h2>Уже перенесено</h2><p>' + esc(s.title) + ': <b>' + s.participants + ' участниц</b>' +
+      (s.sample && s.sample.length ? ' — например, ' + s.sample.map(esc).join(', ') : '') + '.</p>' +
+      '<p class="small muted">Проверьте имена: если перенеслась не та таблица, перенос можно отменить и загрузить нужную.</p>';
+    if (s.undo_blockers && s.undo_blockers.length) {
+      h += '<p class="small muted">Отменить перенос уже нельзя: ' + s.undo_blockers.map(function (b) { return esc(UNDO_WHY[b] || b); }).join('; ') + '.</p>';
+    } else {
+      h += '<div class="row"><button class="btn sec danger" type="button" data-act="impUndo">Отменить перенос</button></div>';
+    }
+    return h + '</section>';
+  }
+  K.actions.impUndo = function () {
+    var s = IMP.state;
+    O.confirm({ title: 'Отменить перенос Игры 01?', danger: true, ok: 'Отменить перенос',
+      html: '<p>Будут удалены все ' + s.participants + ' перенесённых участниц Игры 01 — их оценки туров 1–2, рейтинг и записи в Игре. ' +
+        'Игра, туры и документы останутся; потом можно перенести правильную таблицу. Вернуть удалённое можно только из резервной копии.</p>' +
+        '<div class="field"><label for="undo-word">Чтобы подтвердить, напишите ОТМЕНИТЬ</label><input class="input" id="undo-word" autocomplete="off"></div>',
+      validate: function () { return document.getElementById('undo-word').value.trim().toUpperCase() === 'ОТМЕНИТЬ' ? null : 'Напишите слово ОТМЕНИТЬ.'; },
+      path: '/api/org/import/game01/undo', body: function () { return { confirm: document.getElementById('undo-word').value.trim() }; },
+      done: function (d) { K.toast('Перенос отменён: удалено ' + d.participants + ' участниц'); IMP.done = null; IMP.preview = null; O.refreshCounts(); loadImport(); } });
+  };
 
   function drawImport() {
     var p = IMP.preview;
     var h = '<h1>Перенос Игры 01 из бота</h1><p class="small muted">Таблица туров 1–2 (CSV, разделитель «;»): ID участника SaleBot, ФИО, лига, балл тура 1, рейтинг после тура 1, ' +
       'балл тура 2, прошла ли в тур 3, рейтинг после тура 2, TOP WORK тура 2. Числа переносятся как их видели участницы, без пересчёта. ' +
       'Повторный перенос (например, исправленной таблицы) ничего не дублирует. Файл остаётся только в базе кабинета.</p>' +
+      movedCard(IMP.state) +
       '<section class="card"><h2>Файл</h2><label class="drop" for="imp-file"><b>' + (IMP.name ? esc(IMP.name) : 'Выбрать таблицу') + '</b><span class="small muted">CSV в кодировке UTF-8</span></label>' +
       '<input class="sr" id="imp-file" type="file" accept=".csv,text/csv">' +
       (IMP.text ? '<div class="row"><button class="btn sec" type="button" data-act="impPreview">Проверить</button></div>' : '') + '</section>';
     if (p) {
       var leagues = Object.keys(p.leagues).sort().reverse();
       h += '<section class="card"><h2>Что будет записано</h2><dl class="kv"><dt>Игра</dt><dd>' + esc(p.event.title) + (p.event.exists ? (p.event.moved ? ' · уже переносилась — обновится' : ' · уже есть в базе — дополнится') : ' · будет создана') + '</dd>' +
-        '<dt>Строк</dt><dd>' + p.rows + (p.already_known ? ' · из них уже в базе: ' + p.already_known : '') + '</dd></dl>' +
+        '<dt>Строк</dt><dd>' + p.rows + (p.already_known ? ' · из них уже в базе: ' + p.already_known : '') + '</dd>' +
+        (p.sample && p.sample.length ? '<dt>Первые в таблице</dt><dd>' + p.sample.map(esc).join(', ') + '</dd>' : '') + '</dl>' +
         '<div class="table-wrap"><table class="otable"><thead><tr><th>Лига</th><th>Всего</th><th>В конкурсе (тур 3)</th><th>Не прошли отбор</th><th>Без тура 2</th><th>TOP WORK тура 2</th></tr></thead><tbody>' +
         leagues.map(function (k) { var x = p.leagues[k]; return '<tr><th scope="row">' + LG[k] + '</th><td data-label="Всего">' + x.total + '</td><td data-label="В конкурсе">' + x.in_competition + '</td><td data-label="Не прошли">' + x.judged_out +
           '</td><td data-label="Без тура 2">' + x.no_round_2 + '</td><td data-label="TOP WORK 2">' + x.top_work_2 + '</td></tr>'; }).join('') +
@@ -74,7 +106,7 @@
     var p = IMP.preview;
     O.confirm({ title: 'Перенести ' + p.rows + ' участниц?', text: 'Игра 01 продолжится в кабинете. Повторный перенос ничего не дублирует.', ok: 'Перенести',
       path: '/api/org/import/game01/apply', body: function () { return { csv: IMP.text, sha256: p.sha256 }; },
-      done: function (d) { IMP.done = d; IMP.preview = null; K.toast('Перенесено'); O.refreshCounts(); drawImport(); } });
+      done: function (d) { IMP.done = d; IMP.preview = null; K.toast('Перенесено'); O.refreshCounts(); loadImport(); } });
   };
 
   /* ---------- Тур-эстафета: проверка и отправка исходников ---------- */
