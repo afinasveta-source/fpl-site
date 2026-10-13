@@ -4,6 +4,9 @@
   var EN = (document.documentElement.lang || 'ru').slice(0, 2) === 'en';
   var T = EN ? {
     empty: 'The rating will appear here once round results are transferred from the bot.',
+    frozenEmpty: 'The overall rating is not published while a Game is running (Rules, 7.3). It will appear here after {g} ends.',
+    frozenNote: 'Rating as of the start of {g}: it does not change during the Game and will be updated after it ends.',
+    frozenLink: 'League rating', frozenDd: 'at the start of the Game',
     calib: 'Provisional rating: every artist has played {n} of 3 calibration rounds so far. Places can still change a lot.',
     updated: 'Updated {d}', none: 'No one found. Try another name.',
     rounds: 'rounds', masters: 'artists', leagueN: '{n} artists', range: '{a}–{b}',
@@ -12,6 +15,9 @@
     twHidden: '{n} more without a published name', twOf: 'TOP WORK, {r}:', twAll: 'all rounds'
   } : {
     empty: 'Рейтинг появится здесь, как только перенесём результаты туров из бота.',
+    frozenEmpty: 'Во время Игры общий рейтинг не публикуется (Правила, п. 7.3). Он появится здесь после окончания {g}.',
+    frozenNote: 'Рейтинг на начало {g}: во время Игры он не меняется и обновится после её окончания.',
+    frozenLink: 'Рейтинг лиги', frozenDd: 'на начало Игры',
     calib: 'Рейтинг предварительный: у всех пока {n} из 3 калибровочных туров. Места ещё могут заметно меняться.',
     updated: 'Обновлено {d}', none: 'Никого не нашли. Попробуйте другое имя.',
     rounds: 'туров', masters: 'мастеров', leagueN: '{n} мастеров', range: '{a}–{b}',
@@ -34,6 +40,12 @@
   }
   function load(name) {
     return fetch('/data/' + name + '.json', { cache: 'no-cache' }).then(function (r) { if (!r.ok) throw r.status; return r.json(); });
+  }
+  // «Игры 01» / «Game 01» — для подписей замороженного рейтинга
+  function gameName(fr) {
+    if (!fr) return '';
+    var no = fr.game_no != null ? (fr.game_no < 10 ? '0' : '') + fr.game_no : '';
+    return EN ? 'Game ' + no : 'Игры ' + no;
   }
   function season(data) { return (data && data.seasons && data.seasons[0]) || null; }
 
@@ -66,9 +78,11 @@
     var pub = (game.rounds || []).filter(function (r) { return r.published; });
     if (!pub.length) return;
     var last = Math.max.apply(null, pub.map(function (r) { return r.no; }));
+    var running = game.status === 'active';   // идёт Игра — рейтинг на сайте на её начало (Правила, п. 7.3)
     afters.forEach(function (el) {
       var arrow = /→\s*$/.test(el.textContent) ? ' →' : '';
-      el.textContent = el.getAttribute('data-fpl-after') === 'dd' ? f(T.roundShort, { n: last }) : f(T.afterRound, { n: last }) + arrow;
+      var dd = el.getAttribute('data-fpl-after') === 'dd';
+      el.textContent = running ? (dd ? T.frozenDd : T.frozenLink + arrow) : dd ? f(T.roundShort, { n: last }) : f(T.afterRound, { n: last }) + arrow;
     });
     function title(r) { return (r.title_i18n && r.title_i18n[EN ? 'en' : 'ru']) || r.title; }
     function names(r) { return (r.top_work || []).map(function (w) { return esc(w.name) + (w.league ? ' ' + lg(w.league) : ''); }); }
@@ -94,7 +108,8 @@
   function renderPreview(players, data) {
     var empty = document.querySelector('[data-fpl="rating-empty"]');
     var body = prev.querySelector('tbody');
-    if (!players.length) { prev.hidden = true; if (empty) { empty.textContent = T.empty; empty.hidden = false; } return; }
+    var fr = data && data.frozen;
+    if (!players.length) { prev.hidden = true; if (empty) { empty.textContent = fr ? f(T.frozenEmpty, { g: gameName(fr) }) : T.empty; empty.hidden = false; } return; }
     body.innerHTML = players.slice(0, 5).map(function (p) {
       return '<tr><td>' + p.place + '</td><td>' + esc(p.name) + '</td><td>' + lg(p.league) + '</td><td>' + p.rating +
         (p.status === 'calibrating' ? ' <small class="prov">' + T.prov + '</small>' : '') + '</td><td>' + (p.top_work ? T.tw + (p.top_work > 1 ? ' ×' + p.top_work : '') : '—') + '</td></tr>';
@@ -111,7 +126,9 @@
     var set = function (id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
     var hide = function (sel) { document.querySelectorAll(sel).forEach(function (el) { el.hidden = true; el.style.display = 'none'; }); };
     var show = function (el) { if (el) { el.hidden = false; el.style.display = ''; } };
-    if (note) note.textContent = data && data.generated_at ? f(T.updated, { d: date(data.generated_at) }) : '';
+    var fr = data && data.frozen;
+    if (note) note.textContent = (fr && players.length ? f(T.frozenNote, { g: gameName(fr) }) + ' ' : '') +
+      (data && data.generated_at ? f(T.updated, { d: date(data.generated_at) }) : '');
     set('rsCount', s ? s.rated : '—');
     if (players.length) { show(document.querySelector('.rleagues')); show(document.querySelector('.rcontrols')); }
     // лиги: сколько мастеров и какой разброс рейтинга
@@ -153,7 +170,7 @@
           '<td class="c-lg">' + lg(p.league) + '</td><td class="c-rt num">' + rt + '</td>' +
           '<td class="c-aw"><div class="awards">' + aw + '</div></td></tr>';
       }).join('');
-      if (empty) { empty.textContent = players.length ? T.none : T.empty; empty.hidden = rows.length > 0; }
+      if (empty) { empty.textContent = players.length ? T.none : (fr ? f(T.frozenEmpty, { g: gameName(fr) }) : T.empty); empty.hidden = rows.length > 0; }
     }
     document.querySelectorAll('.tabs button[data-league]').forEach(function (b) {
       b.addEventListener('click', function () {

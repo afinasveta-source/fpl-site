@@ -78,6 +78,10 @@ CREATE OR REPLACE FUNCTION site_export_rating() RETURNS json LANGUAGE sql STABLE
   SELECT json_build_object(
     'schema', 'fpl.public.rating.v1',
     'generated_at', to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'),
+    -- идёт Игра — рейтинг на её начало (сайт так и пишет); null — рейтинг текущий
+    'frozen', (SELECT json_build_object('title', e.title, 'title_i18n', e.title_i18n, 'season_no', s.season_no, 'game_no', e.game_no)
+               FROM events e LEFT JOIN seasons s ON s.id = e.season_id
+               WHERE e.status = 'active' AND e.event_type = 'ranked_game' ORDER BY e.starts_at NULLS LAST LIMIT 1),
     'seasons', coalesce((
       SELECT json_agg(json_build_object(
         'no', x.season_no, 'name', x.season_name,

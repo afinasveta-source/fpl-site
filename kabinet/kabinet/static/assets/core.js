@@ -197,6 +197,7 @@
     }).join('') + '<div class="sep"></div>' +
       (org ? '<button type="button" data-href="/"><span>Кабинет участника</span></button>' :
         K.isAdmin() ? '<button type="button" data-href="/org"><span>Кабинет организатора</span></button>' : '') +
+      '<button type="button" data-act="toSite"><span>Сайт лиги ↗</span></button>' +
       '<button type="button" class="out" data-act="logout"><span>Выйти</span></button></nav>';
   }
   var ICON = {
@@ -220,7 +221,9 @@
     return '<div class="sheet" data-act="closeMore"><div class="panel" role="dialog" aria-label="Ещё разделы"><span class="grip"></span><div class="list">' +
       K.li('Игры лиги', 'Каталог Игр и челленджей', '', '/events') + (K.isJudge() ? K.li('Судейство', 'Оценка работ туров', '', '/judging') : '') +
       K.li('Мои достижения', 'Рейтинг, баллы, дипломы', '', '/achievements') +
-      K.li('Поддержка', 'Вопросы организатору', '', '/support') + '</div><button class="btn sec" type="button" data-act="logout">Выйти</button></div></div>';
+      K.li('Поддержка', 'Вопросы организатору', '', '/support') +
+      '<button class="li" type="button" data-act="toSite"><span class="t">Сайт лиги ↗</span><span class="s">Рейтинг, Игры, Правила — вход в кабинет сохранится</span><span class="r"></span></button>' +
+      '</div><button class="btn sec" type="button" data-act="logout">Выйти</button></div></div>';
   }
   function header(auth) {
     var n = K.state.unread;
@@ -249,7 +252,8 @@
   K.rerender = function () { K.page(K.last.body, K.last.crumbs); };
   /* Экран до входа. */
   K.authPage = function (body) {
-    app.innerHTML = header(true) + '<main id="main" tabindex="-1"><div class="auth stack" data-s="auth">' + body + '</div></main>';
+    app.innerHTML = header(true) + '<main id="main" tabindex="-1"><div class="auth stack" data-s="auth">' + body +
+      '<p class="small muted"><a href="/ru/">← Сайт лиги</a></p></div></main>';
   };
   K.loading = function () {
     K.page('<div class="stack" aria-busy="true"><div class="skel" data-s="w40"></div><div class="skel" data-s="h120"></div><div class="skel"></div><div class="skel" data-s="w70"></div></div>', K.last.crumbs);
@@ -285,6 +289,8 @@
   K.actions.more = function () { K.state.more = true; K.rerender(); };
   K.actions.closeMore = function (el, e) { if (e.target === el) { K.state.more = false; K.rerender(); } };
   K.actions.reload = function () { K.route(); };
+  // Сайт лиги — на том же адресе (facepaintingleague.com), кабинет — его раздел /kabinet/: вход при переходе не теряется
+  K.actions.toSite = function () { location.href = '/ru/'; };
   K.actions.logout = function () {
     K.api('POST', '/web-auth/logout').then(function () { K.state.me = null; K.state.menu = false; K.state.more = false; K.go('/'); });
   };

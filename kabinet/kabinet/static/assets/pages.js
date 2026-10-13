@@ -615,22 +615,20 @@
     });
   }
   function shrinkNow(file) {
-    var load = typeof createImageBitmap === 'function'
-      ? createImageBitmap(file, { imageOrientation: 'from-image' }).catch(function () { return createImageBitmap(file); })
-      : new Promise(function (ok, bad) {
-        var img = new Image(), url = URL.createObjectURL(file);
-        img.onload = function () { URL.revokeObjectURL(url); ok(img); };
-        img.onerror = function () { URL.revokeObjectURL(url); bad(new Error('decode')); };
-        img.src = url;
-      });
+    // Через <img>: поворот по EXIF браузеры применяют сами (Safari с iOS 13.4, Chrome с 81) — и при рисовании на canvas.
+    var load = new Promise(function (ok, bad) {
+      var img = new Image(), url = URL.createObjectURL(file);
+      img.onload = function () { URL.revokeObjectURL(url); ok(img); };
+      img.onerror = function () { URL.revokeObjectURL(url); bad(new Error('decode')); };
+      img.src = url;
+    });
     return load.then(function (img) {
-      var w = img.width, h = img.height, k = Math.min(1, MAX_SIDE / Math.max(w, h));
+      var w = img.naturalWidth || img.width, h = img.naturalHeight || img.height, k = Math.min(1, MAX_SIDE / Math.max(w, h));
       var c = document.createElement('canvas');
       c.width = Math.round(w * k); c.height = Math.round(h * k);
       var ctx = c.getContext('2d');
       ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);   // прозрачный PNG — на белом
       ctx.drawImage(img, 0, 0, c.width, c.height);
-      if (img.close) img.close();
       return new Promise(function (ok) {
         c.toBlob(function (b) { c.width = c.height = 0; ok(b && b.size > 0 && b.size < file.size ? b : file); }, 'image/jpeg', 0.9);
       });
