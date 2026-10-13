@@ -77,7 +77,8 @@ WorkingDirectory=$APP/code
 ExecStart=$APP/venv/bin/uvicorn kabinet.main:create_app --factory --host 127.0.0.1 --port $PORT --proxy-headers --forwarded-allow-ips 127.0.0.1 --no-access-log --workers 1
 Restart=always
 RestartSec=3
-MemoryMax=250M
+MemoryMax=350M
+Environment=MALLOC_ARENA_MAX=2
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true

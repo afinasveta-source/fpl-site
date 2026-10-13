@@ -111,6 +111,8 @@ ExecStart=$APP/venv/bin/uvicorn kabinet.main:create_app --factory --host 127.0.0
 Restart=always
 RestartSec=3
 MemoryMax=350M
+# Меньше «арен» памяти glibc на 40 потоков: память после всплеска возвращается системе (нагрузка на сервере 13.10)
+Environment=MALLOC_ARENA_MAX=2
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true

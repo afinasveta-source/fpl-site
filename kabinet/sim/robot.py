@@ -137,6 +137,15 @@ def memory_watch(stop):
                 peak[k] = max(peak[k], int(open(path).read()))
             except (OSError, ValueError):
                 pass
+        for k, u in (('kabinet_test', 'fpl-kabinet-test.service'), ('kabinet_prod', 'fpl-kabinet.service')):
+            base = f'/sys/fs/cgroup/system.slice/{u}'
+            try:   # «анонимная» память — сама служба, без кэша файлов фото; oom_kill — сколько раз систему убивали
+                anon = int(next(l.split()[1] for l in open(base + '/memory.stat') if l.startswith('anon ')))
+                peak[k + '_anon'] = max(peak[k + '_anon'], anon)
+                ev = dict(l.split() for l in open(base + '/memory.events'))
+                REPORT['memory_mb'][k + '_oom_kills'] = int(ev.get('oom_kill', 0))
+            except (OSError, StopIteration, ValueError):
+                pass
         try:
             avail = [int(l.split()[1]) for l in open('/proc/meminfo') if l.startswith('MemAvailable')][0] // 1024
             REPORT['memory_mb']['min_available'] = min(REPORT['memory_mb'].get('min_available', 10 ** 9), avail)
@@ -193,6 +202,12 @@ def main():
     finally:
         stop.set()
         time.sleep(0.6)
+        try:
+            import subprocess
+            REPORT['restarts'] = {u: subprocess.run(['systemctl', 'show', u, '-p', 'NRestarts', '--value'], capture_output=True, text=True).stdout.strip()
+                                  for u in ('fpl-kabinet-test', 'fpl-kabinet')}
+        except OSError:
+            pass
         REPORT['timings_summary'] = {k: stats(v) for k, v in REPORT['timings'].items()}
         REPORT['timings'] = {}
         REPORT['finished_at'] = now().isoformat()

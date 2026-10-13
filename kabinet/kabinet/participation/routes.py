@@ -385,7 +385,7 @@ async def upload(request: Request, user=Depends(browser_user), auth=Depends(serv
         return await run_in_threadpool(store_photo, request, user, data)
 
 
-UPLOADS_AT_ONCE = 8
+UPLOADS_AT_ONCE = 4
 _GATES = weakref.WeakKeyDictionary()
 
 
