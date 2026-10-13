@@ -10,6 +10,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from kabinet import relay
 from kabinet.org.common import WRITE, audit, db, iso, locked_admin, now_of, org_user, person_name, problem
 from kabinet.org.games import clean_text, load_event
 from kabinet.org.rounds import load_round
@@ -55,8 +56,10 @@ def judging_view(conn, event, rnd, now, root):
     for st in streams:
         v = S.stream_view(conn, st, now)
         photos = stream_photos(conn, st['id'], root)
+        sources = {str(k): x for k, x in target_sources(conn, rnd['id'], [row['target'] for row in v['rows']], root).items()}
         for row in v['rows']:
             row['photos'] = photos.get(row['target'], [])
+            row['source'] = sources.get(row['target'])
         views.append(v)
     out['streams'] = views
     out['publish_problems'] = S.publish_checks(conn, rnd) if rnd['status'] != 'published' else []
@@ -317,6 +320,17 @@ def task_text(conn, st):
             'instructions': localized(v['instructions_i18n']) if v else ''}
 
 
+def target_sources(conn, round_id, target_ids, root):
+    """Тур-эстафета: исходник рядом с работой второй лиги — {цель: [фото исходника]} (без имён)."""
+    if not target_ids:
+        return {}
+    members = {r['event_participant_id']: r['evaluation_target_id'] for r in conn.execute(
+        'SELECT evaluation_target_id, event_participant_id FROM evaluation_target_members WHERE evaluation_target_id = ANY(%s::uuid[])',
+        ([str(x) for x in target_ids],))}
+    rows = relay.source_rows(conn, round_id, list(members))
+    return {members[ep]: [photo_view(m, root) for m in ms] for ep, ms in rows.items()}
+
+
 def target_photos(conn, target_ids, root):
     if not target_ids:
         return {}
@@ -363,13 +377,17 @@ ORDER BY (phase='tie_break') DESC, run_no DESC, md5(id::text)''', (st['judge_slo
         cfg = st['configuration'] or {}
         out['locked_regular'] = bool(cfg.get('regular_closed') or cfg.get('tie_breaks'))
         pending = [c for c in comps if c['status'] == 'pending' and not (c['phase'] == 'regular' and out['locked_regular'])]
-        photos = target_photos(conn, {x for c in comps for x in (c['target_a_id'], c['target_b_id'])}, root)
+        ids = {x for c in comps for x in (c['target_a_id'], c['target_b_id'])}
+        photos = target_photos(conn, ids, root)
+        sources = target_sources(conn, st['round_id'], ids, root)
 
         def pair(c):
             return {'id': str(c['id']), 'phase': c['phase'], 'status': c['status'],
                     'winner': None if c['winner_target_id'] is None else ('a' if c['winner_target_id'] == c['target_a_id'] else 'b'),
-                    'a': {'no': nos.get(c['target_a_id']), 'photos': photos.get(c['target_a_id'], [])},
-                    'b': {'no': nos.get(c['target_b_id']), 'photos': photos.get(c['target_b_id'], [])},
+                    'a': {'no': nos.get(c['target_a_id']), 'photos': photos.get(c['target_a_id'], []),
+                          'source': sources.get(c['target_a_id'])},
+                    'b': {'no': nos.get(c['target_b_id']), 'photos': photos.get(c['target_b_id'], []),
+                          'source': sources.get(c['target_b_id'])},
                     'voted_at': iso(c['voted_at'])}
         out['next'] = pair(pending[0]) if pending else None
         out['voted'] = [pair(c) for c in comps if c['status'] == 'voted']
@@ -382,10 +400,12 @@ ORDER BY (phase='tie_break') DESC, run_no DESC, md5(id::text)''', (st['judge_slo
                 if x['judge_assignment_id'] == me:        # оценки прежнего судьи этого места не показываются
                     own.setdefault(x['evaluation_target_id'], {})[x['criterion_id']] = float(x['score'])
             photos = target_photos(conn, [t['id'] for t in targets], root)
+            sources = target_sources(conn, st['round_id'], [t['id'] for t in targets], root)
             code = {c['id']: c['code'] for c in criteria}
             out['criteria'] = [{'code': c['code'], 'label': localized(c['label_i18n']), 'min': float(c['min_score']),
                                 'max': float(c['max_score'])} for c in criteria]
             out['works'] = sorted([{'id': str(t['id']), 'no': nos.get(t['id']), 'photos': photos.get(t['id'], []),
+                                    'source': sources.get(t['id']),
                                     'scores': {code[k]: v for k, v in own.get(t['id'], {}).items()},
                                     'done': len(scored.get(t['id'], set())) == len(criteria)} for t in targets], key=lambda w: w['no'])
         return out

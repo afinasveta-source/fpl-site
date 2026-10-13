@@ -10,6 +10,7 @@ from fastapi.responses import FileResponse
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from kabinet import relay
 from kabinet.auth.routes import client_ip, service
 from kabinet.web.routes import browser_user, same_origin
 from . import game as G
@@ -273,12 +274,26 @@ def task_response(conn, request, event_id, assignment_id, user_id, now, prepare=
             G.materialize(conn, game, assignment)
         except HTTPException:
             pass   # вариант не определён — задание покажется как «ещё не готово»
+    if prepare and G.needs_source(game, rnd) and game.mode in (R.IN, R.OUTSIDE):
+        relay.distribute(conn, rnd, now, only_ep=game.ep['id'])   # эстафета: исходник — при первом открытии задания
     return game, assignment
 
 
 def render_task(conn, request, game, assignment, user_id, now):
     variant = G.variant_for(game, assignment)
-    return V.task_view(game, assignment, now, G.rules_ok(conn, user_id, now), root(request), variant)
+    rules_ok = G.rules_ok(conn, user_id, now)
+    out = V.task_view(game, assignment, now, rules_ok, root(request), variant)
+    rnd = game.round_of(assignment)
+    if G.needs_source(game, rnd):
+        photos = relay.source_rows(conn, rnd['id'], [game.ep['id']]).get(game.ep['id'], [])
+        cfg = relay.relay_of(rnd)
+        out['source'] = {'league': cfg['from'], 'photos': [V.photo_view(m, root(request)) for m in photos]} \
+            if photos and R.round_opened(rnd, now) else None
+        out['source_expected'] = True
+        w = G.window(conn, game, assignment, now, user_id)
+        if not w.open and w.reason == 'no_source':
+            out['window'] = {'open': False, 'reason': 'no_source', 'deadline': V.iso(w.deadline), 'source': w.deadline_source}
+    return out
 
 
 @router.get('/games/{event_id}/tasks/{assignment_id}')
@@ -417,8 +432,13 @@ WHERE svm.media_file_id=%s LIMIT 1''', (user['id'], media_id)).fetchone()
         # Судья, которому поручен платный разбор, видит работы этой участницы (заказ оплачен или разбор готов).
         reviewer = row and not staff and not judge and row['uploaded_by'] != user['id'] and conn.execute('''SELECT 1 FROM review_orders
 WHERE reviewer_id=%s AND user_id=%s AND status IN ('paid','done') LIMIT 1''', (user['id'], row['uploaded_by'])).fetchone()
-    # Своё фото видит автор; организатор и модератор — любое; судья — работы своего пула. Чужое — как будто его нет.
-    if not row or (row['uploaded_by'] != user['id'] and not staff and not judge and not reviewer):
+        # Тур-эстафета: участница видит фото выданного ей исходника.
+        source = row and not staff and not judge and not reviewer and row['uploaded_by'] != user['id'] \
+            and (relay.media_allowed(conn, user['id'], media_id)
+                 or ('judge' in user['roles'] and relay.media_allowed_judge(conn, user['id'], media_id)))
+    # Своё фото видит автор; организатор и модератор — любое; судья — работы своего пула; получательница — свой исходник.
+    # Чужое — как будто его нет.
+    if not row or (row['uploaded_by'] != user['id'] and not staff and not judge and not reviewer and not source):
         raise HTTPException(404, 'Not found')
     key = row['optimized_storage_key'] if size == 'view' else row['thumbnail_storage_key']
     path = request.app.state.media.path(key)

@@ -265,6 +265,28 @@ def main():
         write_input(priv, t4, 'e4')
         p, st = run(priv, data)
         check(st.get('status') == 'completed' and st['issues'].get('error') == 1, 'пакет completed, 1 ошибка в журнале')
+
+        print('8. Игра перенесена в кабинет (13.10) — перенос из SaleBot её не трогает')
+        q1('''UPDATE events SET settings = settings || '{"moved_to_kabinet": {"from_round": 3}}'::jsonb RETURNING 1''')
+        q1("UPDATE rounds SET status='scheduled', settings='{\"relay\": {\"from\": \"gold\", \"to\": \"silver\"}}' WHERE round_no=3 RETURNING 1")
+        uid = q1("SELECT user_id FROM external_identities WHERE external_id='c1' AND provider='salebot_client'")
+        q1("UPDATE users SET email='c1@example.com', password_hash='x', account_status='active', display_name='Сама поменяла' WHERE id=%s RETURNING 1", (uid,))
+        q1("UPDATE participant_stats SET current_rating=777 WHERE user_id=%s RETURNING 1", (uid,))
+        rr = q1("SELECT count(*) FROM round_results")
+        rt = q1("SELECT count(*) FROM rating_transactions WHERE status='active'")
+        t5 = copy.deepcopy(t2)
+        for r in t5['mg_round_snapshot']:
+            r['display_score'] = 41
+        write_input(priv, t5, 'e5')
+        p, st = run(priv, data)
+        check(st.get('status') == 'completed', 'пакет completed (%s)' % p.stderr.strip()[-300:])
+        check(q1("SELECT status FROM rounds WHERE round_no=3") == 'scheduled' and
+              q1("SELECT settings->'relay'->>'to' FROM rounds WHERE round_no=3") == 'silver', 'туры кабинета не тронуты')
+        check(q1("SELECT count(*) FROM round_results WHERE display_score=41") == 0 and q1("SELECT count(*) FROM round_results") == rr,
+              'итоги не перезаписаны')
+        check(float(q1("SELECT current_rating FROM participant_stats WHERE user_id=%s", (uid,))) == 777 and
+              q1("SELECT count(*) FROM rating_transactions WHERE status='active'") == rt, 'рейтинг кабинета не тронут')
+        check(q1("SELECT display_name FROM users WHERE id=%s", (uid,)) == 'Сама поменяла', 'имя вошедшей не перезаписано')
     finally:
         shutil.rmtree(priv)
         shutil.rmtree(data)

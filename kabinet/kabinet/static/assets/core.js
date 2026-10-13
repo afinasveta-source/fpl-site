@@ -169,7 +169,7 @@
     ['/reviews', 'Мои разборы'], ['/notifications', 'Уведомления'], ['/support', 'Поддержка'], ['/profile', 'Профиль и настройки']];
   /* Кабинет организатора — свой раздел /org со своим меню (этап 3). */
   var ORG = [['/org', 'Обзор'], ['/org/games', 'Игры и туры'], ['/org/people', 'Люди'], ['/org/support', 'Поддержка'],
-    ['/org/feedback', 'Пожелания'], ['/org/reviews', 'Разборы'], ['/org/documents', 'Документы']];
+    ['/org/claims', 'Заявки'], ['/org/feedback', 'Пожелания'], ['/org/reviews', 'Разборы'], ['/org/documents', 'Документы']];
   K.inOrg = function () { var p = K.path(); return p === '/org' || p.indexOf('/org/') === 0; };
   K.isAdmin = function () { return !!(K.state.me && K.state.me.roles && K.state.me.roles.indexOf('admin') >= 0); };
   /* Судейство (этап 4): раздел видят судьи и администраторы — организатор тоже может судить. */
@@ -189,7 +189,7 @@
     var cur = section(), n = K.state.unread, org = K.inOrg(), c = K.state.orgCounts || {};
     var list = org ? ORG : sections();
     var badge = function (s) {
-      if (org) { var x = s[0] === '/org/support' ? c.support : s[0] === '/org/feedback' ? c.feedback : s[0] === '/org/reviews' ? c.reviews : 0; return x ? '<span class="cnt">' + x + '</span>' : ''; }
+      if (org) { var x = s[0] === '/org/support' ? c.support : s[0] === '/org/feedback' ? c.feedback : s[0] === '/org/reviews' ? c.reviews : s[0] === '/org/claims' ? c.claims : 0; return x ? '<span class="cnt">' + x + '</span>' : ''; }
       return s[0] === '/notifications' && n ? '<span class="cnt">' + n + '</span>' : '';
     };
     return '<nav class="nav" aria-label="' + (org ? 'Разделы организатора' : 'Разделы кабинета') + '">' + list.map(function (s) {
@@ -340,7 +340,8 @@
   function loginView() {
     var mail = K.state.config && K.state.config.mail_delivery;
     K.authPage('<div class="stack"><span class="eyebrow">Face Painting League</span><h1>Вход в кабинет</h1>' +
-      '<p class="muted">Участвовали в Играх через бота? Ваш аккаунт уже создан — войдите по ссылке-приглашению или по email и паролю.</p></div>' +
+      '<p class="muted">Участвовали в Играх через бота? Ваш аккаунт уже создан — войдите по ссылке-приглашению или по email и паролю.</p>' +
+      '<p class="small">Играете в Игре 01 и ещё не входили? <a href="' + ROOT + '/game01">Продолжить Игру в кабинете</a></p></div>' +
       '<form class="card" id="f-login" novalidate>' + field('email', 'Email', 'email', 'autocomplete="username" required') +
       '<div class="field"><label for="password">Пароль</label><div class="pw"><input class="input" id="password" name="password" type="password" autocomplete="current-password" required>' +
       '<button type="button" data-act="showpw">Показать</button></div></div>' +
@@ -441,6 +442,87 @@
     });
   }
 
+  // Участницы Игры 01 из бота: заявка на вход (организатор находит её в перенесённом списке и подтверждает).
+  K.COUNTRIES = [['RU', 'Россия'], ['BY', 'Беларусь'], ['KZ', 'Казахстан'], ['AM', 'Армения'], ['GE', 'Грузия'], ['AZ', 'Азербайджан'], ['KG', 'Кыргызстан'],
+    ['UZ', 'Узбекистан'], ['RS', 'Сербия'], ['ME', 'Черногория'], ['TR', 'Турция'], ['AE', 'ОАЭ'], ['IL', 'Израиль'], ['DE', 'Германия'], ['CY', 'Кипр'],
+    ['TH', 'Таиланд'], ['UA', 'Украина'], ['MD', 'Молдова'], ['LV', 'Латвия'], ['LT', 'Литва'], ['EE', 'Эстония'], ['PL', 'Польша'], ['FI', 'Финляндия'],
+    ['ES', 'Испания'], ['IT', 'Италия'], ['FR', 'Франция'], ['GB', 'Великобритания'], ['US', 'США'], ['CA', 'Канада'], ['ID', 'Индонезия'], ['VN', 'Вьетнам']];
+  var CLAIM_ERR = {
+    email_taken: 'Этот email уже есть в кабинете. Войдите с ним — или напишите организатору, если не помните пароль.',
+    claim_pending: 'Заявка с этим email уже отправлена — организатор её проверяет. Повторять не нужно.',
+    claims_closed: 'Сейчас заявки не принимаются. Напишите организатору.',
+    consents_required: 'Отметьте согласия — без них участвовать нельзя.', adult_required: 'Участие — с 18 лет.',
+    name_required: 'Укажите ФИО и город.'
+  };
+  function docBox(d, label) {
+    if (!d) return esc(label);
+    return '<details class="doc-inline"><summary>' + esc(label) + '</summary><div class="small" data-s="pre">' + esc(d.body || '') + '</div></details>';
+  }
+  function game01View() {
+    if (K.state.me) {
+      K.authPage('<div class="card"><h1>Вы уже в кабинете</h1><p>Вы вошли как ' + esc(K.state.me.email || '') + '. Игра — в разделе «Мои Игры».</p>' +
+        '<a class="btn" href="' + ROOT + '/">В кабинет</a></div>');
+      return;
+    }
+    K.authPage('<div class="card" aria-busy="true"><p class="muted">Загружаем…</p></div>');
+    K.api('GET', '/api/public/claims/config').then(function (res) {
+      if (!res.ok || !res.data.open) {
+        K.authPage('<div class="card"><h1>Заявки сейчас не принимаются</h1><p>Если вы участвуете в Игре и не можете войти — напишите организатору.</p>' +
+          '<a class="btn sec" href="/ru/feedback.html">Написать организатору</a> <a class="btn ghost" href="' + ROOT + '/">Ко входу</a></div>');
+        return;
+      }
+      var c = res.data, docs = c.documents || {};
+      K.authPage('<div class="stack"><span class="eyebrow">Face Painting League · ' + esc(c.game) + '</span><h1>Продолжить Игру в кабинете</h1>' +
+        '<p class="muted">Бот лиги временно не работает, поэтому ' + esc(c.game) + ' продолжается здесь — с 3 тура. Ваши баллы туров 1–2, лига и рейтинг уже перенесены. ' +
+        'Заполните форму: организатор найдёт вас в списке участниц и откроет вход — обычно в течение дня. Потом входите с этим email и паролем.</p></div>' +
+        '<form class="card" id="f-claim" novalidate>' +
+        field('full_name', 'Фамилия, имя, отчество — как в боте', 'text', 'autocomplete="name" required maxlength="200"') +
+        field('email', 'Email', 'email', 'autocomplete="username" required') +
+        field('password', 'Придумайте пароль (от ' + minLen() + ' символов)', 'password', 'autocomplete="new-password" required minlength="' + minLen() + '" maxlength="128"') +
+        field('password2', 'Пароль ещё раз', 'password', 'autocomplete="new-password" required maxlength="128"') +
+        '<div class="field"><label for="country">Страна</label><select class="input" id="country" name="country"><option value="">Выберите страну</option>' +
+        K.COUNTRIES.map(function (x) { return '<option value="' + x[0] + '">' + x[1] + '</option>'; }).join('') + '</select></div>' +
+        field('city', 'Город', 'text', 'autocomplete="address-level2" required maxlength="120"') +
+        field('contact', 'Telegram или VK (необязательно) — поможет быстрее вас найти', 'text', 'maxlength="200" placeholder="@username или ссылка"') +
+        '<label class="chk"><input type="checkbox" id="c-rules"> <span>Принимаю Правила лиги' + (docs.rules ? ' (редакция ' + esc(docs.rules.version) + ')' : '') + '</span></label>' + docBox(docs.rules, 'Прочитать Правила') +
+        '<label class="chk"><input type="checkbox" id="c-pub"> <span>Даю согласие на публикацию моих работ на сайте и в соцсетях лиги</span></label>' + docBox(docs.publication, 'Прочитать согласие') +
+        '<label class="chk"><input type="checkbox" id="c-pd"> <span>Даю согласие на обработку персональных данных</span></label>' + docBox(docs.personal_data, 'Прочитать согласие') +
+        '<label class="chk"><input type="checkbox" id="c-adult"> <span>Мне есть 18 лет</span></label>' +
+        '<div class="sr" aria-hidden="true"><label for="website">Не заполняйте</label><input id="website" name="website" tabindex="-1" autocomplete="off"></div>' +
+        '<p class="form-err" role="alert" tabindex="-1" hidden></p><button class="btn wide" type="submit">Отправить заявку</button>' +
+        '<a class="btn ghost wide" href="' + ROOT + '/">У меня уже есть вход</a></form>');
+      var f = document.getElementById('f-claim');
+      f.addEventListener('submit', function (e) {
+        e.preventDefault(); K.formError(f, '');
+        var name = f.full_name.value.trim(), email = f.email.value.trim(), city = f.city.value.trim(), country = f.country.value;
+        if (name.split(/\s+/).length < 2) { K.formError(f, 'Укажите фамилию и имя — как в боте.'); return; }
+        if (!email) { K.formError(f, 'Укажите email.'); return; }
+        if (f.password.value.length < minLen() || f.password.value.length > 128) { K.formError(f, 'Пароль должен содержать от ' + minLen() + ' до 128 символов.'); return; }
+        if (f.password.value !== f.password2.value) { K.formError(f, 'Пароли не совпадают.'); return; }
+        if (!country || !city) { K.formError(f, 'Укажите страну и город.'); return; }
+        var ok = ['c-rules', 'c-pub', 'c-pd'].every(function (id) { return document.getElementById(id).checked; });
+        if (!ok) { K.formError(f, 'Отметьте согласия — без них участвовать нельзя.'); return; }
+        if (!document.getElementById('c-adult').checked) { K.formError(f, 'Участие — с 18 лет.'); return; }
+        K.busy(f, true);
+        K.api('POST', '/api/public/claims', { full_name: name, email: email, password: f.password.value, country_code: country, city: city,
+          contact: f.contact.value.trim() || null, accept_rules: true, accept_publication: true, accept_personal_data: true, confirm_adult: true,
+          website: f.website.value || null }).then(function (r) {
+          K.busy(f, false);
+          if (!r.ok) {
+            K.formError(f, CLAIM_ERR[r.detail] || (r.status === 429 ? 'Слишком много заявок с этого адреса. Попробуйте через час.' :
+              r.status === 422 ? 'Проверьте email (нужен вид name@mail.ru) и пароль — от ' + minLen() + ' до 128 символов.' : authError(r)));
+            return;
+          }
+          K.authPage('<div class="card"><h1>Заявка № ' + esc(String(r.data.claim_no)) + ' отправлена</h1>' +
+            '<div class="note info">Организатор проверит её и откроет вход — обычно в течение дня. Потом войдите с email <b>' + esc(email) + '</b> и вашим паролем.</div>' +
+            '<p class="small muted">Не получается войти больше суток — напишите организатору и укажите номер заявки.</p>' +
+            '<a class="btn sec" href="' + ROOT + '/">Ко входу</a></div>');
+        });
+      });
+      f.full_name.focus();
+    });
+  }
+
   function resetRequestView() {
     K.authPage('<div class="stack"><h1>Восстановление доступа</h1><p class="muted">Укажите email, с которым вы входите. Пришлём ссылку для нового пароля.</p></div>' +
       '<form class="card" id="f-reset" novalidate>' + field('email', 'Email', 'email', 'autocomplete="username" required') +
@@ -533,6 +615,7 @@
     if (p === '/auth/reset-password') return setPasswordView('reset');
     if (p === '/setup') return setupView();
     if (p === '/auth/invite') return inviteView();
+    if (p === '/game01') return game01View();
     if (!K.state.me) {
       // Проверить сессию заново (например, после 401) и показать вход.
       return K.api('GET', '/web-auth/me').then(function (r) {

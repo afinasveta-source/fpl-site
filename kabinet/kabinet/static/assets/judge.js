@@ -57,6 +57,14 @@
     }).join('');
   }
 
+  // Тур-эстафета: исходник (работа другой лиги), по которому сделана работа, — маленьким рядом.
+  function sourceOf(w) {
+    if (!w.source || !w.source.length) return '';
+    return '<div class="jsource"><span class="small muted">Исходник</span>' + w.source.map(function (p) {
+      return '<a href="' + esc(p.view_url) + '" target="_blank" rel="noopener"><img src="' + esc(p.thumb_url) + '" alt="Исходник работы"></a>';
+    }).join('') + '</div>';
+  }
+
   function draw(s) {
     var crumbs = [['Судейство', '/judging'], ['Тур ' + s.round_no + ' · ' + poolName(s)]];
     if (s.method === 'criteria') { drawCriteria(s, crumbs); return; }
@@ -84,7 +92,7 @@
     return '<section class="card jpair"><div class="between"><h2>Какая работа сильнее?</h2>' + (n.phase === 'tie_break' ? pill('Переголосование', 'warn') : '') + '</div>' +
       '<p class="small muted">' + (n.phase === 'tie_break' ? 'У этих работ равный результат — организатор просит сравнить их ещё раз. ' : 'Сравните работы по заданию тура. ') +
       'Нажмите на фото, чтобы открыть его крупно.</p><div class="jgrid">' + ['a', 'b'].map(function (side) {
-        return '<div class="jside"><span class="eyebrow">Работа № ' + n[side].no + '</span>' + photos(n[side].photos, 'Работа № ' + n[side].no) +
+        return '<div class="jside"><span class="eyebrow">Работа № ' + n[side].no + '</span>' + photos(n[side].photos, 'Работа № ' + n[side].no) + sourceOf(n[side]) +
           '<button class="btn wide" type="button" data-act="jVote" data-id="' + n.id + '" data-w="' + side + '">№ ' + n[side].no + ' сильнее</button></div>';
       }).join('') + '</div></section>';
   }
@@ -118,7 +126,7 @@
   }
   function workForm(s, w, isNext) {
     return '<form class="card jform" id="f-score" data-id="' + w.id + '" novalidate><div class="between"><h2>Работа № ' + w.no + '</h2>' + (isNext ? pill('Следующая', 'acc') : '') + '</div>' +
-      '<div class="jphotos">' + photos(w.photos, 'Работа № ' + w.no) + '</div><div class="grid3">' + s.criteria.map(function (c) {
+      '<div class="jphotos">' + photos(w.photos, 'Работа № ' + w.no) + '</div>' + sourceOf(w) + '<div class="grid3">' + s.criteria.map(function (c) {
         var v = w.scores[c.code];
         return '<div class="field"><label for="sc-' + c.code + '">' + esc(c.label) + '</label><input class="input" id="sc-' + c.code + '" data-code="' + c.code +
           '" type="number" inputmode="numeric" min="1" max="100" step="1" value="' + (v == null ? '' : esc(v)) + '"></div>';

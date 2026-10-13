@@ -257,6 +257,8 @@ def apply_league(conn, e, ep, league, actor_id, now):
         conn.execute('''INSERT INTO season_participants(season_id,user_id,league_at_start,current_league) VALUES (%s,%s,%s,%s)
 ON CONFLICT (season_id,user_id) DO UPDATE SET current_league=EXCLUDED.current_league,
 league_at_start=coalesce(season_participants.league_at_start, EXCLUDED.league_at_start)''', (e['season_id'], ep['user_id'], league, league))
+    from kabinet import relay
+    relay.league_changed(conn, ep['id'], league)
     audit(conn, actor_id, 'event_participant', ep['id'], 'league_set', {'league': league})
     notify(conn, ep['user_id'], 'league', f"league:{ep['id']}:{league or 'none'}:{now.timestamp():.0f}",
            {'title': f"Ваша лига в {e['title']} — {LEAGUE_NAME[league]}" if league

@@ -226,10 +226,21 @@ VALUES (%s,%s,%s,%s,%s) ON CONFLICT (event_participant_id, assignment_id) WHERE 
     return pa
 
 
+def needs_source(game, rnd):
+    """Тур-эстафета, и участница — во второй лиге: работать можно только по выданному исходнику."""
+    from kabinet import relay
+    cfg = relay.relay_of(rnd)
+    return bool(cfg and game.ep and game.ep['entry_league'] == cfg['to'])
+
+
 def window(conn, game, assignment, now, user_id):
+    from kabinet import relay
     rnd = game.round_of(assignment)
-    return R.submission_window(game.event, rnd, assignment, game.pas.get(assignment['id']), game.mode, now,
-                               rules_ok(conn, user_id, now))
+    w = R.submission_window(game.event, rnd, assignment, game.pas.get(assignment['id']), game.mode, now,
+                            rules_ok(conn, user_id, now))
+    if w.open and needs_source(game, rnd) and not relay.has_source(conn, rnd['id'], game.ep['id']):
+        return R.Window(False, 'no_source', w.deadline, w.deadline_source)
+    return w
 
 
 def require_open(conn, game, assignment, now, user_id):

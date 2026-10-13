@@ -258,9 +258,10 @@ class Importer:
             row = {'full_name': names.get(cid), 'display_name': public.get(cid), 'telegram_id': tg, 'show': show}
             uid = self.mapped('salebot_client', cid, 'users')
             if uid:
+                # вошедшая в кабинет правит имя и публичность сама — перенос меняет это только у записей без входа
                 self.ex('''UPDATE users SET full_name=%s, display_name=%s, telegram_id=coalesce(%s, telegram_id),
                              public_rating = (deleted_at IS NULL AND %s), public_works = (deleted_at IS NULL AND %s)
-                           WHERE id=%s::uuid''', (row['full_name'], row['display_name'], tg, show, show, uid))
+                           WHERE id=%s::uuid AND account_status='imported' ''', (row['full_name'], row['display_name'], tg, show, show, uid))
                 self.count('users_updated')
             else:
                 uid = self.one('''INSERT INTO users (account_status, full_name, display_name, telegram_id, public_rating, public_works)
@@ -406,7 +407,17 @@ class Importer:
         for r in self.rows('mg_rating_rounds'):
             states.setdefault((s(g(r, 'marathon')), integer(g(r, 'round_no'))), set()).add((s(g(r, 'state')) or '').lower())
         self.events, self.rounds = {}, {}
+        self.moved = set()
         for m, cfg in GAMES.items():
+            # Игра перенесена в кабинет (13.10: Игра 01 с 3 тура идёт в кабинете) — её туры, итоги и рейтинг ведёт кабинет:
+            # перенос из SaleBot их больше не трогает (иначе вернул бы статусы и рейтинг бота поверх кабинета).
+            moved = self.one('''SELECT e.id::text FROM events e JOIN seasons s ON s.id=e.season_id
+                                WHERE s.season_no=%s AND e.game_no=%s AND e.settings ? 'moved_to_kabinet' ''',
+                             (cfg['season_no'], cfg['game_no']))
+            if moved:
+                self.moved.add(m)
+                self.issue('events', m, 'info', 'Игра ведётся в кабинете — туры, итоги и рейтинг из SaleBot не переносятся')
+                continue
             season = self.one('SELECT id::text FROM seasons WHERE season_no=%s', (cfg['season_no'],))
             sc = SEASONS[cfg['season_no']]
             if season:
@@ -522,16 +533,23 @@ class Importer:
     # --- 4. рейтинг
     def rating(self):
         events = []
+        moved = getattr(self, 'moved', set())
         for r in self.rows('mg_rating_events'):
             m, cid, batch = s(g(r, 'marathon')), s(g(r, 'client_id')), s(g(r, 'batch_id'))
+            if m in moved:
+                # рейтинг этой Игры ведёт кабинет — события из SaleBot не переносятся
+                self.count('rating_skipped_moved')
+                continue
             if m not in GAMES or not cid or not batch:
                 self.issue('mg_rating_events', g(r, 'event_id'), 'info', 'событие вне описанных Игр или без батча — пропущено')
                 continue
             events.append(r)
         keys = {'salebot:%s:rating:%s:%s' % (PROJECT, s(g(r, 'batch_id')), s(g(r, 'client_id'))) for r in events}
-        # батчи, отменённые в боте, гасятся до записи новых (одно активное стартовое распределение на человека)
+        # батчи, отменённые в боте, гасятся до записи новых (одно активное стартовое распределение на человека);
+        # записи перенесённых в кабинет Игр не трогаются
         self.cur.execute('''UPDATE rating_transactions SET status='void'
-                            WHERE idempotency_key LIKE %s AND status='active' AND NOT (idempotency_key = ANY(%s::text[]))''',
+                            WHERE idempotency_key LIKE %s AND status='active' AND NOT (idempotency_key = ANY(%s::text[]))
+                              AND (event_id IS NULL OR NOT EXISTS (SELECT 1 FROM events e WHERE e.id=event_id AND e.settings ? 'moved_to_kabinet'))''',
                          ('salebot:%s:rating:%%' % PROJECT, list(keys)))
         self.counts['rating_voided'] = self.cur.rowcount
         for r in sorted(events, key=lambda r: integer(g(r, 'event_id')) or 0):
@@ -583,6 +601,9 @@ class Importer:
             if cid not in self.users:
                 continue
             uid = self.users[cid]
+            if moved and self.one('''SELECT 1 FROM event_participants p JOIN events e ON e.id=p.event_id
+                                     WHERE p.user_id=%s::uuid AND e.settings ? 'moved_to_kabinet' LIMIT 1''', (uid,)):
+                continue   # её рейтинг ведёт кабинет (Игра перенесена) — профиль из SaleBot не переносится
             rating = num(g(r, 'rating_current'))
             calib = max(0, min(3, integer(g(r, 'calibration_count')) or 0))
             st = (s(g(r, 'rating_status')) or '').lower()

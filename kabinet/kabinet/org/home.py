@@ -46,6 +46,8 @@ AND registration_status='participating' ''', (e['id'],)).fetchone()['n']
   (SELECT count(*) FROM support_threads WHERE status IN ('open','waiting_admin')) AS support,
   (SELECT count(*) FROM feedback_messages WHERE status='new') AS feedback,
   (SELECT count(*) FROM review_orders WHERE status IN ('new','paid')) AS reviews,
+  (SELECT count(*) FROM account_claims WHERE status='pending') AS claims,
+  (SELECT count(*) FROM events WHERE settings ? 'moved_to_kabinet') AS moved_games,
   (SELECT count(*) FROM users WHERE account_status='imported' AND deleted_at IS NULL
      AND EXISTS (SELECT 1 FROM event_participants p WHERE p.user_id=users.id)) AS not_activated,
   (SELECT count(*) FROM events WHERE status='draft') AS drafts,

@@ -279,6 +279,7 @@ def update_profile(body: ProfileChange, user=Depends(browser_user), auth=Depends
 @router.get('/judging/{rest:path}', include_in_schema=False)
 @router.get('/org', include_in_schema=False)
 @router.get('/org/{rest:path}', include_in_schema=False)
+@router.get('/game01', include_in_schema=False)
 @router.get('/auth/invite', include_in_schema=False)
 @router.get('/auth/set-password', include_in_schema=False)
 @router.get('/auth/reset-password', include_in_schema=False)

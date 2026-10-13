@@ -29,6 +29,10 @@
     final_only_ranked: 'В финал сезона идут только рейтинговые Игры.', season_not_found: 'Сезон не найден.', game_no_taken: 'Этот номер Игры в сезоне уже занят.',
     season_no_taken: 'Сезон с таким номером уже есть.', season_dates: 'Конец сезона должен быть позже начала.',
     wrong_status: 'Статус уже изменился. Обновите страницу.', has_participants: 'В Игру уже записались — снять с публикации или удалить нельзя.', not_draft: 'Удалить можно только черновик.',
+    relay_opens_before_source_deadline: 'Эстафета: вторая лига должна открываться не раньше срока сдачи первой — иначе исходников ещё нет. Поставьте лиге-получателю своё открытие задания.',
+    relay_dates_missing: 'Эстафета: у обеих лиг должны быть дата открытия и срок сдачи.', relay_started: 'Исходники уже розданы — эстафету не поменять.',
+    relay_second_open: 'Второй лиге задание уже открылось — эстафету не поменять.', relay_open_now: 'В туре-эстафете лиги открываются по своим датам — «Открыть сейчас» недоступно.',
+    relay_both_leagues: 'Выберите обе лиги.', relay_same_league: 'Лиги должны быть разными.',
     missing_opens_at: 'Укажите дату открытия тура.', missing_deadline: 'Укажите срок сдачи.', deadline_before_open: 'Срок сдачи должен быть позже открытия тура.',
     judging_before_deadline: 'Срок оценки — не раньше срока сдачи.', deadline_after_game_end: 'Срок сдачи позже конца Игры — работы вне конкурса до него не успеют.',
     league_deadline_before_open: 'Срок сдачи лиги должен быть позже открытия задания для неё.', league_deadline_after_game_end: 'Срок сдачи лиги позже конца Игры.',
@@ -146,7 +150,7 @@
   /* Счётчики в меню — без перерисовки страницы (иначе пропали бы обработчики форм и открытое окно). */
   O.paintCounts = function () {
     var c = K.state.orgCounts || {};
-    [['/org/support', c.support], ['/org/feedback', c.feedback], ['/org/reviews', c.reviews]].forEach(function (x) {
+    [['/org/support', c.support], ['/org/feedback', c.feedback], ['/org/reviews', c.reviews], ['/org/claims', c.claims]].forEach(function (x) {
       Array.prototype.forEach.call(document.querySelectorAll('nav.nav [data-href="' + x[0] + '"]'), function (b) {
         var s = b.querySelector('.cnt');
         if (!x[1]) { if (s) s.remove(); return; }
@@ -176,6 +180,8 @@
       var todo = (d.alerts || []).map(function (x) { return li(esc(x.title), esc(x.text), pill('Шаг', 'warn'), x.href); });
       if (c.support) todo.push(li('Обращения ждут ответа', c.support + ' в поддержке', pill(String(c.support), 'acc'), '/org/support'));
       if (c.feedback) todo.push(li('Новые пожелания с сайта', 'Анонимные сообщения', pill(String(c.feedback), 'acc'), '/org/feedback'));
+      if (c.claims) todo.push(li('Заявки на вход из бота', 'Участницы Игры 01 ждут, когда вы откроете им вход', pill(String(c.claims), 'acc'), '/org/claims'));
+      if (!c.moved_games) todo.push(li('Перенос Игры 01 из бота', 'Загрузите таблицу туров 1–2 — Игра продолжится в кабинете', pill('Шаг', 'warn'), '/org/import'));
       if (c.reviews) todo.push(li('Разборы от судьи', 'Новые заказы и оплаченные — ждут действий', pill(String(c.reviews), 'acc'), '/org/reviews'));
       if (c.not_activated) todo.push(li('Не вошли в кабинет', 'Участницы Игр без входа — отправьте им ссылку', pill(String(c.not_activated), 'warn'), '/org/people?kind=not_activated'));
       if (c.drafts) todo.push(li('Черновики Игр', 'Ещё не опубликованы', pill(String(c.drafts), 'plain'), '/org/games'));
@@ -424,7 +430,15 @@
             lockedOpen(l[0]) ? 'Задание этой лиге уже открылось.' : 'Пусто — общее открытие тура.') +
           O.dt('ld-' + l[0], 'Срок сдачи для ' + l[1], v ? v.deadline : null, ro ? ' disabled' : '', 'Пусто — общий срок тура.') + '</div></div></fieldset>';
       }).join('') + O.errBox + (ro ? '' : '<button class="btn" type="submit">Сохранить задание</button>') + '</form>';
+    h += relayCard(r, ro);
     K.page(h, crumbs);
+    var fr = document.getElementById('f-relay');
+    if (fr) fr.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      var on = fr.querySelector('#rl-on').checked;
+      var body = on ? { source: fr.querySelector('#rl-from').value, target: fr.querySelector('#rl-to').value } : { source: null, target: null };
+      O.send('PUT', '/api/org/rounds/' + r.id + '/relay', body, fr, function (d) { K.toast(on ? 'Эстафета сохранена' : 'Эстафета выключена'); drawRound(d); });
+    });
     var f = document.getElementById('f-round');
     f.addEventListener('submit', function (ev) {
       ev.preventDefault();
@@ -454,6 +468,25 @@
         K.toast(d.notified ? 'Сохранено. Уведомление получили: ' + d.notified : 'Задание сохранено'); drawRound(d);
       });
     });
+  }
+  // Тур-эстафета: вторая лига работает по работам первой (исходники раздаются после срока первой лиги).
+  function relayCard(r, ro) {
+    var rl = r.relay, locked = ro || (rl && (rl.started || rl.second_open));
+    var name = function (l) { return (O.LEAGUES.filter(function (x) { return x[0] === l; })[0] || [l, l])[1]; };
+    var h = '<form class="card" id="f-relay" novalidate><h2>Эстафета между лигами</h2>' +
+      '<p class="small muted">Первая лига делает работу, а после её срока каждой участнице второй лиги случайно выдаётся работа первой — как исходник ' +
+      '(повторить или усложнить). Исходник получают и участницы вне конкурса. Работ меньше, чем участниц, — одна работа достаётся нескольким. ' +
+      'Второй лиге поставьте в задании своё открытие — не раньше срока первой лиги. Судьи видят исходник рядом с работой.</p>' +
+      O.chk('rl-on', 'Тур-эстафета', !!rl, locked ? ' disabled' : '') +
+      '<div class="grid2">' + O.sel('rl-from', 'Делает первой (исходники)', O.LEAGUES, rl ? rl.from : 'gold', locked ? ' disabled' : '') +
+      O.sel('rl-to', 'Получает исходники', O.LEAGUES, rl ? rl.to : 'silver', locked ? ' disabled' : '') + '</div>';
+    if (rl) {
+      h += '<dl class="kv"><dt>Срок первой лиги</dt><dd>' + esc(O.when(rl.source_deadline)) + '</dd><dt>Открытие для ' + esc(name(rl.to)) + '</dt><dd>' + esc(O.when(rl.second_opens_at)) + '</dd>' +
+        '<dt>Исходников</dt><dd>' + (rl.started ? rl.sources : 'раздача начнётся после открытия для ' + esc(name(rl.to))) + '</dd>' +
+        (rl.started ? '<dt>Выдано</dt><dd>' + rl.given + (rl.waiting ? ' · ждут ' + rl.waiting + ' (получат при открытии задания)' : '') + '</dd>' : '') + '</dl>';
+      if (rl.started) h += '<p class="small muted">Исходники розданы — эстафету уже не поменять.</p>';
+    }
+    return h + O.errBox + (locked ? '' : '<button class="btn sec" type="submit">Сохранить эстафету</button>') + '</form>';
   }
   K.actions.toggleLeague = function (el) {
     var box = el.closest('.league-box');

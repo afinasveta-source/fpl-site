@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     # Регистрация в кабинете самой участницей (решение 12.10). Email не подтверждается письмом — писем пока нет.
     signup_enabled: bool = True
     signup_limit: int = Field(default=5, ge=1, le=100)
+    claim_limit: int = Field(default=10, ge=1, le=10000)   # заявок участниц из бота в час с одного адреса
     invite_days: int = Field(default=7, ge=1, le=30)
     reset_link_hours: int = Field(default=24, ge=1, le=168)
     login_limit: int = 20          # попыток входа на один email за окно

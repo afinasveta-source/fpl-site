@@ -430,6 +430,16 @@
   // Адреса фото приходят с сервера уже полными (с /kabinet).
   function photoImg(p, alt, cls) { return '<div class="photo ' + (cls || '') + '"><img alt="' + esc(alt) + '" src="' + esc(p.view_url) + '"></div>'; }
 
+  // Тур-эстафета: работа участницы другой лиги, по которой выполняется задание (без имени автора).
+  var LEAGUE_NAMES = { bronze: 'Bronze', silver: 'Silver', gold: 'Gold' };
+  function sourceBlock(t) {
+    if (!t.source_expected) return '';
+    if (!t.source) return '';
+    return '<section class="card"><h2>Ваш исходник</h2><p class="small muted">Работа участницы лиги ' + esc(LEAGUE_NAMES[t.source.league] || t.source.league) +
+      '. Выдана случайно, имя автора не показывается.</p>' +
+      t.source.photos.map(function (p, i) { return photoImg(p, 'Исходник' + (t.source.photos.length > 1 ? ', фото ' + (i + 1) : ''), 'big'); }).join('') + '</section>';
+  }
+
   function closedCard(t, base) {
     var w = t.window, r = t.round, me = t.me;
     var msg = {
@@ -440,7 +450,8 @@
       rules: ['Сначала примите новые Правила', 'Вышла новая редакция Правил. До её принятия сдать или заменить работу нельзя.'],
       withdrawn: ['Вы вышли из Игры', 'Сдача закрыта. Передумали — напишите организатору.'],
       eliminated: ['Сдача закрыта', 'Вопросы по участию — организатору.'],
-      not_participating: ['Участие ещё не подтверждено', 'Задание станет доступно, когда участие будет оформлено.']
+      not_participating: ['Участие ещё не подтверждено', 'Задание станет доступно, когда участие будет оформлено.'],
+      no_source: ['Исходник ещё не выдан', 'В этом туре вы работаете по работе участницы другой лиги. Исходник выдаётся после её срока сдачи — если его всё ещё нет, напишите организатору.']
     }[w.reason] || ['Сдача закрыта', ''];
     var btn = w.reason === 'choose_first' ? '<button class="btn" type="button" data-act="chooseOutside" data-id="' + t.event.id + '">Участвовать вне конкурса</button>' :
       w.reason === 'rules' ? '<button class="btn" type="button" data-href="/profile/consents">Посмотреть и принять</button>' : '';
@@ -453,6 +464,7 @@
     var s = t.submitted, w = t.window, r = t.round, outside = t.me.mode === 'outside', form = t.form || { link: 'optional', photo: 'required' };
     var status = s.is_on_time === false ? 'Сдана после срока тура' : 'Сдана';
     var h = '<div class="done-head"><span class="ok-ic" aria-hidden="true">✓</span><h1>Работа к туру ' + r.round_no + ' сдана</h1></div>' +
+      sourceBlock(t) +
       '<section class="card"><span class="eyebrow">' + esc(t.event.title) + ' · Тур ' + r.round_no + (outside ? ' · вне конкурса' : '') + '</span>' +
       (s.photos.length ? s.photos.map(function (p, i) { return photoImg(p, 'Ваша работа' + (s.photos.length > 1 ? ', фото ' + (i + 1) : '')); }).join('') : '') +
       '<dl class="kv"><dt>Статус</dt><dd>' + status + '</dd>' +
@@ -482,7 +494,8 @@
       if (t.me.elimination_reason !== 'late' && t.competition_deadline) h += '<p class="small">Срок тура для зачёта Игры — ' + esc(K.date(t.competition_deadline)) + ' МСК.</p>';
     }
     h += '<section class="stack"><h2>Задание</h2><p class="lead" data-s="pre">' + esc(t.instructions || 'Описание задания появится здесь.') + '</p>' +
-      (t.me.mode === 'in' ? '<p class="small muted">После срока работа в конкурс не идёт — продолжить можно вне конкурса.</p>' : '') + '</section>';
+      (t.me.mode === 'in' ? '<p class="small muted">После срока работа в конкурс не идёт — продолжить можно вне конкурса.</p>' : '') + '</section>' +
+      sourceBlock(t);
     if (replacing && t.draft) h += '<div class="note warn small">Вы меняете сданную работу. Пока изменения не сохранены, действует предыдущая сданная версия.</div>';
     if (needPhoto) {
       var max = form.photo_max || 1;

@@ -22,10 +22,11 @@ from kabinet.org import games as org_games, rounds as org_rounds, documents as o
 from kabinet.judging import routes as judging_routes
 from kabinet.results import routes as results_routes
 from kabinet.org import participants as org_participants, support as org_support, home as org_home
-from kabinet import reviews
+from kabinet import reviews, claims
+from kabinet.org import bot_import as org_bot_import
 
 # Версия схемы базы (server/db/schema), под которую написан кабинет. Новее — можно, старее — нельзя.
-SCHEMA_REQUIRED = 9   # 009 — аудиоразбор: судья, Игра (13.10)
+SCHEMA_REQUIRED = 10  # 010 — эстафета (исходники), заявки участниц из бота (13.10)
 CSP = ("default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; "
        "connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'")
 
@@ -107,10 +108,12 @@ def create_app(settings=None, mailer=None, clock=None):
     app.include_router(web_router)
     app.include_router(participant_router)
     app.include_router(account_router)
-    for module in (org_home, org_games, org_rounds, org_documents, org_people, org_participants, org_support):
+    for module in (org_home, org_games, org_rounds, org_documents, org_people, org_participants, org_support, org_bot_import):
         app.include_router(module.router)
     app.include_router(org_support.public)
     app.include_router(reviews.public)
+    app.include_router(claims.public)
+    app.include_router(claims.org)
     app.include_router(reviews.org)
     app.include_router(reviews.mine)
     app.include_router(reviews.judge)

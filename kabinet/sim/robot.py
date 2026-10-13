@@ -261,8 +261,8 @@ VALUES (%s,%s,now(),'active',%s,'Казань','RU') RETURNING id''', (email, h,
         if kind not in have:
             org.call('POST', '/api/org/documents', {'doc_type': kind, 'version': 'R1', 'title': f'Тест: {kind}',
                                                     'body': 'Тестовый документ репетиции, не настоящий текст.'})
-    season = org.call('POST', '/api/org/seasons', {'name': f'Робот {tag}', 'season_no': 98})
-    if season is None:   # номер занят прошлым прогоном — без номера сезона, номер ставим свободный
+    season = org.call('POST', '/api/org/seasons', {'name': f'Робот {tag}', 'season_no': 98}, expect=(200, 201, 409))
+    if not season or 'id' not in season:   # номер занят прошлым прогоном — ставим другой свободный (это не ошибка)
         season = org.call('POST', '/api/org/seasons', {'name': f'Робот {tag}', 'season_no': 97 - int(tag[-2:]) % 50})
     e = org.call('POST', '/api/org/events', {'title': f'Робот-репетиция {tag}', 'season_id': season['id']}, level='critical')
     eid = e['id']

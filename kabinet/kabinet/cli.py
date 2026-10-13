@@ -20,7 +20,17 @@ def sync_late(settings):
     with db.transaction() as conn:
         events = [r['id'] for r in conn.execute("SELECT id FROM events WHERE status='active'")]
     moved, failed = 0, 0
+    given = 0
     for event_id in events:
+        try:
+            from kabinet import relay
+            with db.transaction() as conn:   # эстафета: исходники второй лиге — отдельной транзакцией
+                for rnd in conn.execute("SELECT * FROM rounds WHERE event_id=%s AND status<>'draft' AND settings ? 'relay'",
+                                        (event_id,)).fetchall():
+                    given += relay.distribute(conn, rnd, datetime.now(timezone.utc))
+        except Exception as exc:  # noqa: BLE001 — раздача повторится через 10 минут; сверка опоздавших идёт всё равно
+            failed += 1
+            print(f'sync-late: relay {event_id} failed: {type(exc).__name__}: {exc}'[:300])
         try:
             with db.transaction() as conn:   # по Игре — своя транзакция: сбой одной не мешает остальным
                 moved += sync_event(conn, event_id, datetime.now(timezone.utc))
@@ -35,7 +45,7 @@ def sync_late(settings):
         failed += 1
         notified = 0
         print(f'sync-late: rules notice failed: {type(exc).__name__}: {exc}'[:300])
-    print(f'sync-late: games {len(events)}, moved outside {moved}, rules notices {notified}, failed {failed}')
+    print(f'sync-late: games {len(events)}, moved outside {moved}, relay sources {given}, rules notices {notified}, failed {failed}')
     if failed:
         raise SystemExit(1)
 

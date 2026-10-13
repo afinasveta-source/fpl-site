@@ -18,6 +18,7 @@ import psycopg
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from kabinet import relay
 from kabinet.participation import rules as R
 from .common import LEAGUES, WRITE, Jsonb, audit, db, iso, locked_admin, notify, now_of, org_user, problem
 from .games import clean_text, event_detail, load_event
@@ -181,6 +182,7 @@ def round_checks(conn, e, r, a, now):
             problems.append('no_general_text')
         if any(not v['instructions'].strip() and not v['same_text'] for v in task['variants']):
             problems.append('empty_instructions')
+    problems += [p for p in relay.problems(conn, r) if p not in problems]
     if e['starts_at'] and r['opens_at'] and r['opens_at'] < e['starts_at']:
         warnings.append('opens_before_game')
     prev = conn.execute('''SELECT opens_at, deadline FROM rounds WHERE event_id=%s AND round_no<%s AND status<>'draft'
@@ -225,6 +227,7 @@ def round_detail(conn, r, now):
                                               and r['status'] != 'draft' and R.round_opened(R.effective_round(r, v), now)})},
             'is_last': conn.execute('SELECT max(round_no) AS n FROM rounds WHERE event_id=%s', (e['id'],)).fetchone()['n'] == r['round_no'],
             'readonly': e['status'] in ('finished', 'archived'),
+            'relay': relay.overview(conn, r, now),
             'checks': round_checks(conn, e, r, a, now)}
 
 
@@ -319,6 +322,10 @@ def change_round(round_id: UUID, body: RoundChange, request: Request, user=Depen
             raise problem('deadline_in_past')
         sets = ', '.join(f'{k}=%({k})s' for k in values)
         r = conn.execute(f'UPDATE rounds SET {sets} WHERE id=%(id)s RETURNING *', values | {'id': round_id}).fetchone()
+        if r['status'] != 'draft':
+            found = relay.problems(conn, r)
+            if found:
+                raise problem(found[0])
         if was_open and moved:
             notify_deadline(conn, e, r, own_leagues=own_deadline_leagues(conn, r))
         audit(conn, user['id'], 'round', round_id, 'round_changed', {k: iso(v) if hasattr(v, 'isoformat') else v
@@ -358,6 +365,8 @@ def round_status(round_id: UUID, body: RoundAction, request: Request, user=Depen
             # «Открыть сейчас» — всем лигам: общая дата открытия — сейчас, будущие свои даты открытия лиг снимаются.
             if r['status'] != 'scheduled' or all_opened(conn, r, now):
                 raise problem('wrong_status', 409)
+            if relay.relay_of(r):
+                raise problem('relay_open_now', 409)   # вторая лига открылась бы раньше срока первой — без исходников
             if r['deadline'] is None or r['deadline'] <= now:
                 raise problem('deadline_before_open', 409)
             for v in round_variants(conn, round_id):
@@ -554,8 +563,57 @@ WHERE assignment_variant_id = ANY(%s) AND active''', (changed,)).fetchall()
                 notified = len(users)
         for league in deadline_moved:
             notified += notify_deadline(conn, e, r, league=league)
+        if r['status'] != 'draft':
+            found = relay.problems(conn, r)
+            if found:
+                raise problem(found[0])
         audit(conn, user['id'], 'assignment', a['id'], 'task_changed',
               {'leagues': [k for k in wanted if k], 'form': schema, 'texts_changed': len(changed), 'notified': notified,
                'league_deadlines': {k: iso(v.deadline) for k, v in wanted.items() if k and v.deadline},
                'league_opens': {k: iso(v.opens_at) for k, v in wanted.items() if k and v.opens_at}})
         return round_detail(conn, r, now) | {'notified': notified}
+
+
+class RelayIn(BaseModel):
+    """Тур-эстафета: лига-исходник (делает первой) и лига, которая получает её работы. Обе пустые — выключить."""
+    model_config = ConfigDict(extra='forbid')
+    source: Literal['bronze', 'silver', 'gold'] | None = None
+    target: Literal['bronze', 'silver', 'gold'] | None = None
+
+    @model_validator(mode='after')
+    def pair(self):
+        if (self.source is None) != (self.target is None):
+            raise ValueError('relay_both_leagues')
+        if self.source is not None and self.source == self.target:
+            raise ValueError('relay_same_league')
+        return self
+
+
+@router.put('/rounds/{round_id}/relay', dependencies=WRITE)
+def put_relay(round_id: UUID, body: RelayIn, request: Request, user=Depends(org_user)):
+    """Настроить эстафету. После первой раздачи исходников — не меняется."""
+    now = now_of(request)
+    with db(request).transaction() as conn:
+        locked_admin(conn, user)
+        r = load_round(conn, round_id, lock=True)
+        e = load_event(conn, r['event_id'], lock=True)
+        if e['status'] in ('finished', 'archived'):
+            raise problem('game_finished', 409)
+        ov = relay.overview(conn, r, now)
+        if ov and ov['started']:
+            raise problem('relay_started', 409)
+        target = body.target or (relay.relay_of(r) or {}).get('to')
+        if r['status'] != 'draft' and target and relay.second_open(conn, dict(r, settings={'relay': {'from': 'gold' if target != 'gold' else 'silver', 'to': target}}), now):
+            raise problem('relay_second_open', 409)     # той лиге задание уже открылось — люди уже работают без исходника
+        settings = dict(r['settings'] or {})
+        if body.source is None:
+            settings.pop('relay', None)
+        else:
+            settings['relay'] = {'from': body.source, 'to': body.target}
+        r = conn.execute('UPDATE rounds SET settings=%s WHERE id=%s RETURNING *', (Jsonb(settings), round_id)).fetchone()
+        if body.source is not None and r['status'] != 'draft':
+            found = relay.problems(conn, r)
+            if found:
+                raise problem(found[0])
+        audit(conn, user['id'], 'round', round_id, 'relay_set', settings.get('relay') or {})
+        return round_detail(conn, r, now)
