@@ -397,3 +397,8 @@ details.more.card{padding:14px 18px}
 .disc-list li{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;border:1px dashed var(--line);border-radius:12px}
 .disc-code{font-weight:700;font-size:16px;letter-spacing:.02em;margin-top:4px;white-space:nowrap}
 .disc-list li>div{min-width:0}
+
+/* Логотип FPL (13.10) */
+.hdr .logo{font-size:0; color:transparent; display:inline-flex; align-items:center; gap:8px; min-height:34px; padding-left:38px;
+  background:url(fpl-logo.svg) left center/auto 34px no-repeat}
+.hdr .logo small{font-size:9px; color:var(--head-muted)}

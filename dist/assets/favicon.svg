@@ -1,1 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#1E1B18"/><text x="32" y="41" text-anchor="middle" font-family="Arial Black,Arial,sans-serif" font-weight="900" font-size="22" fill="#F2601F">FPL</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="215 10 800 800"><rect x="215" y="10" width="800" height="800" rx="160" fill="#FFFFFF"/>
+  <title>FPL</title>
+  <g fill="#FF5317">
+    <path d="M250 169H421V253H352V382H419V466H352V699H250Z"/>
+    <path fill-rule="evenodd" d="M436 169H572C638 169 660 196 660 258V426C660 490 638 515 572 515H533V699H436ZM533 252V433H546Q561 433 561 418V267Q561 252 546 252Z"/>
+    <path d="M674 169H776V618H866V699H674Z"/>
+  </g>
+  <g fill="none" stroke="#E50567" stroke-width="10" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M935 52L836 183L850 428L971 238Z"/>
+    <path d="M935 52L850 428M836 183L895 225L971 238"/>
+  </g>
+</svg>

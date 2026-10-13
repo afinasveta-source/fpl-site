@@ -174,8 +174,8 @@ def assets():
     # файлы подтверждения для Google Search Console / Яндекс Вебмастера — в корень сайта
     for f in os.listdir(O + '/assets/verify'): shutil.copy(O + '/assets/verify/' + f, D + '/' + f)
     open(D + '/assets/favicon.svg', 'w').write(
-        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#1E1B18"/>'
-        '<text x="32" y="41" text-anchor="middle" font-family="Arial Black,Arial,sans-serif" font-weight="900" font-size="22" fill="#F2601F">FPL</text></svg>')
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="215 10 800 800"><rect x="215" y="10" width="800" height="800" rx="160" fill="#FFFFFF"/>'
+        + open(O + '/assets/img/fpl-logo.svg', encoding='utf-8').read().split('>', 1)[1].rsplit('</svg>', 1)[0] + '</svg>')
     # страница 404 (RU + EN), пути абсолютные — открывается по любому несуществующему адресу
     open(D + '/404.html', 'w', encoding='utf-8').write(f'''<!doctype html>
 <html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
