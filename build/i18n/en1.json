@@ -9,7 +9,6 @@
  "Участвовать": "Join",
  "Face Painting League · сезон 1": "Face Painting League · Season 1",
  "Онлайн-лига <span>аквагримёров</span>": "The online league <span>for face painters</span>",
- "Онлайн-игры для мастеров аквагрима: новые задания каждый тур, профессиональное жюри и рейтинг, который показывает реальный уровень.": "Online Games for face painters: a new brief every round, professional judges and a rating that shows your real level.",
  "<a class=\"btnC\" data-en=\"Join the next Game →\" href=\"#how\">Участвовать в следующей Игре →</a>\n<a class=\"linkC\" data-en=\"Game 01 results\" href=\"#archive\">Итоги Игры 01</a>": "<a class=\"btnC\" data-en=\"Join the next Game →\" href=\"#how\">Join the next Game →</a>\n<a class=\"linkC\" data-en=\"Game 01 results\" href=\"#archive\">Game 01 results</a>",
  "Онлайн · из любой страны · регистрация через бота": "Online · from any country · sign up via the bot",
  "Открыт набор на Игру 02": "Entries open for Game 02",
@@ -17,7 +16,6 @@
  "[Имя автора] · [страна] · победитель Игры 01": "[Author name] · [country] · Game 01 winner",
  "<b data-en=\"[N] countries\">[N] стран</b><span data-en=\"jury and participants\">в жюри и среди участников</span>": "<b data-en=\"[N] countries\">[N] countries</b><span data-en=\"jury and participants\">among judges and participants</span>",
  "<b data-en=\"Jury\">Жюри</b><span data-en=\"several judges, shared criteria\">несколько судей, единые критерии</span>": "<b data-en=\"Jury\">Judges</b><span data-en=\"several judges, shared criteria\">several judges, shared criteria</span>",
- "<b data-en=\"Verifiable\">Проверяемые</b><span data-en=\"diplomas with a unique number\">дипломы с уникальным номером</span>": "<b data-en=\"Verifiable\">Verifiable</b><span data-en=\"diplomas with a unique number\">certificates with a unique number</span>",
  "<b data-en=\"7 years\">7 лет</b><span data-en=\"of MAGFACE marathons\">марафонов MAGFACE</span>": "<b data-en=\"7 years\">7 years</b><span data-en=\"of MAGFACE marathons\">of MAGFACE marathons</span>",
  "Лига выросла <span class=\"a-indigo\">из марафонов MAGFACE</span>": "The League grew <span class=\"a-indigo\">out of MAGFACE marathons</span>",
  "Семь лет мы проводили марафоны по аквагриму. Лига — следующий шаг: те же задания и сообщество, но с жюри, рейтингом и сезонами.": "For seven years we ran face painting marathons. The League is the next step: the same briefs and community, now with judges, a rating and seasons.",
@@ -204,5 +202,7 @@
  "@QR-код диплома": "@Certificate QR code",
  "@Партнёры сезона": "@Season partners",
  "@Закрыть меню": "@Close menu",
- "@Разделы сайта": "@Site sections"
+ "@Разделы сайта": "@Site sections",
+ "Онлайн-игры для мастеров аквагрима: новое задание каждый тур, профессиональное жюри, лиги и рейтинг сезона.": "Online games for face painting artists: a new brief every round, a professional jury, leagues and a season ranking.",
+ "<b data-en=\"Diplomas\">Дипломы</b><span data-en=\"with a number you can check on the site\">с номером, который можно проверить на сайте</span>": "<b data-en=\"Diplomas\">Diplomas</b><span data-en=\"with a number you can check on the site\">with a number you can check on the site</span>"
 }

@@ -22,7 +22,7 @@ def url(lang, p):
 
 META = {
  'en': {
-  'index':  ('Face Painting League — online face painting competition', 'An online league for face painters from any country: a new brief every round, professional judges, leagues, a public rating and verifiable certificates.'),
+  'index':  ('Face Painting League — online face painting competition', 'An online league for face painters from any country: a new brief every round, professional judges, leagues, a public rating and numbered certificates you can check online.'),
   'games':  ('Games & calendar — Face Painting League', 'Season 1 of Face Painting League: three Games and a Super Final, with short challenges in between. See what is inside the next Game and how to join.'),
   'rating': ('Face painter rankings — FPL Rating', 'The FPL Rating of face painters. It changes after every round and weighs opponent strength; it stays provisional during calibration.'),
   'master': ('Artist pages — coming soon | Face Painting League', 'Face Painting League artist pages open after the Game 01 final: FPL Rating, league, awards and judged works — for artists who allow a public page.'),
@@ -36,7 +36,7 @@ META = {
   'about':  ('About Face Painting League by MAGFACE', 'Face Painting League is an online league for face painters by MAGFACE, grown out of seven years of face painting marathons with 1,400+ artists.'),
  },
  'ru': {
-  'index':  ('Face Painting League — онлайн-лига аквагримёров', 'Онлайн-лига для мастеров аквагрима из любой страны: новое задание каждый тур, профессиональное жюри, лиги, публичный рейтинг и проверяемые дипломы.'),
+  'index':  ('Face Painting League — онлайн-лига аквагримёров', 'Онлайн-лига для мастеров аквагрима из любой страны: новое задание каждый тур, профессиональное жюри, лиги, публичный рейтинг и дипломы с номером для проверки.'),
   'games':  ('Игры и календарь — Face Painting League', 'Сезон 1 Face Painting League: три Игры и Суперфинал, между Играми — короткие челленджи. Что внутри следующей Игры и как в неё попасть.'),
   'rating': ('Рейтинг мастеров аквагрима — FPL Rating', 'Рейтинг FPL мастеров аквагрима. Меняется после каждого тура с учётом силы соперников; пока идёт калибровка, он предварительный.'),
   'master': ('Страницы мастеров — скоро | Face Painting League', 'Страницы мастеров Face Painting League откроются после финала Игры 01: рейтинг FPL, лига, награды и работы, оценённые жюри, — у тех, кто разрешит публичную страницу.'),
@@ -54,8 +54,8 @@ CRUMB = {'en': {'index':'Home','games':'Games','rating':'Rating','master':'Artis
          'ru': {'index':'Главная','games':'Игры','rating':'Рейтинг','master':'Мастер','gallery':'Галерея','find':'Найти мастера','diploma':'Проверка диплома','rules':'Правила','about':'О лиге','privacy':'Политика конфиденциальности','feedback':'Пожелания лиге','review':'Разбор от судьи'}}
 PAGETYPE = {'index':'WebPage','games':'CollectionPage','rating':'CollectionPage','master':'WebPage','gallery':'CollectionPage',
             'find':'CollectionPage','diploma':'WebPage','rules':'FAQPage','about':'AboutPage','privacy':'WebPage','feedback':'ContactPage','review':'WebPage'}
-ORG_DESC = {'en':'Online league for face painters by MAGFACE: Games with judged rounds, leagues, an FPL Rating and verifiable certificates.',
-            'ru':'Онлайн-лига аквагримёров от MAGFACE: Игры с оценкой жюри, лиги, рейтинг FPL и проверяемые дипломы.'}
+ORG_DESC = {'en':'Online league for face painters by MAGFACE: Games with judged rounds, leagues, an FPL Rating and numbered certificates you can check online.',
+            'ru':'Онлайн-лига аквагримёров от MAGFACE: Игры с оценкой жюри, лиги, рейтинг FPL и дипломы с номером для проверки.'}
 
 def org(lang='en'):
     return {"@type":"Organization","@id":DOMAIN+"/#org","name":"Face Painting League","alternateName":"FPL",
