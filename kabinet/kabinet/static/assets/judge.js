@@ -18,8 +18,14 @@
   }
 
   K.on(/^\/judging$/, function () {
-    K.load(['/api/judging'], function (d) {
+    K.load(['/api/judging', '/api/judging/reviews'], function (d, rv) {
       var h = '<h1>Судейство</h1><p class="muted small">Работы показываются без имён. Оценки можно менять, пока организатор не опубликовал итоги тура.</p>';
+      if (rv.items.length) {
+        h += '<section class="card"><h2>Разборы работ</h2><p class="small muted">Платные аудиоразборы, которые вам поручил организатор.</p><div class="list">' + rv.items.map(function (o) {
+          return li(esc('№ ' + o.no + ' · ' + o.name), esc((o.scope === 'all' ? 'Все работы Игры' : 'Работа тура ' + o.round_no) + (o.game ? ' · ' + o.game : '')),
+            o.status === 'done' ? pill('Отправлен', 'ok') : pill('Записать', 'acc'), '/judging/reviews/' + o.no);
+        }).join('') + '</div></section>';
+      }
       if (!d.streams.length) h += '<div class="note">Сейчас вам не назначены работы. Когда организатор начнёт судейство тура, здесь появится пул и придёт уведомление.</div>';
       else h += '<section class="card"><div class="list">' + d.streams.map(function (s) {
         var left = s.total - s.done;
@@ -145,5 +151,116 @@
     if (old) old.outerHTML = html; else document.querySelector('#main .jworks').closest('.card').insertAdjacentHTML('beforebegin', html);
     bindForm(s);
     document.getElementById('f-score').scrollIntoView({ block: 'start' });
+  };
+
+  /* ---------- Разбор работы: судья записывает голосом прямо здесь (решение 13.10) ---------- */
+  var REC = { rec: null, chunks: [], blob: null, url: null, timer: null, started: 0, stream: null };
+  var MAX_SEC = 600;
+  function recType() {
+    var list = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus'];
+    for (var i = 0; i < list.length; i++) if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(list[i])) return list[i];
+    return '';
+  }
+  function mmss(sec) { return Math.floor(sec / 60) + ':' + ('0' + Math.floor(sec % 60)).slice(-2); }
+  function resetRec() {
+    if (REC.timer) clearInterval(REC.timer);
+    if (REC.stream) REC.stream.getTracks().forEach(function (t) { t.stop(); });
+    if (REC.url) URL.revokeObjectURL(REC.url);
+    REC = { rec: null, chunks: [], blob: null, url: null, timer: null, started: 0, stream: null };
+  }
+  K.on(/^\/judging\/reviews\/(\d+)$/, function (no) {
+    resetRec();
+    K.load(['/api/judging/reviews/' + no], function (o) { J.r = o; drawReview(o); }, [['Судейство', '/judging'], ['Разбор']]);
+  });
+  function drawReview(o) {
+    var done = o.status === 'done';
+    var h = '<div class="stack" data-s="g6"><span class="eyebrow">Разбор № ' + o.no + (o.game ? ' · ' + esc(o.game) : '') + '</span><h1>' + esc(o.name) + '</h1>' +
+      '<p class="small muted">' + (o.scope === 'all' ? 'Все работы Игры' : 'Работа тура ' + o.round_no) + ' · около 5 минут голосом: что получилось, что и как улучшить.</p></div>';
+    if (o.comment) h += '<div class="note"><b>Пожелание участницы:</b> ' + esc(o.comment) + '</div>';
+    h += o.works.length ? o.works.map(function (w) {
+      return '<section class="card"><h2>Тур ' + w.round_no + (w.title ? ' · ' + esc(w.title) : '') + '</h2>' + (w.task ? '<p class="small muted">' + esc(w.task) + '</p>' : '') +
+        '<div class="jgrid">' + photos(w.photos, 'Работа тура ' + w.round_no) + '</div>' +
+        (w.link ? '<p class="small"><a href="' + esc(w.link) + '" target="_blank" rel="noopener noreferrer">Публикация работы ↗</a></p>' : '') + '</section>';
+    }).join('') : '<div class="note">Работ этой участницы в кабинете нет (например, Игра проходила в боте) — организатор пришлёт их вам.</div>';
+    if (done) {
+      h += '<section class="card"><h2>Разбор отправлен</h2><p class="small muted">' + esc(K.date(o.done_at)) + ' МСК — участница слушает его в своём кабинете.</p>' +
+        (o.has_audio ? '<audio controls preload="metadata" class="wide" src="' + K.ROOT + '/api/judging/reviews/' + o.no + '/audio"></audio>' : '') +
+        (o.review_text ? '<p data-s="pre">' + esc(o.review_text) + '</p>' : '') + '</section>';
+    } else {
+      h += '<section class="card" id="rec-box"><h2>Запись разбора</h2>' + recHTML(o) + '</section>';
+      h += '<section class="card"><div class="field"><label for="rv-text">Текст (необязательно — коротко главное, участница увидит его под записью)</label>' +
+        '<textarea class="input" id="rv-text" rows="4" maxlength="20000">' + esc(o.review_text || '') + '</textarea></div></section>';
+      h += '<div class="actbar"><button class="btn wide" type="button" data-act="rvSend"' + (o.has_audio ? '' : ' disabled') + '>Отправить разбор участнице</button></div>';
+    }
+    K.page(h, [['Судейство', '/judging'], ['Разбор № ' + o.no]]);
+    var f = document.getElementById('rv-file');
+    if (f) f.addEventListener('change', function (e) { var file = e.target.files && e.target.files[0]; if (file) uploadAudio(file, file.type || 'audio/mpeg'); });
+  }
+  function recHTML(o) {
+    if (REC.rec && REC.rec.state === 'recording') {
+      return '<p class="rec-live" role="status"><span class="rec-dot" aria-hidden="true"></span> Идёт запись · <b id="rec-t">' + mmss((Date.now() - REC.started) / 1000) + '</b> (до 10 минут)</p>' +
+        '<button class="btn wide" type="button" data-act="recStop">■ Остановить</button>';
+    }
+    if (REC.blob) {
+      return '<p class="small">Послушайте запись. Если всё хорошо — сохраните её.</p><audio controls class="wide" src="' + REC.url + '"></audio>' +
+        '<div class="row"><button class="btn" type="button" data-act="recSave">Сохранить запись</button><button class="btn ghost" type="button" data-act="recAgain">Записать заново</button></div>';
+    }
+    var supported = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
+    return (o.has_audio ? '<p class="small">Сохранённая запись:</p><audio controls preload="metadata" class="wide" src="' + K.ROOT + '/api/judging/reviews/' + o.no + '/audio?v=' + (o.audio_bytes || 0) + '"></audio>' : '') +
+      (supported ? '<button class="btn wide" type="button" data-act="recStart">● ' + (o.has_audio ? 'Перезаписать' : 'Начать запись') + '</button>' +
+        '<p class="small muted">Телефон спросит разрешение на микрофон — нажмите «Разрешить». Говорите как обычно; паузы не страшны.</p>' :
+        '<p class="small">Этот браузер не умеет записывать звук — загрузите готовую запись.</p>') +
+      '<p class="small"><label class="lnk" for="rv-file">или загрузить готовый файл (Диктофон, голосовое)</label><input class="sr" id="rv-file" type="file" accept="audio/*"></p>';
+  }
+  function redrawRec() { var b = document.getElementById('rec-box'); if (b) b.innerHTML = '<h2>Запись разбора</h2>' + recHTML(J.r); }
+  K.actions.recStart = function () {
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+      var type = recType();
+      var rec = type ? new MediaRecorder(stream, { mimeType: type }) : new MediaRecorder(stream);
+      REC.stream = stream; REC.rec = rec; REC.chunks = []; REC.started = Date.now();
+      rec.ondataavailable = function (e) { if (e.data && e.data.size) REC.chunks.push(e.data); };
+      rec.onstop = function () {
+        clearInterval(REC.timer); REC.timer = null;
+        stream.getTracks().forEach(function (t) { t.stop(); });
+        REC.blob = new Blob(REC.chunks, { type: (rec.mimeType || type || 'audio/webm').split(';')[0] });
+        REC.url = URL.createObjectURL(REC.blob);
+        redrawRec();
+      };
+      rec.start(1000);
+      REC.timer = setInterval(function () {
+        var sec = (Date.now() - REC.started) / 1000, t = document.getElementById('rec-t');
+        if (t) t.textContent = mmss(sec);
+        if (sec >= MAX_SEC && rec.state === 'recording') rec.stop();
+      }, 500);
+      redrawRec();
+    }, function () { K.toast('Нет доступа к микрофону. Разрешите его в настройках браузера для этого сайта и попробуйте снова.'); });
+  };
+  K.actions.recStop = function () { if (REC.rec && REC.rec.state === 'recording') REC.rec.stop(); };
+  K.actions.recAgain = function () { resetRec(); redrawRec(); };
+  K.actions.recSave = function (b) { if (REC.blob) { b.disabled = true; uploadAudio(REC.blob, REC.blob.type || 'audio/webm'); } };
+  function uploadAudio(blob, type) {
+    var box = document.getElementById('rec-box');
+    if (box) box.insertAdjacentHTML('beforeend', '<p class="small" role="status">Сохраняем запись…</p>');
+    K.api('POST', '/api/judging/reviews/' + J.r.no + '/audio', undefined, { body: blob, type: type.split(';')[0] }).then(function (r) {
+      if (!r.ok) { K.toast(r.detail === 'audio_format' ? 'Нужен аудиофайл (m4a, mp3, ogg, webm, wav).' : K.errorText(r)); redrawRec(); return; }
+      var text = document.getElementById('rv-text'); var keep = text ? text.value : '';
+      resetRec(); J.r = r.data; drawReview(r.data);
+      var t2 = document.getElementById('rv-text'); if (t2 && keep) t2.value = keep;
+      K.toast('Запись сохранена — проверьте и отправьте участнице');
+    });
+  }
+  K.actions.rvSend = function (b) {
+    var text = document.getElementById('rv-text');
+    K.showModal('<h2 id="mT">Отправить разбор?</h2><p>Участница сразу получит его в кабинете и уведомление. После отправки запись уже не поменять.</p>' +
+      '<div class="row"><button class="btn" type="button" data-act="rvSendYes">Отправить</button><button class="btn sec" type="button" data-act="closeModal">Отмена</button></div>');
+    J.sendText = text ? text.value : '';
+  };
+  K.actions.rvSendYes = function (b) {
+    b.disabled = true;
+    K.api('POST', '/api/judging/reviews/' + J.r.no + '/send', { text: J.sendText || null }).then(function (r) {
+      var m = b.closest('.modal'); if (m) m.remove();
+      if (!r.ok) { K.toast(r.detail === 'no_review' ? 'Сначала запишите и сохраните разбор.' : K.errorText(r)); return; }
+      J.r = r.data; drawReview(r.data); K.toast('Разбор отправлен участнице');
+    });
   };
 })();

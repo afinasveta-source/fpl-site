@@ -4,7 +4,8 @@ import os, re, glob
 import sys, os; sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # build/
 from paths import SRC, DIST, I18N, PRIVACY, OG
 D = DIST
-JOIN = 'https://t.me/facepaintingleaguebot'      # «Участвовать» — пока бот
+JOIN = '/kabinet/'                              # «Участвовать» — личный кабинет (решение 13.10): вход и регистрация
+BOT  = 'https://t.me/facepaintingleaguebot'      # вопросы и документы — пока в боте
 IG   = 'https://www.instagram.com/facepaintingleague/'  # «Следить»
 TG   = 'https://t.me/maskarad_grim'
 VK   = 'https://vk.ru/publicmaskarad'
@@ -18,12 +19,12 @@ def fix(s, en):
         attrs, text = m.group(1), m.group(2).strip()
         attrs = re.sub(r'\s*type="button"', '', attrs)
         if re.match(r'(Участвовать|Join)$', text):
-            return f'<a{attrs} href="{JOIN}"{EXT}>{text}</a>'
+            return f'<a{attrs} href="{JOIN}">{text}</a>'
         if re.match(r'(Следить за лигой|Следить|Follow the league|Follow)$', text):
             label = ('Follow on Instagram*' if 'league' in text or 'wide' in attrs and 'mm-' in attrs else 'Instagram*') if en else ('Следить в Instagram*' if 'лигой' in text else 'Instagram*')
             return f'<a{attrs} href="{IG}"{EXT}>{label}</a>'
         if re.match(r'(Задать вопрос|Ask a question)$', text):
-            return f'<a{attrs} href="{JOIN}"{EXT}>{text}</a>'
+            return f'<a{attrs} href="{BOT}"{EXT}>{text}</a>'
         return m.group(0)
     s = re.sub(r'<button((?:\s+(?:class|style|type)="[^"]*")*)>\s*([^<]*?)\s*</button>', btn, s)
     # соцсети
@@ -34,19 +35,26 @@ def fix(s, en):
     s = s.replace('<a href="#">ВКонтакте<i>→</i></a>', f'<a href="{VK}"{EXT}>ВКонтакте<i>→</i></a>').replace('<a href="#">VK<i>→</i></a>', f'<a href="{VK}"{EXT}>VK<i>→</i></a>')
     s = re.sub(r'<a href="#">(<span>)?Instagram\* <small>@(?:\[(?:ник|handle)\]|facepaintingleague)</small>', lambda m: f'<a href="{IG}"{EXT}>{m.group(1) or ""}Instagram* <small>@facepaintingleague</small>', s)
     # «Участвовать →» и документы/вопросы в боте
-    for t in ['Участвовать →', 'Join →', 'Задать вопрос в боте', 'Ask in the bot', 'Читать в боте', 'Read in the bot']:
-        s = re.sub(r'<a class="(btnC|ghostC)" href="#">' + re.escape(t) + '</a>', lambda m: f'<a class="{m.group(1)}" href="{JOIN}"{EXT}>{t}</a>', s)
-    s = s.replace('<a class="btnC" href="#">Скачать PDF</a>', f'<a class="btnC" href="{JOIN}"{EXT}>Открыть в боте</a>')
-    s = s.replace('<a class="btnC" href="#">Download PDF</a>', f'<a class="btnC" href="{JOIN}"{EXT}>Open in the bot</a>')
-    s = s.replace('<a class="rldoc" href="#">', f'<a class="rldoc" href="{JOIN}"{EXT}>')
+    for t in ['Участвовать →', 'Join →']:
+        s = re.sub(r'<a class="(btnC|ghostC)" href="#">' + re.escape(t) + '</a>', lambda m: f'<a class="{m.group(1)}" href="{JOIN}">{t}</a>', s)
+    for t in ['Задать вопрос в боте', 'Ask in the bot', 'Читать в боте', 'Read in the bot']:
+        s = re.sub(r'<a class="(btnC|ghostC)" href="#">' + re.escape(t) + '</a>', lambda m: f'<a class="{m.group(1)}" href="{BOT}"{EXT}>{t}</a>', s)
+    s = s.replace('<a class="btnC" href="#">Скачать PDF</a>', f'<a class="btnC" href="{BOT}"{EXT}>Открыть в боте</a>')
+    s = s.replace('<a class="btnC" href="#">Download PDF</a>', f'<a class="btnC" href="{BOT}"{EXT}>Open in the bot</a>')
+    s = s.replace('<a class="rldoc" href="#">', f'<a class="rldoc" href="{BOT}"{EXT}>')
+    # личный кабинет: в меню (телефон — внизу списка разделов) и в шапке
+    if '/kabinet/" data-cab' not in s:
+        s = re.sub(r'(<nav[^>]*class="mmenu-links"[^>]*>.*?)(\s*</nav>)', lambda m: m.group(1) + ('\n    <a href="/kabinet/" data-cab>My account <small>sign in or sign up</small></a>' if en else
+                   '\n    <a href="/kabinet/" data-cab>Личный кабинет <small>вход и регистрация</small></a>') + m.group(2), s, count=1, flags=re.S)
+        s = re.sub(r'(<nav class="nav">.*?)(<div class="lang-dd">)', lambda m: m.group(1) + ('<a href="/kabinet/" data-cab>My account</a>' if en else '<a href="/kabinet/" data-cab>Кабинет</a>') + m.group(2), s, count=1, flags=re.S)
     # партнёрство и пресс-кит — на почту
     s = s.replace('<a class="btn-outline" href="#">Стать партнёром</a>', f'<a class="btn-outline" href="{MAIL}?subject=Партнёрство">Стать партнёром</a>')
     s = s.replace('<a class="btn-outline" href="#">Become a partner</a>', f'<a class="btn-outline" href="{MAIL}?subject=Partnership">Become a partner</a>')
     s = s.replace('<a class="text-link" href="#">Скачать пресс-кит</a><span>[почта для связи]</span>', f'<a class="text-link" href="{MAIL}?subject=Пресс-кит">Запросить пресс-кит</a><span>info@maskarad-grim.ru</span>')
     s = s.replace('<a class="text-link" href="#">Download press kit</a><span>[contact email]</span>', f'<a class="text-link" href="{MAIL}?subject=Press%20kit">Request the press kit</a><span>info@maskarad-grim.ru</span>')
     # главная: большая кнопка в герое — сразу в бот
-    s = re.sub(r'<a class="btnC" href="#how"', f'<a class="btnC" href="{JOIN}"{EXT}', s)
-    s = re.sub(r'<a class="btnC" (data-en="[^"]*") href="#how"', lambda m: f'<a class="btnC" {m.group(1)} href="{JOIN}"{EXT}', s)
+    s = re.sub(r'<a class="btnC" href="#how"', f'<a class="btnC" href="{JOIN}"', s)
+    s = re.sub(r'<a class="btnC" (data-en="[^"]*") href="#how"', lambda m: f'<a class="btnC" {m.group(1)} href="{JOIN}"', s)
     # подпись под главной кнопкой
     return s
 

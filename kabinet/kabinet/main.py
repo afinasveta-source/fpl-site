@@ -25,8 +25,8 @@ from kabinet.org import participants as org_participants, support as org_support
 from kabinet import reviews
 
 # Версия схемы базы (server/db/schema), под которую написан кабинет. Новее — можно, старее — нельзя.
-SCHEMA_REQUIRED = 8   # 008 — заказы аудиоразбора (13.10)
-CSP = ("default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data: blob:; "
+SCHEMA_REQUIRED = 9   # 009 — аудиоразбор: судья, Игра (13.10)
+CSP = ("default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; "
        "connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'")
 
 
@@ -113,6 +113,7 @@ def create_app(settings=None, mailer=None, clock=None):
     app.include_router(reviews.public)
     app.include_router(reviews.org)
     app.include_router(reviews.mine)
+    app.include_router(reviews.judge)
     app.include_router(judging_routes.org)
     app.include_router(judging_routes.judge)
     app.include_router(results_routes.router)

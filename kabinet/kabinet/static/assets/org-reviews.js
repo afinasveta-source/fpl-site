@@ -4,11 +4,12 @@
 (function () {
   'use strict';
   var K = window.K, O = K.org, esc = K.esc, pill = K.pill, li = K.li;
-  var ST = { 'new': ['Новый заказ', 'acc'], payment_sent: ['Ждём оплату', 'info'], paid: ['Оплачен — записать разбор', 'warn'],
+  var ST = { 'new': ['Новый заказ', 'acc'], payment_sent: ['Ждём оплату', 'info'], paid: ['Оплачен — судья записывает', 'warn'],
     done: ['Готов', 'ok'], cancelled: ['Отменён', 'plain'] };
-  var STEP = { payment_sent: 'Ссылка на оплату отправлена', paid: 'Оплачено', cancelled: 'Отменить заказ', 'new': 'Вернуть в новые' };
+  var STEP = { payment_sent: 'Счёт на оплату отправлен', paid: 'Оплачено', cancelled: 'Отменить заказ', 'new': 'Вернуть в новые' };
   O.addText({ not_paid: 'Сначала отметьте оплату.', no_review: 'Загрузите аудио или впишите текст разбора.',
     no_person: 'Найдите и выберите человека в кабинете — разбор появится у неё в «Моих разборах».', unknown_person: 'Такого человека нет.',
+    not_a_judge: 'Разбор можно поручить только судье (роль «Судья») или администратору.',
     audio_format: 'Нужен аудиофайл: m4a, mp3, ogg, opus, wav или webm.', already_done: 'Разбор уже отправлен.' });
   function what(o) { return o.scope === 'all' ? 'Все работы Игры' : 'Работа тура ' + o.round_no; }
 
@@ -44,7 +45,7 @@
     if (o.next.length) {
       h += '<section class="card"><h2>Статус</h2><div class="row">' + o.next.map(function (s) {
         return '<button class="btn ' + (s === 'cancelled' ? 'ghost' : s === 'new' ? 'ghost' : 'sec') + ' small" type="button" data-act="rvStatus" data-st="' + s + '">' + STEP[s] + '</button>';
-      }).join('') + '</div><p class="small muted">Ссылку на оплату вы отправляете сами (Telegram, почта) — здесь только отметка.</p></section>';
+      }).join('') + '</div><p class="small muted">Счёт на оплату вы отправляете сами (Telegram, почта) — здесь только отметка.</p></section>';
     }
     // кому отправить: человек в кабинете
     h += '<section class="card"><h2>Участница в кабинете</h2>' + (o.person ? '<p><b>' + esc(o.person.name || '') + '</b> · ' + esc(o.person.email || 'без email') +
@@ -53,9 +54,17 @@
       '<p class="small muted">Найдите её по имени, email или Telegram ID. Если её ещё нет в кабинете — «Люди» → «Добавить человека», затем ссылка-приглашение.</p>' +
       '<form class="search" id="rv-find"><label class="sr" for="rv-q">Поиск</label><input class="input" id="rv-q" type="search" maxlength="100" value="' + esc(o.contact.indexOf('@') > 0 && o.contact.charAt(0) !== '@' ? o.contact : o.name.split(/\s+/).pop()) + '"><button class="btn sec" type="submit">Найти</button></form><div id="rv-found"></div>') +
       '</section>';
+    // судья: записывает разбор в своём кабинете («Судейство» → «Разборы»)
+    if (o.status !== 'cancelled') {
+      h += '<section class="card"><h2>Судья</h2>' + (o.judge ? '<p><b>' + esc(o.judge.name || '') + '</b>' + (o.status === 'paid' ? ' — записывает разбор в своём кабинете' : '') + '</p>' : '<p class="small muted">Кто записывает разбор. Судья увидит работы участницы и запишет разбор голосом в кабинете — он сразу уйдёт участнице.</p>') +
+        (o.status === 'done' ? '' : '<div class="row"><label class="sr" for="rv-judge">Судья</label><select class="input" id="rv-judge">' + (o.judges || []).map(function (j) {
+          return '<option value="' + j.id + '"' + (o.judge && o.judge.id === j.id ? ' selected' : '') + '>' + esc(j.name || 'Без имени') + '</option>';
+        }).join('') + '</select><button class="btn sec small" type="button" data-act="rvJudge">' + (o.judge ? 'Поменять' : 'Поручить') + '</button></div>' +
+          (o.status === 'paid' ? '' : '<p class="small muted">Судья получит задание, когда заказ оплачен и выбрана участница.</p>')) + '</section>';
+    }
     // разбор
     if (o.status !== 'cancelled') {
-      h += '<section class="card"><h2>Разбор</h2>' +
+      h += '<section class="card"><h2>Разбор</h2>' + (o.status === 'done' ? '' : '<p class="small muted">Обычно его записывает судья в своём кабинете. Здесь можно загрузить файл самой.</p>') +
         (o.has_audio ? '<audio controls preload="metadata" src="' + K.ROOT + '/api/org/reviews/' + o.no + '/audio" class="wide"></audio><p class="small muted">Аудио загружено' + (o.audio_bytes ? ' (' + Math.round(o.audio_bytes / 1024 / 1024 * 10) / 10 + ' МБ)' : '') + '.</p>' : '') +
         (o.status === 'done' ? '' : '<label class="btn sec" for="rv-audio">' + (o.has_audio ? 'Заменить аудио' : 'Загрузить аудио') + '</label><input class="sr" id="rv-audio" type="file" accept="audio/*,.m4a,.mp3,.ogg,.opus,.wav">' +
           '<p class="small muted">Лучше m4a (Диктофон на iPhone) или mp3 — до 40 МБ. Голосовые Telegram (.ogg) на старых iPhone могут не играть.</p>') +
@@ -67,7 +76,7 @@
     if (o.status === 'paid') {
       var ready = (o.has_audio || o.has_text) && o.person;
       h += '<div class="actbar"><button class="btn wide" type="button" data-act="rvDone"' + (ready ? '' : ' disabled') + '>Разбор готов — отправить участнице</button></div>' +
-        (ready ? '' : '<p class="small muted">Чтобы отправить: загрузите аудио (или текст) и выберите участницу.</p>');
+        (ready ? '' : '<p class="small muted">Отправить отсюда — когда аудио (или текст) загружено и выбрана участница. Если записывает судья — она отправит сама.</p>');
     }
     K.page(h, [['Обзор', '/org'], ['Разборы', '/org/reviews'], ['№ ' + o.no]]);
     var f = document.getElementById('rv-find');
@@ -102,6 +111,7 @@
     }
     save({ status: st }, STEP[st]);
   };
+  K.actions.rvJudge = function () { var j = document.getElementById('rv-judge'); if (j && j.value) save({ reviewer_id: j.value }, 'Судья выбран'); };
   K.actions.rvLink = function (b) { save({ user_id: b.getAttribute('data-id') }, 'Участница выбрана'); };
   K.actions.rvUnlink = function () { save({ unlink: true }, 'Выберите другого человека'); };
   K.actions.rvSaveText = function () { save({ review_text: document.getElementById('rv-text').value }, 'Текст сохранён'); };

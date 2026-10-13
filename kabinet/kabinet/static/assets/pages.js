@@ -156,6 +156,7 @@
     if ((n.route === 'game' || n.route === 'results') && p.event_id) return '/games/' + p.event_id;
     if (n.route === 'publicity') return '/profile/publicity';
     if (n.route === 'reviews') return '/reviews';
+    if (n.route === 'judge_review') return p.order_no ? '/judging/reviews/' + p.order_no : '/judging';
     if (n.route === 'support' && p.thread_no) return '/support/' + p.thread_no;
     if (n.route === 'document' && p.document_id) return '/documents/' + p.document_id;
     if (n.route === 'judging') return p.stream_id ? '/judging/' + p.stream_id : '/judging';

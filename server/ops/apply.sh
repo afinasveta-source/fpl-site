@@ -3,7 +3,7 @@
 #  1) сайт берётся из GitHub (afinasveta-source/fpl-site, папка dist/ ветки main);
 #  2) приёмник данных из бота понимает закрытые наборы private-… (не публикуются);
 #  3) архив фото работ: /var/lib/fpl/archive, cron каждые 10 минут;
-#  4) база PostgreSQL сайта (схема 001→008), публичные файлы /data/*.json, ночная копия;
+#  4) база PostgreSQL сайта (схема 001→009), публичные файлы /data/*.json, ночная копия;
 #  5) сводка состояния /data/server-status.json;
 #  6) копии базы в закрытый бакет в другом городе (доступ вводится на /admin/backup.html);
 #  7) перенос данных из SaleBot в базу (fpl-db-import, каждые 5 минут, если бот прислал новый снимок);
@@ -87,6 +87,12 @@ fi
 # 9. Кабинет (закрытый адрес /kabinet/). Сбой кабинета не мешает сайту и базе: итог — в /var/lib/fpl/kabinet-status.
 if [ -d kabinet-src ]; then
   install -m 0755 fpl-kabinet-setup /usr/local/bin/fpl-kabinet-setup
+  # ffmpeg — перевод аудиоразборов в m4a (запись с Android приходит в Opus, на iPhone не играет). Ставится один раз,
+  # только если на диске больше 3 ГБ; без него разбор сохраняется как есть.
+  if ! command -v ffmpeg >/dev/null && [ "$(df -Pm /var/lib/fpl | awk 'NR==2{print $4}')" -gt 3000 ]; then
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-install-recommends ffmpeg >/dev/null 2>&1 \
+      && echo "ffmpeg: установлен" || echo "ffmpeg: не установился (разборы — без перевода в m4a)"
+  fi
   rm -rf /opt/fpl/kabinet-src && mkdir -p /opt/fpl && cp -r kabinet-src /opt/fpl/kabinet-src
   /usr/local/bin/fpl-kabinet-setup /opt/fpl/kabinet-src || echo "кабинет: ошибка установки (см. /var/lib/fpl/kabinet-status)"
   if [ -f fpl-media-backup ]; then

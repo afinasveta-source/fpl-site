@@ -45,6 +45,7 @@ class Settings(BaseSettings):
     review_price_one: int = Field(default=300, ge=1)
     review_price_all: int = Field(default=700, ge=1)
     review_days: int = Field(default=3, ge=1, le=30)
+    review_window_days: int = Field(default=30, ge=1, le=365)   # сколько дней после конца Игры открыт заказ
     upload_max_mb: int = Field(default=20, ge=1, le=50)
     upload_limit: int = 60
     media_min_free_mb: int = 1024

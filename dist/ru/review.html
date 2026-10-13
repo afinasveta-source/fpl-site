@@ -164,8 +164,8 @@
   <nav class="nav">
     <a class="logo" href="index.html" style="text-decoration:none">FPL<small>by MAGFACE</small></a>
     <a href="games.html">Игры</a><a href="rating.html">Рейтинг</a><a href="gallery.html">Галерея</a><a href="find.html">Найти мастера</a><a href="about.html">О лиге</a><a href="rules.html">Правила</a>
-    <div class="lang-dd"><button type="button" class="lang-cur" aria-haspopup="true" aria-expanded="false" aria-label="Язык сайта"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.8 2.6 15.2 0 18M12 3c-2.6 2.8-2.6 15.2 0 18"/></g></svg><span data-lang-label>RU</span><svg viewBox="0 0 10 6" width="9" height="6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button><ul class="lang-list" hidden><li><button type="button" data-lang="ru" data-short="RU" data-href="review.html" class="on" aria-current="true">Русский</button></li><li><button type="button" data-lang="en" data-short="EN" data-href="../review.html">English</button></li><li><button type="button" data-lang="de" data-short="DE" disabled class="soon">Deutsch<small>скоро</small></button></li><li><button type="button" data-lang="es" data-short="ES" disabled class="soon">Español<small>скоро</small></button></li><li><button type="button" data-lang="fr" data-short="FR" disabled class="soon">Français<small>скоро</small></button></li><li><button type="button" data-lang="zh" data-short="中文" disabled class="soon">中文<small>скоро</small></button></li><li><button type="button" data-lang="ja" data-short="日本語" disabled class="soon">日本語<small>скоро</small></button></li></ul></div>
-    <a class="btn-outline" style="border-color:var(--indigo); color:var(--indigo); letter-spacing:.08em" href="https://t.me/facepaintingleaguebot" target="_blank" rel="noopener">Участвовать</a>
+    <a href="/kabinet/" data-cab>Кабинет</a><div class="lang-dd"><button type="button" class="lang-cur" aria-haspopup="true" aria-expanded="false" aria-label="Язык сайта"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.8 2.6 15.2 0 18M12 3c-2.6 2.8-2.6 15.2 0 18"/></g></svg><span data-lang-label>RU</span><svg viewBox="0 0 10 6" width="9" height="6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button><ul class="lang-list" hidden><li><button type="button" data-lang="ru" data-short="RU" data-href="review.html" class="on" aria-current="true">Русский</button></li><li><button type="button" data-lang="en" data-short="EN" data-href="../review.html">English</button></li><li><button type="button" data-lang="de" data-short="DE" disabled class="soon">Deutsch<small>скоро</small></button></li><li><button type="button" data-lang="es" data-short="ES" disabled class="soon">Español<small>скоро</small></button></li><li><button type="button" data-lang="fr" data-short="FR" disabled class="soon">Français<small>скоро</small></button></li><li><button type="button" data-lang="zh" data-short="中文" disabled class="soon">中文<small>скоро</small></button></li><li><button type="button" data-lang="ja" data-short="日本語" disabled class="soon">日本語<small>скоро</small></button></li></ul></div>
+    <a class="btn-outline" style="border-color:var(--indigo); color:var(--indigo); letter-spacing:.08em" href="/kabinet/">Участвовать</a>
     <button class="burger" type="button" aria-label="Открыть меню" aria-controls="mmenu" aria-expanded="false" data-menu-open><span></span><span></span></button>
   </nav>
   <!-- РАЗБОР ОТ СУДЬИ -->
@@ -177,15 +177,15 @@
 
   <div class="fbgrid">
     <div class="fbcard">
-      <p class="rvclosed" id="rvClosed" hidden>Сейчас заказать разбор нельзя: он доступен, пока идёт Игра и опубликованы итоги хотя бы одного тура.</p>
+      <p class="rvclosed" id="rvClosed" hidden>Заказ разбора открывается после окончания Игры — на 30 дней. Сейчас заказать нельзя: заходите после финала.</p>
       <form id="rvForm" novalidate>
         <fieldset class="rvopts">
           <legend>Что разобрать</legend>
           <label class="rvopt"><input type="radio" name="scope" value="one" checked>
-            <div><b>Одна работа</b><span>Работа тура, итоги которого уже опубликованы</span></div><span class="rvprice" data-rv="price_one">300 ₽</span></label>
+            <div><b>Одна работа</b><span>Любая ваша работа этой Игры</span></div><span class="rvprice" data-rv="price_one">300 ₽</span></label>
           <div class="rvround" id="rvRoundBox"><label class="sr" for="rvRound">Тур</label><select id="rvRound"></select></div>
           <label class="rvopt"><input type="radio" name="scope" value="all">
-            <div><b>Все работы Игры</b><span>Разбор всех ваших работ — после окончания Игры</span></div><span class="rvprice" data-rv="price_all">700 ₽</span></label>
+            <div><b>Все работы Игры</b><span>Разбор всех ваших работ этой Игры</span></div><span class="rvprice" data-rv="price_all">700 ₽</span></label>
         </fieldset>
         <div class="fbfield">
           <label for="rvName">Имя и фамилия</label>
@@ -194,7 +194,7 @@
         <div class="fbfield">
           <label for="rvContact">Email или Telegram</label>
           <input id="rvContact" type="text" maxlength="200" autocomplete="email" spellcheck="false" required aria-describedby="rvContactHint">
-          <p class="fbhint" id="rvContactHint">Сюда пришлём ссылку на оплату. Лучше — email, с которым вы входите в кабинет лиги: разбор появится там.</p>
+          <p class="fbhint" id="rvContactHint">Сюда пришлём счёт на оплату. Лучше — email, с которым вы входите в кабинет лиги: разбор появится там.</p>
         </div>
         <div class="fbfield">
           <label for="rvComment">На что обратить внимание <small>(необязательно)</small></label>
@@ -213,9 +213,9 @@
         <h2>Условия</h2>
         <ol>
           <li>Разбор — аудиозапись около 5 минут от судьи лиги (<span data-rv="reviewer">Милена</span>). Это личное мнение эксперта: на итоги туров, рейтинг и дипломы он не влияет.</li>
-          <li>Одна работа — <span data-rv="price_one">300 ₽</span>: работа тура, итоги которого опубликованы. Все работы Игры — <span data-rv="price_all">700 ₽</span>: разбор всех ваших работ этой Игры после её окончания.</li>
-          <li>После заказа организатор в течение рабочего дня пришлёт ссылку на оплату на указанный контакт.</li>
-          <li>Разбор будет готов в течение <span data-rv="days">3</span> дней после оплаты (все работы Игры — после публикации итогов Игры). Слушать — в личном кабинете, раздел «Мои разборы»; если вы ещё не входили в кабинет, пришлём ссылку для входа.</li>
+          <li>Заказ открывается после окончания Игры, на 30 дней. Одна работа — <span data-rv="price_one">300 ₽</span>, все ваши работы Игры — <span data-rv="price_all">700 ₽</span>.</li>
+          <li>После заказа организатор в течение рабочего дня пришлёт счёт на оплату на указанный контакт.</li>
+          <li>Разбор будет готов в течение <span data-rv="days">3</span> дней после оплаты. Слушать — в личном кабинете, раздел «Мои разборы»; если вы ещё не входили в кабинет, пришлём ссылку для входа.</li>
           <li>Не успели в срок — вернём оплату полностью по вашей просьбе. После того как разбор отправлен, оплата не возвращается.</li>
           <li>Имя и контакт нужны только для этого заказа.</li>
         </ol>
@@ -225,7 +225,7 @@
     <aside class="fbaside">
       <div class="fbnote">
         <b>Как это устроено</b>
-        <p>1. Вы заказываете здесь. 2. Получаете ссылку на оплату. 3. Судья записывает разбор. 4. Слушаете его в кабинете, когда удобно, сколько угодно раз.</p>
+        <p>1. После окончания Игры вы заказываете здесь. 2. Получаете счёт на оплату. 3. Судья смотрит ваши работы и записывает разбор. 4. Слушаете его в кабинете, когда удобно, сколько угодно раз.</p>
       </div>
       <div class="fbnote">
         <b>Уже есть разбор?</b>
@@ -240,8 +240,8 @@
   var T={
     round:'Тур {n}', sending:'Отправляем…', send:'Заказать разбор',
     name:'Укажите имя и фамилию.', contact:'Укажите email или Telegram — туда придёт ссылка на оплату.', terms:'Отметьте согласие с условиями.',
-    okTitle:'Заказ № {no} принят.', okText:'В течение рабочего дня пришлём ссылку на оплату ({p} ₽).',
-    limit:'Слишком много заказов подряд. Попробуйте через час.', closed:'Сейчас заказать разбор нельзя.', round_not_published:'Итоги этого тура ещё не опубликованы — выберите другой.',
+    okTitle:'Заказ № {no} принят.', okText:'В течение рабочего дня пришлём счёт на оплату ({p} ₽).',
+    limit:'Слишком много заказов подряд. Попробуйте через час.', closed:'Сейчас заказать разбор нельзя: заказ открывается после окончания Игры.', round_not_published:'Итоги этого тура не опубликованы — выберите другой.',
     fail:'Не получилось отправить. Попробуйте позже или напишите на '
   };
   var MAIL='info@maskarad-grim.ru';
@@ -308,14 +308,15 @@
     <a href="find.html">Найти мастера <small>мастера лиги, которые принимают заказы</small></a>
     <a href="about.html">О лиге <small>как всё устроено, судьи, награды</small></a>
     <a href="rules.html">Правила и вопросы</a>
+    <a href="/kabinet/" data-cab>Личный кабинет <small>вход и регистрация</small></a>
   </nav>
   <div class="mmenu-foot">
-    <a class="btn-wide mm-primary" href="https://t.me/facepaintingleaguebot" target="_blank" rel="noopener">Участвовать</a>
+    <a class="btn-wide mm-primary" href="/kabinet/">Участвовать</a>
     <a class="btn-wide mm-secondary" href="https://www.instagram.com/facepaintingleague/" target="_blank" rel="noopener">Следить в Instagram*</a>
     <p>Telegram-бот · ВКонтакте · Instagram*</p>
   </div>
 </div>
-<div class="mbar"><a class="btn-wide" href="https://t.me/facepaintingleaguebot" target="_blank" rel="noopener">Участвовать</a><a class="btn-wide" href="https://www.instagram.com/facepaintingleague/" target="_blank" rel="noopener">Instagram*</a></div>
+<div class="mbar"><a class="btn-wide" href="/kabinet/">Участвовать</a><a class="btn-wide" href="https://www.instagram.com/facepaintingleague/" target="_blank" rel="noopener">Instagram*</a></div>
 <script>
 (function(){
   var menu=document.getElementById('mmenu'); if(!menu) return;

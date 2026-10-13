@@ -6,15 +6,15 @@
 
   <div class="fbgrid">
     <div class="fbcard">
-      <p class="rvclosed" id="rvClosed" hidden>Reviews cannot be ordered right now: they are available while a Game is running and at least one round has published results.</p>
+      <p class="rvclosed" id="rvClosed" hidden>Reviews open after a Game ends, for 30 days. You cannot order right now — come back after the final.</p>
       <form id="rvForm" novalidate>
         <fieldset class="rvopts">
           <legend>What to review</legend>
           <label class="rvopt"><input type="radio" name="scope" value="one" checked>
-            <div><b>One work</b><span>A work from a round whose results are published</span></div><span class="rvprice" data-rv="price_one">300 ₽</span></label>
+            <div><b>One work</b><span>Any of your works from this Game</span></div><span class="rvprice" data-rv="price_one">300 ₽</span></label>
           <div class="rvround" id="rvRoundBox"><label class="sr" for="rvRound">Round</label><select id="rvRound"></select></div>
           <label class="rvopt"><input type="radio" name="scope" value="all">
-            <div><b>All works of the Game</b><span>All your works — after the Game ends</span></div><span class="rvprice" data-rv="price_all">700 ₽</span></label>
+            <div><b>All works of the Game</b><span>All your works from this Game</span></div><span class="rvprice" data-rv="price_all">700 ₽</span></label>
         </fieldset>
         <div class="fbfield">
           <label for="rvName">First and last name</label>
@@ -23,7 +23,7 @@
         <div class="fbfield">
           <label for="rvContact">Email or Telegram</label>
           <input id="rvContact" type="text" maxlength="200" autocomplete="email" spellcheck="false" required aria-describedby="rvContactHint">
-          <p class="fbhint" id="rvContactHint">We will send the payment link here. Best of all — the email you use for your league account: the review will appear there.</p>
+          <p class="fbhint" id="rvContactHint">We will send the invoice here. Best of all — the email you use for your league account: the review will appear there.</p>
         </div>
         <div class="fbfield">
           <label for="rvComment">What should the judge focus on <small>(optional)</small></label>
@@ -42,9 +42,9 @@
         <h2>Terms</h2>
         <ol>
           <li>The review is an audio recording of about 5 minutes by a league judge (<span data-rv="reviewer">Milena</span>), in Russian. It is the expert's personal opinion and does not affect round results, rating or certificates.</li>
-          <li>One work — <span data-rv="price_one">300 ₽</span>: a work from a round with published results. All works of the Game — <span data-rv="price_all">700 ₽</span>: all your works of this Game, after it ends.</li>
-          <li>After you order, the organizer will send a payment link to your contact within one working day.</li>
-          <li>The review will be ready within <span data-rv="days">3</span> days after payment (all works of the Game — after the Game results are published). Listen in your account, section “My reviews”; if you have not signed in yet, we will send you a sign-in link.</li>
+          <li>Orders open after the Game ends, for 30 days. One work — <span data-rv="price_one">300 ₽</span>, all your works of the Game — <span data-rv="price_all">700 ₽</span>.</li>
+          <li>After you order, the organizer will send an invoice to your contact within one working day.</li>
+          <li>The review will be ready within <span data-rv="days">3</span> days after payment. Listen in your account, section “My reviews”; if you have not signed in yet, we will send you a sign-in link.</li>
           <li>If we miss the deadline, we refund in full on request. Once the review is delivered, payment is not refunded.</li>
           <li>Your name and contact are used only for this order.</li>
         </ol>
@@ -54,7 +54,7 @@
     <aside class="fbaside">
       <div class="fbnote">
         <b>How it works</b>
-        <p>1. You order here. 2. You get a payment link. 3. The judge records the review. 4. You listen in your account whenever you like, as often as you like.</p>
+        <p>1. After the Game ends, you order here. 2. You get an invoice. 3. The judge looks at your works and records the review. 4. You listen in your account whenever you like, as often as you like.</p>
       </div>
       <div class="fbnote">
         <b>Already have a review?</b>
@@ -69,8 +69,8 @@
   var T={
     round:'Round {n}', sending:'Sending…', send:'Order a review',
     name:'Please enter your first and last name.', contact:'Please enter your email or Telegram — the payment link goes there.', terms:'Please accept the terms.',
-    okTitle:'Order No. {no} received.', okText:'We will send a payment link ({p} ₽) within one working day.',
-    limit:'Too many orders in a row. Please try again in an hour.', closed:'Reviews cannot be ordered right now.', round_not_published:'This round has no published results yet — please choose another.',
+    okTitle:'Order No. {no} received.', okText:'We will send an invoice ({p} ₽) within one working day.',
+    limit:'Too many orders in a row. Please try again in an hour.', closed:'Reviews cannot be ordered right now: orders open after the Game ends.', round_not_published:'This round has no published results — please choose another.',
     fail:'We could not send your order. Please try again later or write to '
   };
   var MAIL='info@maskarad-grim.ru';

@@ -414,8 +414,11 @@ JOIN evaluation_target_members m ON m.submission_version_id=svm.submission_versi
 JOIN evaluation_targets t ON t.id=m.evaluation_target_id
 JOIN evaluation_judge_assignments a ON a.evaluation_stream_id=t.evaluation_stream_id AND a.user_id=%s AND a.status='active'
 WHERE svm.media_file_id=%s LIMIT 1''', (user['id'], media_id)).fetchone()
+        # Судья, которому поручен платный разбор, видит работы этой участницы (заказ оплачен или разбор готов).
+        reviewer = row and not staff and not judge and row['uploaded_by'] != user['id'] and conn.execute('''SELECT 1 FROM review_orders
+WHERE reviewer_id=%s AND user_id=%s AND status IN ('paid','done') LIMIT 1''', (user['id'], row['uploaded_by'])).fetchone()
     # Своё фото видит автор; организатор и модератор — любое; судья — работы своего пула. Чужое — как будто его нет.
-    if not row or (row['uploaded_by'] != user['id'] and not staff and not judge):
+    if not row or (row['uploaded_by'] != user['id'] and not staff and not judge and not reviewer):
         raise HTTPException(404, 'Not found')
     key = row['optimized_storage_key'] if size == 'view' else row['thumbnail_storage_key']
     path = request.app.state.media.path(key)
