@@ -11,5 +11,6 @@ class Database:
     @contextmanager
     def transaction(self):
         # Connection context commits on success and rolls back on any exception.
-        with psycopg.connect(self.dsn, row_factory=dict_row, connect_timeout=5) as conn:
+        # Время из базы — всегда в UTC, какой бы пояс ни стоял на сервере базы (на экране кабинет пишет МСК сам).
+        with psycopg.connect(self.dsn, row_factory=dict_row, connect_timeout=5, options='-c TimeZone=UTC') as conn:
             yield conn
