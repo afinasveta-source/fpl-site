@@ -2,7 +2,7 @@
 # fpl-db-setup: база PostgreSQL сайта FPL на этом сервере. Повторный запуск безопасен.
 #  - ставит PostgreSQL (только локальные подключения);
 #  - создаёт пользователя fpl_app и базу fpl; пароль генерируется здесь и хранится только в /etc/fpl-db.env (0600);
-#  - применяет схему по порядку 001 → 002 → 003 → 004 → 005 → 006 и пишет номер в alembic_version (совместимо с backend Codex);
+#  - применяет схему по порядку 001 → … → 008 и пишет номер в alembic_version (совместимо с backend Codex);
 #  - (пере)создаёт публичный слой site_views.sql.
 # Аргумент: папка со schema/ и site_views.sql (по умолчанию /opt/fpl/db).
 set -euo pipefail
@@ -53,16 +53,17 @@ step() { # $1 = версия, $2 = файл
 S1="$SRC/schema/001_initial_mvp_schema.sql"; S2="$SRC/schema/002_auth.sql"
 S3="$SRC/schema/003_league_rules.sql"; S4="$SRC/schema/004_rewards_groups.sql"
 S5="$SRC/schema/005_participant_cabinet.sql"; S6="$SRC/schema/006_organizer_cabinet.sql"
-S7="$SRC/schema/007_judging_results.sql"
+S7="$SRC/schema/007_judging_results.sql"; S8="$SRC/schema/008_review_orders.sql"
 case "$current" in
-  "")  step 001 "$S1"; step 002 "$S2"; step 003 "$S3"; step 004 "$S4"; step 005 "$S5"; step 006 "$S6"; step 007 "$S7" ;;
-  001) step 002 "$S2"; step 003 "$S3"; step 004 "$S4"; step 005 "$S5"; step 006 "$S6"; step 007 "$S7" ;;
-  002) step 003 "$S3"; step 004 "$S4"; step 005 "$S5"; step 006 "$S6"; step 007 "$S7" ;;
-  003) step 004 "$S4"; step 005 "$S5"; step 006 "$S6"; step 007 "$S7" ;;
-  004) step 005 "$S5"; step 006 "$S6"; step 007 "$S7" ;;
-  005) step 006 "$S6"; step 007 "$S7" ;;
-  006) step 007 "$S7" ;;
-  007) echo "схема: уже 007" ;;
+  "")  step 001 "$S1"; step 002 "$S2"; step 003 "$S3"; step 004 "$S4"; step 005 "$S5"; step 006 "$S6"; step 007 "$S7"; step 008 "$S8" ;;
+  001) step 002 "$S2"; step 003 "$S3"; step 004 "$S4"; step 005 "$S5"; step 006 "$S6"; step 007 "$S7"; step 008 "$S8" ;;
+  002) step 003 "$S3"; step 004 "$S4"; step 005 "$S5"; step 006 "$S6"; step 007 "$S7"; step 008 "$S8" ;;
+  003) step 004 "$S4"; step 005 "$S5"; step 006 "$S6"; step 007 "$S7"; step 008 "$S8" ;;
+  004) step 005 "$S5"; step 006 "$S6"; step 007 "$S7"; step 008 "$S8" ;;
+  005) step 006 "$S6"; step 007 "$S7"; step 008 "$S8" ;;
+  006) step 007 "$S7"; step 008 "$S8" ;;
+  007) step 008 "$S8" ;;
+  008) echo "схема: уже 008" ;;
   *)   echo "схема: версия $current новее этого пакета — не трогаю" ;;
 esac
 app -f "$SRC/site_views.sql"

@@ -8,4 +8,5 @@ DIST = os.environ.get('FPL_DIST') or os.path.join(ROOT, 'dist')   # готовы
 I18N = os.path.join(BUILD, 'i18n')
 PRIVACY = os.path.join(BUILD, 'privacy')
 FEEDBACK = os.path.join(BUILD, 'feedback')
+REVIEW = os.path.join(BUILD, 'review')
 OG = os.path.join(BUILD, 'og')

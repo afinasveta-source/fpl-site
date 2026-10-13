@@ -4,6 +4,26 @@
   var K = window.K, esc = K.esc, pill = K.pill, li = K.li;
 
   /* ---------- Мои достижения ---------- */
+  /* ---------- Мои разборы: аудиоразбор работ от судьи (заказ — на сайте лиги) ---------- */
+  var RV = { 'new': ['Заказ принят — пришлём ссылку на оплату', 'info'], payment_sent: ['Ждём оплату', 'info'], paid: ['Оплачен — судья записывает разбор', 'warn'],
+    done: ['Готов', 'ok'] };
+  K.on(/^\/reviews$/, function () {
+    K.load(['/api/reviews'], function (d) {
+      var h = '<h1>Мои разборы</h1><p class="muted">Аудиоразбор вашей работы от судьи лиги — что получилось и что улучшить. ' +
+        'Заказать — на сайте лиги: <a href="/ru/review.html">«Разбор от судьи»</a>.</p>';
+      h += d.items.length ? d.items.map(function (o) {
+        var title = (o.scope === 'all' ? 'Все работы Игры' : 'Работа тура ' + o.round_no) + (o.game ? ' · ' + esc(o.game) : '');
+        return '<section class="card"><div class="between"><h2>' + title + '</h2>' + pill(RV[o.status][0], RV[o.status][1]) + '</div>' +
+          '<p class="small muted">Разбирает: ' + esc(o.reviewer) + ' · заказ № ' + o.no + ' от ' + esc(K.date(o.created_at)) + ' МСК</p>' +
+          (o.audio ? '<audio controls preload="metadata" class="wide" src="' + K.ROOT + '/api/reviews/' + o.no + '/audio"></audio>' +
+            '<p class="small"><a href="' + K.ROOT + '/api/reviews/' + o.no + '/audio" download>Скачать аудио</a></p>' : '') +
+          (o.text ? '<div class="stack"><h3>Текст разбора</h3><p data-s="pre">' + esc(o.text) + '</p></div>' : '') + '</section>';
+      }).join('') : '<div class="note">Разборов пока нет. Заказать разбор работы можно на сайте лиги — <a href="/ru/review.html">«Разбор от судьи»</a>. ' +
+        'Укажите в заказе тот же email, что в кабинете, — разбор появится здесь.</div>';
+      K.page(h, [['Мои разборы']]);
+    }, [['Мои разборы']]);
+  });
+
   K.on(/^\/achievements$/, function () {
     K.load(['/api/achievements'], function (a) {
       var none = a.rating.value == null && !a.results.length;

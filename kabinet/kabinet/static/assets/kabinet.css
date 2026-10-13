@@ -143,3 +143,4 @@ body.org main h3{font:700 15px/1.3 var(--f-body);margin:6px 0 0}
 .nowrap{white-space:nowrap}
 
 .test-band{background:#ffd43b;color:#1a1a1a;font:600 13px/1.3 var(--f-body);text-align:center;padding:6px 16px}
+audio.wide{width:100%;margin-block:8px}

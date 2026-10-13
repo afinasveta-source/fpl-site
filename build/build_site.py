@@ -2,7 +2,7 @@ import re,os,shutil
 import sys, os; sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # build/
 from paths import SRC, DIST, I18N, PRIVACY, OG
 O=SRC; D=DIST
-M={'fpl-site-pro-ink.html':'index.html','fpl-gallery.html':'gallery.html','fpl-find.html':'find.html','fpl-rating.html':'rating.html','fpl-master.html':'master.html','fpl-games.html':'games.html','fpl-diploma.html':'diploma.html','fpl-rules.html':'rules.html','fpl-about.html':'about.html','fpl-privacy.html':'privacy.html','fpl-feedback.html':'feedback.html'}
+M={'fpl-site-pro-ink.html':'index.html','fpl-gallery.html':'gallery.html','fpl-find.html':'find.html','fpl-rating.html':'rating.html','fpl-master.html':'master.html','fpl-games.html':'games.html','fpl-diploma.html':'diploma.html','fpl-rules.html':'rules.html','fpl-about.html':'about.html','fpl-privacy.html':'privacy.html','fpl-feedback.html':'feedback.html','fpl-review.html':'review.html'}
 if os.path.isdir(D): shutil.rmtree(D)
 os.makedirs(D+'/assets')
 shutil.copy(O+'/assets/site.css',D+'/assets/site.css')

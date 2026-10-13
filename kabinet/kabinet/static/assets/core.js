@@ -166,10 +166,10 @@
 
   /* ---------- каркас ---------- */
   var SECTIONS = [['/', 'Главная'], ['/events', 'Игры лиги'], ['/games', 'Мои Игры'], ['/achievements', 'Мои достижения'],
-    ['/notifications', 'Уведомления'], ['/support', 'Поддержка'], ['/profile', 'Профиль и настройки']];
+    ['/reviews', 'Мои разборы'], ['/notifications', 'Уведомления'], ['/support', 'Поддержка'], ['/profile', 'Профиль и настройки']];
   /* Кабинет организатора — свой раздел /org со своим меню (этап 3). */
   var ORG = [['/org', 'Обзор'], ['/org/games', 'Игры и туры'], ['/org/people', 'Люди'], ['/org/support', 'Поддержка'],
-    ['/org/feedback', 'Пожелания'], ['/org/documents', 'Документы']];
+    ['/org/feedback', 'Пожелания'], ['/org/reviews', 'Разборы'], ['/org/documents', 'Документы']];
   K.inOrg = function () { var p = K.path(); return p === '/org' || p.indexOf('/org/') === 0; };
   K.isAdmin = function () { return !!(K.state.me && K.state.me.roles && K.state.me.roles.indexOf('admin') >= 0); };
   /* Судейство (этап 4): раздел видят судьи и администраторы — организатор тоже может судить. */
@@ -189,7 +189,7 @@
     var cur = section(), n = K.state.unread, org = K.inOrg(), c = K.state.orgCounts || {};
     var list = org ? ORG : sections();
     var badge = function (s) {
-      if (org) { var x = s[0] === '/org/support' ? c.support : s[0] === '/org/feedback' ? c.feedback : 0; return x ? '<span class="cnt">' + x + '</span>' : ''; }
+      if (org) { var x = s[0] === '/org/support' ? c.support : s[0] === '/org/feedback' ? c.feedback : s[0] === '/org/reviews' ? c.reviews : 0; return x ? '<span class="cnt">' + x + '</span>' : ''; }
       return s[0] === '/notifications' && n ? '<span class="cnt">' + n + '</span>' : '';
     };
     return '<nav class="nav" aria-label="' + (org ? 'Разделы организатора' : 'Разделы кабинета') + '">' + list.map(function (s) {
@@ -211,7 +211,7 @@
   function tabbarHTML() {
     var cur = section(), n = K.state.unread;
     var tabs = [['/', 'Главная'], ['/games', 'Мои Игры'], ['/notifications', 'Уведомления'], ['/profile', 'Профиль']];
-    var inMore = ['/events', '/achievements', '/support', '/judging'].indexOf(cur) >= 0;
+    var inMore = ['/events', '/achievements', '/support', '/judging', '/reviews'].indexOf(cur) >= 0;
     return '<nav class="tabbar" aria-label="Разделы кабинета">' + tabs.map(function (t) {
       return '<button type="button" data-href="' + t[0] + '"' + (cur === t[0] ? ' aria-current="page"' : '') + '>' + ico(t[0]) +
         (t[0] === '/notifications' && n ? '<span class="cnt">' + n + '</span>' : '') + '<span>' + t[1] + '</span></button>';
@@ -220,7 +220,7 @@
   function moreHTML() {
     return '<div class="sheet" data-act="closeMore"><div class="panel" role="dialog" aria-label="Ещё разделы"><span class="grip"></span><div class="list">' +
       K.li('Игры лиги', 'Каталог Игр и челленджей', '', '/events') + (K.isJudge() ? K.li('Судейство', 'Оценка работ туров', '', '/judging') : '') +
-      K.li('Мои достижения', 'Рейтинг, баллы, дипломы', '', '/achievements') +
+      K.li('Мои достижения', 'Рейтинг, баллы, дипломы', '', '/achievements') + K.li('Мои разборы', 'Аудиоразбор работ от судьи', '', '/reviews') +
       K.li('Поддержка', 'Вопросы организатору', '', '/support') +
       '<button class="li" type="button" data-act="toSite"><span class="t">Сайт лиги ↗</span><span class="s">Рейтинг, Игры, Правила — вход в кабинет сохранится</span><span class="r"></span></button>' +
       '</div><button class="btn sec" type="button" data-act="logout">Выйти</button></div></div>';

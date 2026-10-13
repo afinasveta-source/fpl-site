@@ -3,7 +3,7 @@
 #  1) сайт берётся из GitHub (afinasveta-source/fpl-site, папка dist/ ветки main);
 #  2) приёмник данных из бота понимает закрытые наборы private-… (не публикуются);
 #  3) архив фото работ: /var/lib/fpl/archive, cron каждые 10 минут;
-#  4) база PostgreSQL сайта (схема 001→007), публичные файлы /data/*.json, ночная копия;
+#  4) база PostgreSQL сайта (схема 001→008), публичные файлы /data/*.json, ночная копия;
 #  5) сводка состояния /data/server-status.json;
 #  6) копии базы в закрытый бакет в другом городе (доступ вводится на /admin/backup.html);
 #  7) перенос данных из SaleBot в базу (fpl-db-import, каждые 5 минут, если бот прислал новый снимок);
@@ -104,6 +104,8 @@ if [ -f rehearsal.off ]; then
 elif [ -f rehearsal.on ]; then
   /usr/local/bin/fpl-kabinet-rehearsal on || echo "репетиция: ошибка (см. /var/lib/fpl/kabinet-test-status)"
 elif systemctl is-enabled --quiet fpl-kabinet-test 2>/dev/null; then
+  # схема тестовой базы — та же версия, что у кода (иначе тестовый кабинет не стартует после новой миграции)
+  FPL_DB_NAME_OVERRIDE=fpl_rehearsal_test /usr/local/bin/fpl-db-setup /opt/fpl/db >/dev/null || echo "репетиция: схема тестовой базы не обновилась"
   systemctl restart fpl-kabinet-test || true
 fi
 

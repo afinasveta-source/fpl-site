@@ -1,11 +1,11 @@
 import re,json,os
 import sys, os; sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # build/
-from paths import SRC, DIST, I18N, PRIVACY, FEEDBACK, OG
+from paths import SRC, DIST, I18N, PRIVACY, FEEDBACK, REVIEW, OG
 import importlib.util
 from bs4 import BeautifulSoup
 I=I18N
 D=DIST
-PAGES=['index','games','rating','master','gallery','find','diploma','rules','about','privacy','feedback']
+PAGES=['index','games','rating','master','gallery','find','diploma','rules','about','privacy','feedback','review']
 CY=re.compile('[А-Яа-яЁё]')
 T={}
 for i in (1,2,3): T.update(json.load(open(f'{I}/en{i}.json',encoding='utf-8')))
@@ -40,7 +40,7 @@ def lang_menu(s,page,en):
 </script>'''
     if "getAttribute('data-href')" not in s: s=s.replace('</body>',js+'\n</body>',1)
     return s
-ASSEMBLED={'privacy':(PRIVACY,'Privacy policy · FPL'),'feedback':(FEEDBACK,'Ideas for the league · FPL')}
+ASSEMBLED={'privacy':(PRIVACY,'Privacy policy · FPL'),'feedback':(FEEDBACK,'Ideas for the league · FPL'),'review':(REVIEW,'Review by a judge · FPL')}
 def build():
     os.makedirs(D+'/en',exist_ok=True)
     miss=[]

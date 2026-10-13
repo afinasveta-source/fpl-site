@@ -14,7 +14,7 @@ FONTS = {'ru': ['manrope-cyrillic-500', 'manrope-cyrillic-400', 'unbounded-cyril
 SKIP = {'ru': 'Перейти к содержанию', 'en': 'Skip to content'}
 TODAY = datetime.date.today().isoformat()
 DOMAIN = 'https://facepaintingleague.com'
-PAGES = ['index', 'games', 'rating', 'master', 'gallery', 'find', 'diploma', 'rules', 'about', 'privacy', 'feedback']
+PAGES = ['index', 'games', 'rating', 'master', 'gallery', 'find', 'diploma', 'rules', 'about', 'privacy', 'feedback', 'review']
 
 def url(lang, p):
     base = DOMAIN + ('/ru/' if lang == 'ru' else '/')
@@ -32,6 +32,7 @@ META = {
   'rules':  ('Rules & FAQ — Face Painting League', 'The Face Painting League rules in plain words: how to join, submit a work, how judging, rating and leagues work, certificates and the Super Final.'),
   'privacy':('Privacy policy — Face Painting League', 'How Face Painting League processes the personal data of participants and website visitors: what we collect, why, where it is stored and how to exercise your rights.'),
   'feedback':('Ideas for the league — Face Painting League', 'Send the Face Painting League organizers an anonymous suggestion about the Games, briefs, judging or the website. No sign-in needed.'),
+  'review':('Review by a judge — Face Painting League', 'Order a 5-minute audio review of your Game work from a Face Painting League judge: what worked and what to improve.'),
   'about':  ('About Face Painting League by MAGFACE', 'Face Painting League is an online league for face painters by MAGFACE, grown out of seven years of face painting marathons with 1,400+ artists.'),
  },
  'ru': {
@@ -45,13 +46,14 @@ META = {
   'rules':  ('Правила и вопросы — Face Painting League', 'Правила лиги простыми словами: как участвовать и сдать работу, как устроены оценка, рейтинг и лиги, диплом и Суперфинал.'),
   'privacy':('Политика конфиденциальности — Face Painting League', 'Как Face Painting League обрабатывает персональные данные участников и посетителей сайта: что собираем, зачем, где храним и как реализовать свои права.'),
   'feedback':('Пожелания лиге — Face Painting League', 'Анонимно напишите организаторам Face Painting League, что улучшить в Играх, заданиях, судействе или на сайте. Без входа в кабинет.'),
+  'review':('Разбор от судьи — Face Painting League', 'Закажите аудиоразбор вашей работы Игры от судьи Face Painting League: что получилось и что улучшить. Около 5 минут.'),
   'about':  ('О лиге — Face Painting League by MAGFACE', 'Face Painting League — онлайн-лига аквагримёров от MAGFACE. Выросла из семи лет марафонов по аквагриму, в которых участвовали 1400+ мастеров.'),
  }
 }
-CRUMB = {'en': {'index':'Home','games':'Games','rating':'Rating','master':'Artist','gallery':'Gallery','find':'Find an artist','diploma':'Certificate check','rules':'Rules','about':'About','privacy':'Privacy policy','feedback':'Ideas for the league'},
-         'ru': {'index':'Главная','games':'Игры','rating':'Рейтинг','master':'Мастер','gallery':'Галерея','find':'Найти мастера','diploma':'Проверка диплома','rules':'Правила','about':'О лиге','privacy':'Политика конфиденциальности','feedback':'Пожелания лиге'}}
+CRUMB = {'en': {'index':'Home','games':'Games','rating':'Rating','master':'Artist','gallery':'Gallery','find':'Find an artist','diploma':'Certificate check','rules':'Rules','about':'About','privacy':'Privacy policy','feedback':'Ideas for the league','review':'Review by a judge'},
+         'ru': {'index':'Главная','games':'Игры','rating':'Рейтинг','master':'Мастер','gallery':'Галерея','find':'Найти мастера','diploma':'Проверка диплома','rules':'Правила','about':'О лиге','privacy':'Политика конфиденциальности','feedback':'Пожелания лиге','review':'Разбор от судьи'}}
 PAGETYPE = {'index':'WebPage','games':'CollectionPage','rating':'CollectionPage','master':'WebPage','gallery':'CollectionPage',
-            'find':'CollectionPage','diploma':'WebPage','rules':'FAQPage','about':'AboutPage','privacy':'WebPage','feedback':'ContactPage'}
+            'find':'CollectionPage','diploma':'WebPage','rules':'FAQPage','about':'AboutPage','privacy':'WebPage','feedback':'ContactPage','review':'WebPage'}
 ORG_DESC = {'en':'Online league for face painters by MAGFACE: Games with judged rounds, leagues, an FPL Rating and verifiable certificates.',
             'ru':'Онлайн-лига аквагримёров от MAGFACE: Игры с оценкой жюри, лиги, рейтинг FPL и проверяемые дипломы.'}
 

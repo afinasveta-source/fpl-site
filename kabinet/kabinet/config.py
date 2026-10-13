@@ -39,6 +39,12 @@ class Settings(BaseSettings):
     setup_key_sha256: str | None = None
     # Фото работ: папка на сервере (не отдаётся сайтом), лимит загрузок, запас свободного места.
     media_dir: str = '/var/lib/fpl/kabinet-media'
+    # Платный аудиоразбор от судьи (решение 13.10): заказ формой на сайте, оплата по ссылке организатора.
+    review_enabled: bool = True
+    review_reviewer: str = 'Милена'
+    review_price_one: int = Field(default=300, ge=1)
+    review_price_all: int = Field(default=700, ge=1)
+    review_days: int = Field(default=3, ge=1, le=30)
     upload_max_mb: int = Field(default=20, ge=1, le=50)
     upload_limit: int = 60
     media_min_free_mb: int = 1024

@@ -1,0 +1,119 @@
+  <section class="heroC fbhero" aria-labelledby="rvtitle">
+    <span class="eyebrow">Для участниц Игры</span>
+    <h1 id="rvtitle">Разбор <span>от судьи</span></h1>
+    <p class="lead">Судья лиги посмотрит вашу работу и запишет аудиоразбор минут на пять: что получилось, что и как улучшить — с техническими деталями.</p>
+  </section>
+
+  <div class="fbgrid">
+    <div class="fbcard">
+      <p class="rvclosed" id="rvClosed" hidden>Сейчас заказать разбор нельзя: он доступен, пока идёт Игра и опубликованы итоги хотя бы одного тура.</p>
+      <form id="rvForm" novalidate>
+        <fieldset class="rvopts">
+          <legend>Что разобрать</legend>
+          <label class="rvopt"><input type="radio" name="scope" value="one" checked>
+            <div><b>Одна работа</b><span>Работа тура, итоги которого уже опубликованы</span></div><span class="rvprice" data-rv="price_one">300 ₽</span></label>
+          <div class="rvround" id="rvRoundBox"><label class="sr" for="rvRound">Тур</label><select id="rvRound"></select></div>
+          <label class="rvopt"><input type="radio" name="scope" value="all">
+            <div><b>Все работы Игры</b><span>Разбор всех ваших работ — после окончания Игры</span></div><span class="rvprice" data-rv="price_all">700 ₽</span></label>
+        </fieldset>
+        <div class="fbfield">
+          <label for="rvName">Имя и фамилия</label>
+          <input id="rvName" type="text" maxlength="120" autocomplete="name" required>
+        </div>
+        <div class="fbfield">
+          <label for="rvContact">Email или Telegram</label>
+          <input id="rvContact" type="text" maxlength="200" autocomplete="email" spellcheck="false" required aria-describedby="rvContactHint">
+          <p class="fbhint" id="rvContactHint">Сюда пришлём ссылку на оплату. Лучше — email, с которым вы входите в кабинет лиги: разбор появится там.</p>
+        </div>
+        <div class="fbfield">
+          <label for="rvComment">На что обратить внимание <small>(необязательно)</small></label>
+          <textarea id="rvComment" rows="3" maxlength="1000"></textarea>
+        </div>
+        <div class="fbtrap" aria-hidden="true">
+          <label for="rvWebsite">Не заполняйте это поле</label>
+          <input id="rvWebsite" type="text" tabindex="-1" autocomplete="off">
+        </div>
+        <label class="rvchk"><input type="checkbox" id="rvTerms"> <span>Согласна с <a href="#rvterms">условиями разбора</a> и <a href="fpl-privacy.html">политикой конфиденциальности</a></span></label>
+        <button class="btnC" type="submit" id="rvSend">Заказать разбор</button>
+      </form>
+      <div class="fbmsg" id="rvMsg" role="status" aria-live="polite"></div>
+
+      <div class="rvterms" id="rvterms">
+        <h2>Условия</h2>
+        <ol>
+          <li>Разбор — аудиозапись около 5 минут от судьи лиги (<span data-rv="reviewer">Милена</span>). Это личное мнение эксперта: на итоги туров, рейтинг и дипломы он не влияет.</li>
+          <li>Одна работа — <span data-rv="price_one">300 ₽</span>: работа тура, итоги которого опубликованы. Все работы Игры — <span data-rv="price_all">700 ₽</span>: разбор всех ваших работ этой Игры после её окончания.</li>
+          <li>После заказа организатор в течение рабочего дня пришлёт ссылку на оплату на указанный контакт.</li>
+          <li>Разбор будет готов в течение <span data-rv="days">3</span> дней после оплаты (все работы Игры — после публикации итогов Игры). Слушать — в личном кабинете, раздел «Мои разборы»; если вы ещё не входили в кабинет, пришлём ссылку для входа.</li>
+          <li>Не успели в срок — вернём оплату полностью по вашей просьбе. После того как разбор отправлен, оплата не возвращается.</li>
+          <li>Имя и контакт нужны только для этого заказа.</li>
+        </ol>
+      </div>
+    </div>
+
+    <aside class="fbaside">
+      <div class="fbnote">
+        <b>Как это устроено</b>
+        <p>1. Вы заказываете здесь. 2. Получаете ссылку на оплату. 3. Судья записывает разбор. 4. Слушаете его в кабинете, когда удобно, сколько угодно раз.</p>
+      </div>
+      <div class="fbnote">
+        <b>Уже есть разбор?</b>
+        <p>Он в личном кабинете, раздел «Мои разборы».</p>
+        <a href="/kabinet/reviews">Открыть кабинет →</a>
+      </div>
+    </aside>
+  </div>
+<script>
+(function(){
+  var form=document.getElementById('rvForm'); if(!form) return;
+  var T={
+    round:'Тур {n}', sending:'Отправляем…', send:'Заказать разбор',
+    name:'Укажите имя и фамилию.', contact:'Укажите email или Telegram — туда придёт ссылка на оплату.', terms:'Отметьте согласие с условиями.',
+    okTitle:'Заказ № {no} принят.', okText:'В течение рабочего дня пришлём ссылку на оплату ({p} ₽).',
+    limit:'Слишком много заказов подряд. Попробуйте через час.', closed:'Сейчас заказать разбор нельзя.', round_not_published:'Итоги этого тура ещё не опубликованы — выберите другой.',
+    fail:'Не получилось отправить. Попробуйте позже или напишите на '
+  };
+  var MAIL='info@maskarad-grim.ru';
+  var msg=document.getElementById('rvMsg'), send=document.getElementById('rvSend'), sel=document.getElementById('rvRound'), box=document.getElementById('rvRoundBox');
+  function f(s,o){ return s.replace(/\{(\w+)\}/g,function(m,k){ return o[k]; }); }
+  function say(kind,t){
+    msg.className='fbmsg'+(kind==='ok'?' is-ok':''); msg.textContent='';
+    if(kind==='ok'){ var b=document.createElement('b'); b.textContent=t[0]; msg.appendChild(b); msg.appendChild(document.createTextNode(t[1])); }
+    else if(kind==='fail'){ msg.appendChild(document.createTextNode(T.fail)); var a=document.createElement('a'); a.href='mailto:'+MAIL; a.textContent=MAIL; msg.appendChild(a); }
+    else if(t) msg.textContent=t;
+  }
+  function scope(){ var r=form.querySelector('input[name=scope]:checked'); return r?r.value:'one'; }
+  function sync(){ box.hidden = scope()!=='one'; }
+  form.addEventListener('change',sync);
+  fetch('/kabinet/api/public/review-offer',{cache:'no-store'}).then(function(r){ return r.json(); }).then(function(o){
+    document.querySelectorAll('[data-rv]').forEach(function(el){ var k=el.getAttribute('data-rv'), v=o[k]; if(v!=null) el.textContent = k.indexOf('price')===0 ? v+' ₽' : v; });
+    sel.innerHTML=''; (o.rounds||[]).forEach(function(r){ var op=document.createElement('option'); op.value=r.no; var t=f(T.round,{n:r.no}); op.textContent=t+(r.title && r.title.indexOf(t)!==0 && !/^(Тур|Round) \d+$/.test(r.title)?' · '+r.title:''); sel.appendChild(op); });
+    if(!o.enabled){ form.hidden=true; document.getElementById('rvClosed').hidden=false; return; }
+    if(!(o.rounds||[]).length){ var one=form.querySelector('input[value=one]'); one.disabled=true; form.querySelector('input[value=all]').checked=true; }
+    sync();
+  }).catch(function(){ sync(); });
+  form.addEventListener('submit',function(e){
+    e.preventDefault(); if(send.disabled) return;
+    var name=document.getElementById('rvName').value.trim(), contact=document.getElementById('rvContact').value.trim();
+    if(name.length<2){ say('err',T.name); document.getElementById('rvName').focus(); return; }
+    if(contact.length<3){ say('err',T.contact); document.getElementById('rvContact').focus(); return; }
+    if(!document.getElementById('rvTerms').checked){ say('err',T.terms); document.getElementById('rvTerms').focus(); return; }
+    var body={name:name,contact:contact,scope:scope(),comment:document.getElementById('rvComment').value.trim()||null,
+      accept_terms:true,website:document.getElementById('rvWebsite').value};
+    if(body.scope==='one') body.round_no=+sel.value;
+    send.disabled=true; send.textContent=T.sending; say('');
+    fetch('/kabinet/api/public/review-order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+    .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(d){ return [r,d]; }); })
+    .then(function(x){
+      var r=x[0], d=x[1];
+      if(r.status===201){ form.hidden=true; say('ok',[f(T.okTitle,{no:d.order_no}),f(T.okText,{p:d.price})]); return; }
+      if(r.status===429) say('err',T.limit);
+      else if(d && T[d.detail]) say('err',T[d.detail]);
+      else if(r.status===409) say('err',T.closed);
+      else say('fail');
+    },function(){ say('fail'); })
+    .then(function(){ send.disabled=false; send.textContent=T.send; });
+  });
+  sync();
+})();
+</script>

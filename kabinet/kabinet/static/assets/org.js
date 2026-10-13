@@ -146,7 +146,7 @@
   /* Счётчики в меню — без перерисовки страницы (иначе пропали бы обработчики форм и открытое окно). */
   O.paintCounts = function () {
     var c = K.state.orgCounts || {};
-    [['/org/support', c.support], ['/org/feedback', c.feedback]].forEach(function (x) {
+    [['/org/support', c.support], ['/org/feedback', c.feedback], ['/org/reviews', c.reviews]].forEach(function (x) {
       Array.prototype.forEach.call(document.querySelectorAll('nav.nav [data-href="' + x[0] + '"]'), function (b) {
         var s = b.querySelector('.cnt');
         if (!x[1]) { if (s) s.remove(); return; }
@@ -176,6 +176,7 @@
       var todo = (d.alerts || []).map(function (x) { return li(esc(x.title), esc(x.text), pill('Шаг', 'warn'), x.href); });
       if (c.support) todo.push(li('Обращения ждут ответа', c.support + ' в поддержке', pill(String(c.support), 'acc'), '/org/support'));
       if (c.feedback) todo.push(li('Новые пожелания с сайта', 'Анонимные сообщения', pill(String(c.feedback), 'acc'), '/org/feedback'));
+      if (c.reviews) todo.push(li('Разборы от судьи', 'Новые заказы и оплаченные — ждут действий', pill(String(c.reviews), 'acc'), '/org/reviews'));
       if (c.not_activated) todo.push(li('Не вошли в кабинет', 'Участницы Игр без входа — отправьте им ссылку', pill(String(c.not_activated), 'warn'), '/org/people?kind=not_activated'));
       if (c.drafts) todo.push(li('Черновики Игр', 'Ещё не опубликованы', pill(String(c.drafts), 'plain'), '/org/games'));
       h += '<section class="card"><h2>Требует внимания</h2>' + (todo.length ? '<div class="list">' + todo.join('') + '</div>' : '<p class="muted">Всё спокойно.</p>') + '</section>';
