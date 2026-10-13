@@ -180,7 +180,7 @@ def test_role_revoke_applies_to_old_session(client,seed,admin_headers):
 
 
 def test_validation_never_echoes_password(client):
-    secret='tiny-secret'
+    secret='tiny-s'
     response=client.post('/auth/password/set',json={'token':'token-value-that-is-long-enough','password':secret})
     assert response.status_code==422 and secret not in response.text
     assert client.post('/auth/login',json={'email':'bad-email','password':PASSWORD}).status_code==422

@@ -16,7 +16,7 @@ from kabinet.auth.service import user_view
 
 router = APIRouter()
 STATIC = Path(__file__).resolve().parents[1] / 'static'
-PASSWORD_MIN = 12
+PASSWORD_MIN = 8   # решение 13.10 (было 12)
 
 
 def cookie_name(request):

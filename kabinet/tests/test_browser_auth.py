@@ -108,7 +108,7 @@ def test_frontend_pages_and_local_assets(client):
     # шрифты — с сайта (тот же домен), а не из кабинета
     assert "url('/assets/fonts/manrope-cyrillic-400-normal.woff2')" in client.get('/assets/fonts.css').text
     config=client.get('/web-auth/config').json()
-    assert config=={'is_test':True,'mail_delivery':False,'signup':True,'password_min_length':12,'setup_needed':True}
+    assert config=={'is_test':True,'mail_delivery':False,'signup':True,'password_min_length':8,'setup_needed':True}
 
 
 def test_browser_profile_requires_session(client):

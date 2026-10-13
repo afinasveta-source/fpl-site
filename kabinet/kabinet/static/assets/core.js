@@ -319,7 +319,7 @@
   window.addEventListener('popstate', function () { K.route(); });
 
   /* ---------- вход и пароли (этап 1) ---------- */
-  function minLen() { return (K.state.config && K.state.config.password_min_length) || 12; }
+  function minLen() { return (K.state.config && K.state.config.password_min_length) || 8; }
   function field(id, label, type, extra) {
     return '<div class="field"><label for="' + id + '">' + label + '</label><input class="input" id="' + id + '" name="' + id + '" type="' + type + '" ' + (extra || '') + '></div>';
   }
@@ -345,7 +345,7 @@
   function loginView() {
     var mail = K.state.config && K.state.config.mail_delivery;
     K.authPage('<div class="stack"><span class="eyebrow">Face Painting League</span><h1>Вход в кабинет</h1>' +
-      '<p class="muted">Участвовали в Играх через бота? Ваш аккаунт уже создан — войдите по ссылке-приглашению или по email и паролю.</p>' +
+      '<p class="muted">Участвуете в Игре 01? Подайте заявку на вход по ссылке <a href="/kabinet/game01">facepaintingleague.com/kabinet/game01</a> — после подтверждения входите здесь по email и паролю.</p>' +
       '<p class="small">Играете в Игре 01 и ещё не входили? <a href="' + ROOT + '/game01">Продолжить Игру в кабинете</a></p></div>' +
       '<form class="card" id="f-login" novalidate>' + field('email', 'Email', 'email', 'autocomplete="username" required') +
       '<div class="field"><label for="password">Пароль</label><div class="pw"><input class="input" id="password" name="password" type="password" autocomplete="current-password" required>' +
@@ -353,7 +353,7 @@
       '<p class="form-err" role="alert" tabindex="-1" hidden></p><button class="btn wide" type="submit">Войти</button>' +
       (mail ? '<button class="btn ghost" type="button" id="to-reset">Не помню пароль</button>'
         : '<p class="small muted">Забыли пароль? <a href="/ru/feedback.html">Напишите организатору</a> (укажите email кабинета) — он пришлёт ссылку для нового пароля.</p>') + '</form>' +
-      (K.state.config && K.state.config.signup ? '<div class="card"><b>Впервые в лиге?</b><p class="small muted">Заведите кабинет: имя, email и пароль. Участвовали в Играх через бота — попросите у организатора ссылку, чтобы сохранилась история.</p>' +
+      (K.state.config && K.state.config.signup ? '<div class="card"><b>Впервые в лиге?</b><p class="small muted">Заведите кабинет: имя, email и пароль. Участвовали в Игре 01 — подайте заявку по ссылке выше, чтобы сохранилась история.</p>' +
         '<button class="btn sec" type="button" id="to-signup">Зарегистрироваться</button></div>' : '') +
       (K.state.config && K.state.config.setup_needed ? '<div class="note info">Администратор ещё не создан. <a href="' + ROOT + '/setup" id="to-setup">Создать первого администратора</a></div>' : ''));
     var f = document.getElementById('f-login');
