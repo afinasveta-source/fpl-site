@@ -19,6 +19,7 @@ from sim.harness import (ORIGIN, PASSWORD, Clock, Http, Problems, create_app, db
                          MemoryMailer, pw_hash, settings_for)
 
 SEED = int(os.environ.get('SIM_SEED', '20261013'))
+VARIANT = os.environ.get('SIM_VARIANT', 'A')     # A — финал 40/60; B — без финала, другие способы судейства, поздняя запись
 N = int(os.environ.get('SIM_N', '200'))
 rng = random.Random(SEED)
 T0 = datetime(2026, 11, 20, 9, 0, tzinfo=timezone.utc)
@@ -140,7 +141,7 @@ def make_game(w):
     e = org.post('/api/org/events', {'title': 'Игра 02 — симуляция 200', 'season_id': season['id']}, expect=201)
     eid = e['id']
     org.patch(f'/api/org/events/{eid}', {'game_no': 2, 'registration_opens_at': iso(T0 - timedelta(hours=1)),
-                                         'registration_closes_at': iso(S - timedelta(hours=1)), 'starts_at': iso(S),
+                                         'registration_closes_at': iso(S - timedelta(hours=1) if VARIANT == 'A' else S + timedelta(days=1)), 'starts_at': iso(S),
                                          'ends_at': iso(S + timedelta(days=36)), 'description': 'Пять туров, финал — 5 тур.'})
     plan = [
         # (название, открытие, срок, срок судейства, форма, варианты)
@@ -176,8 +177,14 @@ def make_game(w):
         w.rounds.append({'id': r['id'], 'no': no, 'title': title, 'opens': opens, 'deadline': deadline, 'jdl': jdl,
                          'form': form, 'variants': variants})
     # формат итогов: по умолчанию 40/60; TOP-25 — с 60 человек в лиге, чтобы проверить и его (по умолчанию — от 100)
-    res = org.put(f'/api/org/events/{eid}/results/format', {'final_round': 5, 'path_rounds': [1, 2, 3, 4], 'path_weight': 40,
-                                                            'points': {'top25_min': 60}})
+    if VARIANT == 'A':
+        fmt = {'final_round': 5, 'path_rounds': [1, 2, 3, 4], 'path_weight': 40, 'points': {'top25_min': 60}}
+        w.fmt = {'final': 5, 'path': [1, 2, 3, 4], 'weight': 40}
+    else:   # без финала: итог — средний балл всех пяти туров
+        fmt = {'no_final': True, 'path_rounds': [1, 2, 3, 4, 5], 'path_weight': 100, 'points': {'top25_min': 60}}
+        w.fmt = {'final': None, 'path': [1, 2, 3, 4, 5], 'weight': 100}
+    res = org.put(f'/api/org/events/{eid}/results/format', fmt)
+    w.p.check(res is not None and res['config']['final_round'] == w.fmt['final'], 'major', 'org', f"формат итогов не сохранился: {res and res.get('config')}")
     pub = org.post(f'/api/org/events/{eid}/status', {'action': 'publish'})
     w.event = eid
     w.season = season
@@ -196,7 +203,12 @@ def register_all(w):
     # 3 активных аккаунта в Игру не записываются
     for p in active[-3:]:
         p['scen'].add('no_registration')
+    if VARIANT == 'B':      # шесть человек записываются уже после старта Игры (запись открыта до S + 1 день)
+        for p in active[-9:-3]:
+            p['scen'].add('late_reg')
     for p in active[:-3]:
+        if 'late_reg' in p['scen']:
+            continue
         c = p['client']
         cat = c.get('/api/events')
         ev = c.get(f'/api/events/{eid}')
@@ -248,6 +260,25 @@ def start_game(w):
     w.clock.set(S + timedelta(minutes=5))
     r = w.org.post(f'/api/org/events/{w.event}/status', {'action': 'start'})
     w.p.check(r is not None and r['status'] == 'active', 'critical', 'org', 'Игра не стартовала')
+    late = [p for p in w.people if 'late_reg' in p['scen']]
+    if late:
+        w.clock.set(S + timedelta(hours=12))
+        for p in late:
+            r = p['client'].post(f'/api/events/{w.event}/registration',
+                                 {'accept_rules': True, 'accept_publication': True, 'accept_personal_data': True,
+                                  'country_code': 'RU', 'city': 'Тула'}, expect=201)
+            p['registered'] = r is not None
+            me = game_me(w, p)
+            p['late_reg_mode'] = me and me['mode']
+        lst = {x['user_id']: x['id'] for x in w.org.get(f'/api/org/events/{w.event}/participants')['participants']}
+        items = []
+        for p in late:
+            p['ep_id'] = lst.get(p['user_id'])
+            p['league'] = 'bronze'
+            items.append({'id': p['ep_id'], 'league': 'bronze'})
+            w.part.append(p)
+        w.org.post(f'/api/org/events/{w.event}/leagues', {'items': items})
+        print('late registrations after start, modes:', Counter(p['late_reg_mode'] for p in late))
 
 
 # ---------------------------------------------------------------- сдача

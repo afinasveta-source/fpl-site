@@ -288,28 +288,34 @@ WHERE r.event_id=%s GROUP BY 1,2''', (eid,)):
         # зачёт: все 5 работ, каждая — до своего срока (личный срок — если продлён); первая отправка вовремя
         on_time = all(no in subs[ep] and first_sub[ep].get(no) is not None and
                       first_sub[ep][no] <= (subs[ep][no]['deadline_override'] or w.deadline_for(no, row['entry_league']))
-                      for no in range(1, 6))
-        all_sent = all(no in subs[ep] and subs[ep][no]['submitted_at'] <= end for no in range(1, 6))
+                      for no in range(1, len(w.rounds) + 1))
+        all_sent = all(no in subs[ep] and subs[ep][no]['submitted_at'] <= end for no in range(1, len(w.rounds) + 1))
         people.append({'ep': ep, 'name': row['full_name'], 'league': row['entry_league'], 'scores': sc, 'excl': excl,
                        'counted': on_time and not mode_withdrawn and not dq, 'diploma': all_sent and not dq,
                        'tops': tops.get(ep, 0)})
     # стадия, финалисты, итог
+    fmt = getattr(w, 'fmt', {'final': 5, 'path': [1, 2, 3, 4], 'weight': 40})
+    FIN, PATH, WT = fmt['final'], fmt['path'], fmt['weight'] / 100
+    LAST = FIN if FIN is not None else max(PATH)
     for p in people:
         p['stage'] = max(p['scores']) if p['scores'] else None
-        p['finalist'] = 5 in p['scores'] and p['excl'] is None
+        p['finalist'] = LAST in p['scores'] and p['excl'] is None
         if p['excl'] is None and not p['finalist'] and p['stage'] == 1:
             p['excl'] = 'not_qualified_round1'
         if p['finalist']:
-            path = [p['scores'][n] for n in (1, 2, 3, 4) if p['scores'].get(n) is not None]
-            f = p['scores'][5]
-            p['total'] = hu(sum(path) / len(path) * 0.4 + f * 0.6, 2) if path else hu(f, 2)
+            path = [p['scores'][n] for n in PATH if p['scores'].get(n) is not None]
+            if FIN is None:
+                p['total'] = hu(sum(path) / len(path), 2)
+            else:
+                f = p['scores'][FIN]
+                p['total'] = hu(sum(path) / len(path) * WT + f * (1 - WT), 2) if path and WT else hu(f, 2)
         else:
             p['total'] = None
     ranked = [p for p in people if p['excl'] is None and p['stage'] is not None]
 
     def k(p):
         if p['finalist']:
-            return (0, 0, -p['total'], -p['scores'][5])
+            return (0, 0, -p['total'], -(p['scores'][FIN] if FIN is not None else 0))
         return (1, -p['stage'], -p['scores'][p['stage']], 0)
     ranked.sort(key=k)
     prev = None
@@ -425,3 +431,90 @@ AND revoked_at IS NULL''', (eid,)):
         ra, rb = er.get(a), er.get(b)
         print(f'   engineered {lg} {mode}: totals {ra and ra["final_score"]} / {rb and rb["final_score"]}, '
               f'ranks {ra and ra["league_rank"]} / {rb and rb["league_rank"]}, award {ra and ra["award_place"]} / {rb and rb["award_place"]}')
+
+
+# ---------------------------------------------------------------- FPL Rating (Elo), своя реализация по Правилам 1.6–1.7
+
+STEPS = {0: (400, 180), 1: (300, 140), 2: (200, 100), 3: (75, 50)}   # K и предел по пройденным калибровочным турам
+
+
+def check_rating(w, rnd):
+    """Снимок на старте судейства = рейтинг после прошлых туров (новичок 500, калибровка 0); изменение = K·Σ(S−E)/n
+    с пределом; S — голоса (с переголосованием) или «виртуальные исходы» по оценке в туре по критериям; меняется
+    только у тех, кто в конкурсе на публикации и чья работа оценена; пул меньше 3 — без изменений."""
+    P = w.p
+    area = f'рейтинг, тур {rnd["no"]}'
+    state = w.__dict__.setdefault('rating_state', {})          # user → (рейтинг, калибровка)
+    snaps = {str(s['event_participant_id']): s for s in w.q('SELECT * FROM round_rating_snapshots WHERE round_id=%s', (rnd['id'],))}
+    tx = {str(t['user_id']): t for t in w.q('SELECT * FROM rating_transactions WHERE round_id=%s', (rnd['id'],))}
+    bad = defaultdict(list)
+    users = {}
+    for ep, s in snaps.items():
+        uid = str(s['user_id'])
+        users[ep] = uid
+        want = state.get(uid, (500.0, 0))
+        if abs(float(s['rating_snapshot']) - want[0]) > 1e-3 or s['calibration_rounds_completed_before'] != want[1]:
+            bad['снимок'].append(f"{float(s['rating_snapshot']):.4f}/{s['calibration_rounds_completed_before']} ≠ {want[0]:.4f}/{want[1]}")
+    expect = {}
+    for st in w.q('SELECT * FROM evaluation_streams WHERE round_id=%s AND active', (rnd['id'],)):
+        targets, res = stream_data(w, st['id'])
+        rating = {t: float(snaps[str(r['ep'])]['rating_snapshot']) for t, r in targets.items() if str(r['ep']) in snaps}
+        outs = defaultdict(list)
+        if st['judging_method'] == 'pairwise':
+            for c in w.q("SELECT * FROM pairwise_comparisons WHERE evaluation_stream_id=%s AND status='voted'", (st['id'],)):
+                a, b, win = str(c['target_a_id']), str(c['target_b_id']), str(c['winner_target_id'])
+                if a in rating and b in rating:
+                    if c['counts_for'] in ('both', 'target_a'):
+                        outs[a].append((rating[b], 1.0 if win == a else 0.0))
+                    if c['counts_for'] in ('both', 'target_b'):
+                        outs[b].append((rating[a], 1.0 if win == b else 0.0))
+            judged = {t for t in targets if outs.get(t)}
+        else:
+            crit = {str(c['id']): float(c['weight']) for c in w.q('SELECT * FROM evaluation_criteria WHERE evaluation_stream_id=%s', (st['id'],))}
+            by = defaultdict(lambda: defaultdict(dict))
+            for s in w.q("SELECT * FROM criterion_scores WHERE evaluation_stream_id=%s AND status='valid'", (st['id'],)):
+                by[str(s['evaluation_target_id'])][s['judge_slot_id']][str(s['criterion_id'])] = float(s['score'])
+            tw = sum(crit.values())
+            val = {}
+            for t in targets:
+                pj = [sum(sc[c] * x for c, x in crit.items()) / tw for sc in by[t].values() if set(sc) >= set(crit)]
+                if pj and t in rating:
+                    val[t] = sum(pj) / len(pj)
+            for t, v in val.items():
+                for o, u in val.items():
+                    if o != t:
+                        outs[t].append((rating[o], 1.0 if v > u + 1e-9 else 0.0 if v < u - 1e-9 else 0.5))
+            judged = set(val)
+        pool = sum(1 for t, r in res.items() if r['display_score'] is not None)
+        for t, r in res.items():
+            ep = str(targets[t]['ep'])
+            uid = users.get(ep)
+            in_comp = r['qualified'] is not None
+            if pool >= 3 and in_comp and t in judged and uid:
+                cal = state.get(uid, (500.0, 0))[1]
+                k, cap = STEPS[min(3, cal)]
+                me = rating[t]
+                raw = k * sum(sres - 1 / (1 + 10 ** ((opp - me) / 400)) for opp, sres in outs[t]) / len(outs[t])
+                d = max(-cap, min(cap, raw))
+                before = state.get(uid, (500.0, 0))[0]
+                expect[uid] = (before, raw, d, before + d, k, cap, min(3, cal + 1))
+    for uid, (before, raw, d, after, k, cap, cal) in expect.items():
+        t = tx.get(uid)
+        if t is None:
+            bad['нет изменения'].append(uid[:8])
+            continue
+        got = (float(t['rating_before']), float(t['delta_before_cap']), float(t['delta_after_cap']), float(t['rating_after']),
+               float(t['k_used']), float(t['cap_used']))
+        want = (before, raw, d, after, k, cap)
+        if any(abs(x - y) > 2e-4 for x, y in zip(got, want)):
+            bad['изменение'].append(f'{got} ≠ {tuple(round(x, 4) for x in want)}')
+        state[uid] = (float(t['rating_after']), cal)
+    extra = set(tx) - set(expect)
+    if extra:
+        bad['лишнее изменение (вне конкурса / без оценки)'].append(f'{len(extra)} чел.')
+    for k2, items in bad.items():
+        P.add('critical', area, f'{k2}: {len(items)}, например: ' + '; '.join(items[:3]))
+    stats = {str(s['user_id']): float(s['current_rating']) for s in w.q('SELECT * FROM participant_stats WHERE current_rating IS NOT NULL')}
+    off = [u for u, (r, _) in state.items() if abs(stats.get(u, -1) - r) > 1e-3]
+    P.check(not off, 'critical', area, f'рейтинг в профиле ≠ последнему изменению: {len(off)}')
+    print(f'   oracle {area}: изменений {len(tx)}, ожидалось {len(expect)}, расхождений {sum(len(v) for v in bad.values())}')

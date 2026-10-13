@@ -6,7 +6,7 @@ from collections import Counter, defaultdict
 from datetime import timedelta
 
 from sim import oracle as O
-from sim.game200 import ORIGIN, game_me, iso, rng, submit
+from sim.game200 import ORIGIN, VARIANT, game_me, iso, rng, submit
 
 LEAGUES = ('gold', 'silver', 'bronze')
 
@@ -89,7 +89,25 @@ def phase_submit(w, rnd):
     opens = {lg: league_opens(rnd, lg) for lg in LEAGUES}
     dls = {lg: league_deadline(rnd, lg) for lg in LEAGUES}
     first_open = min(opens.values())
+    if VARIANT == 'B' and no == 4:
+        # организатор открывает тур на день раньше даты
+        w.clock.set(first_open - timedelta(days=1))
+        r = org.post(f"/api/org/rounds/{rnd['id']}/status", {'action': 'open_now'})
+        p0 = next(p for p in w.part if wants_to_submit(w, p, rnd))
+        early = submit(w, p0, rnd, label='open_now')
+        w.p.check(early is not None and 'detail' not in early, 'major', 'туры', f'после «Открыть сейчас» сдать нельзя: {early}')
+        opens = {lg: first_open - timedelta(days=1) for lg in LEAGUES}
+        first_open = first_open - timedelta(days=1)
     w.clock.set(first_open + timedelta(minutes=1))
+    if VARIANT == 'B' and no == 3:
+        # срок тура продлён всем после открытия: сдавшие в добавленные сутки — вовремя
+        new_dl = rnd['deadline'] + timedelta(days=1)
+        org.patch(f"/api/org/rounds/{rnd['id']}", {'deadline': iso(new_dl)})
+        rnd['old_deadline'], rnd['deadline'] = rnd['deadline'], new_dl
+        dls = {lg: league_deadline(rnd, lg) for lg in LEAGUES}
+        ext = [p for p in w.part if wants_to_submit(w, p, rnd)][10:15]
+        for p in ext:
+            p['scen'].add('ext_all3')
     # до открытия своей лиги задание не видно / сдать нельзя
     if no == 2:
         bronze = next(p for p in w.part if p.get('league') == 'bronze' and wants_to_submit(w, p, rnd))
@@ -143,6 +161,8 @@ def phase_submit(w, rnd):
                 continue
             if ('ext2' in p['scen'] or 'ext2_late' in p['scen']) and no == 2:
                 continue
+            if 'ext_all3' in p['scen'] and no == 3:
+                continue
             r = submit(w, p, rnd)
             if r is None:
                 note(w, p, f'тур {no}: сдача не прошла')
@@ -167,6 +187,11 @@ def phase_submit(w, rnd):
             w.clock.set(p['personal_dl'] + timedelta(hours=1))
             r = submit(w, p, rnd, label='ext_late')
             note(w, p, f'тур 2 сдан после личного срока: {r and r.get("state")}')
+    for p in who:
+        if 'ext_all3' in p['scen'] and no == 3:
+            w.clock.set(rnd['old_deadline'] + timedelta(hours=6))
+            r = submit(w, p, rnd, label='ext_all')
+            w.p.check(r is not None and 'detail' not in r, 'major', 'сроки', f'сдача в продлённый всем срок не прошла: {r}')
     # замена после срока (сдала вовремя): какая версия пойдёт в конкурс
     for p in who:
         if 'replace_late' in p['scen'] and no == 3:
@@ -197,7 +222,21 @@ JOIN participant_assignments pa ON pa.id=s.participant_assignment_id WHERE pa.as
 AND p.competition_status='active' GROUP BY 1''', (rnd['assignment_id'],))
     works = {r['league']: r['n'] for r in rows}
     total = sum(works.values())
-    if no == 1:
+    if VARIANT == 'B':
+        crit2 = [{'label': 'Образ', 'weight': 1}, {'label': 'Техника', 'weight': 2}]
+        cfg = {1: {'method': 'criteria', 'pools': 'common', 'criteria': crit2, 'judges': {'all': J[:5]},
+                   'quota': {'all': frac_quota(total, 0.85)}},
+               2: {'method': 'pairwise', 'pools': 'common', 'per_target': 2, 'judges': {'all': J[5:9]},     # чётное число судей
+                   'quota': {'all': frac_quota(total, 0.8)}},
+               3: {'method': 'pairwise', 'pools': 'leagues', 'per_target': 4,
+                   'judges': {'gold': J[9:12], 'silver': J[12:15], 'bronze': J[15:18]},
+                   'quota': {lg: frac_quota(works.get(lg, 0), .75) for lg in LEAGUES}},
+               4: {'method': 'criteria', 'pools': 'leagues', 'criteria': crit2,
+                   'judges': {'gold': J[18:20], 'silver': J[20:22], 'bronze': J[22:25]},
+                   'quota': {lg: frac_quota(works.get(lg, 0), .75) for lg in LEAGUES}},
+               5: {'method': 'pairwise', 'pools': 'leagues', 'per_target': 6,
+                   'judges': {'gold': J[0:3], 'silver': J[3:6], 'bronze': J[6:9]}, 'quota': {}}}[no]
+    elif no == 1:
         cfg = {'method': 'pairwise', 'pools': 'common', 'per_target': 2, 'judges': {'all': J[:9]},
                'quota': {'all': frac_quota(total, 0.85)}}
     elif no == 2:
@@ -281,7 +320,8 @@ def phase_judging(w, rnd, forced=None):
     if v and v.get('checks', {}).get('problems'):
         print('   start problems:', v['checks']['problems'])
     # 2 участницы без лиги: тур по лигам не стартует, пока организатор не назначит лигу
-    if no == 2:
+    if rnd['cfg']['pools'] == 'leagues' and not getattr(w, 'nolg_done', False):
+        w.nolg_done = True
         r = org.post(f"/api/org/rounds/{rnd['id']}/judging/start", expect=(200, 409))
         nolg = [p for p in w.part if 'no_league' in p['scen'] and mode_of(w, p) == 'in']
         if nolg:
@@ -290,6 +330,8 @@ def phase_judging(w, rnd, forced=None):
                 p['league'] = 'bronze'
                 org.post(f"/api/org/participants/{p['ep_id']}/league", {'league': 'bronze'})
             v = org.post(f"/api/org/rounds/{rnd['id']}/judging/start")
+        else:
+            v = r
     else:
         v = org.post(f"/api/org/rounds/{rnd['id']}/judging/start")
     if not v or not v.get('started'):
@@ -363,6 +405,13 @@ def phase_judging(w, rnd, forced=None):
                                           {'scores': {cr['code']: bad for cr in s['criteria']}}, expect=422, level='major')
                     jd['client'].post(f"/api/judging/streams/{st['id']}/works/{wk['id']}",
                                       {'scores': {s['criteria'][0]['code']: 50}}, expect=(200, 422), level='minor')
+                if VARIANT == 'B' and no == 4 and st['league'] == 'gold' and k == 0:
+                    score_works(w, jd, st['id'], tmap, limit=5, forced=forced)
+                    new = w.judges[10]
+                    org.post(f"/api/org/judging/streams/{st['id']}/replace",
+                             {'old_user_id': uid, 'new_user_id': new['user_id'], 'reason': 'Уехала'}, expect=(200, 409, 422))
+                    st['replaced'] = (uid, new['user_id'])
+                    jd = new
                 score_works(w, jd, st['id'], tmap, forced=forced)
     # двойное нажатие: повторный голос по уже проголосованной паре
     st0 = next((s for s in streams if rnd['cfg']['method'] == 'pairwise'), None)
@@ -496,9 +545,9 @@ def run(w):
                 p['league'] = new
         sent = phase_submit(w, rnd)
         forced = None
-        if rnd['no'] == 3:
+        if rnd['no'] == (3 if VARIANT == 'A' else 4):
             forced = border_ties(w, rnd)
-        if rnd['no'] == 5:
+        if rnd['no'] == 5 and VARIANT == 'A':
             forced = O.engineer_final(w, rnd)
         v = phase_judging(w, rnd, forced=forced)
         if v is None:
@@ -507,6 +556,7 @@ def run(w):
         if not ok:
             return
         O.check_round(w, rnd)
+        O.check_rating(w, rnd)
         after_round(w, rnd)
         print(f"tour {rnd['no']}: sent {sent}, {time.perf_counter() - t:.0f}s, problems so far {len(w.p.items)}"
               + (f", приняли новые Правила: {getattr(w, 'rules_accepted', 0)}" if rnd['no'] == 3 else ''), flush=True)
@@ -539,6 +589,21 @@ def finish(w):
     pub = org.post(f'/api/org/events/{eid}/results/publish')
     again = org.post(f'/api/org/events/{eid}/results/publish', expect=(200, 409), level='minor')
     O.check_game(w)
+    # что видит каждая участница на странице Игры — то же, что посчитано
+    by_ep = {x['ep']: x for x in getattr(w, 'game_people', [])}
+    seen_bad = []
+    for p in w.part:
+        x = by_ep.get(p.get('ep_id'))
+        if not x or not p.get('client'):
+            continue
+        g = p['client'].get(f'/api/games/{eid}', expect=(200, 401))
+        r = (g or {}).get('result')
+        if r is None:
+            seen_bad.append(f"{p['email']}: итога нет")
+            continue
+        if (r['award_place'], r['total'], bool(r['diploma']), r['points']) != (x['award'], x['total'], x['diploma'], x['pts']):
+            seen_bad.append(f"{p['email']}: {r['award_place'], r['total'], bool(r['diploma']), r['points']} ≠ {x['award'], x['total'], x['diploma'], x['pts']}")
+    w.p.check(not seen_bad, 'critical', 'итоги у участницы', f'{len(seen_bad)} расхождений: ' + '; '.join(seen_bad[:3]))
     # после итогов Игру не открыть
     org.post(f'/api/org/events/{eid}/status', {'action': 'reopen'}, expect=409, level='critical')
     for p in w.part[:30]:
