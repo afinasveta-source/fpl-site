@@ -11,8 +11,10 @@ rm -rf kabinet-src && mkdir kabinet-src && cp -r ../../kabinet/kabinet ../../kab
 find kabinet-src -name '__pycache__' -prune -exec rm -rf {} +
 cp ../kabinet/fpl-kabinet-rehearsal .
 # REHEARSAL=on — поднять тестовый кабинет /kabinet-test/, REHEARSAL=off — удалить его; без переменной — не трогать
-rm -f rehearsal.on rehearsal.off; EXTRA=""
+rm -f rehearsal.on rehearsal.off robot.on; rm -rf robot; EXTRA=""
 case "${REHEARSAL:-}" in on|off) touch "rehearsal.$REHEARSAL"; EXTRA="rehearsal.$REHEARSAL" ;; esac
+# ROBOT=on — запустить робот-репетицию в тестовом кабинете (нужен поднятый /kabinet-test/)
+if [ "${ROBOT:-}" = on ]; then mkdir robot && cp ../../kabinet/sim/robot.py ../../kabinet/sim/oracle.py robot/ && touch robot.on; EXTRA="$EXTRA robot robot.on"; fi
 tar --owner=0 --group=0 -czf ../../out/fpl-ops.tgz apply.sh fpl-sync fpl-ingest.py fpl-photo-archive.py fpl_s3.py db fpl-kabinet-setup fpl-media-backup fpl-kabinet-rehearsal kabinet-src $EXTRA
-rm -f rehearsal.on rehearsal.off
+rm -f rehearsal.on rehearsal.off robot.on; rm -rf robot
 tar -tzvf ../../out/fpl-ops.tgz

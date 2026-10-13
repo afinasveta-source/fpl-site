@@ -104,6 +104,18 @@ elif systemctl is-enabled --quiet fpl-kabinet-test 2>/dev/null; then
   systemctl restart fpl-kabinet-test || true
 fi
 
+# 11. Робот-репетиция (пакет с robot.on): Игра роботов в ТЕСТОВОМ кабинете, в фоне ~1 час; итог — /data/robot-report.json
+if [ -f robot.on ] && [ -d robot ] && systemctl is-active --quiet fpl-kabinet-test; then
+  rm -rf /opt/fpl/robot && cp -r robot /opt/fpl/robot
+  if ! systemctl list-units --type=service --state=running | grep -q 'fpl-robot'; then
+    BASE="https://${DOMAIN:-facepaintingleague.com}/kabinet-test"
+    curl -sf --max-time 10 "$BASE/health" >/dev/null || BASE="http://127.0.0.1:8101"
+    systemd-run --unit="fpl-robot-$(date +%s)" --collect -p MemoryMax=300M -p EnvironmentFile=/etc/fpl-kabinet-test.env \
+      -p WorkingDirectory=/opt/fpl/robot /opt/fpl/kabinet/venv/bin/python /opt/fpl/robot/robot.py --base "$BASE" --n 200 --minutes 12 \
+      && echo "робот-репетиция: запущен ($BASE)" || echo "робот-репетиция: не запустился"
+  fi
+fi
+
 /usr/local/bin/fpl-sync || true
 /usr/local/bin/fpl-photo-archive || true
 echo "ok $(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$STATUS"

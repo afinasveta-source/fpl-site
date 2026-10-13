@@ -338,7 +338,7 @@ WHERE r.event_id=%s GROUP BY 1,2''', (eid,)):
             prev = p
         n = len(mem)
         c10 = min(10, n * 20 // 100) if n >= 30 else 0
-        c25 = min(25, n * 20 // 100) if n >= 60 else 0          # в симуляции порог TOP-25 = 60 (формат Игры)
+        c25 = min(25, n * 20 // 100) if n >= getattr(w, 'top25_min', 60) else 0   # в симуляции порог TOP-25 = 60 (формат Игры)
         for p in mem:
             p['top10'] = p['lrank'] <= c10
             p['top25'] = p['lrank'] <= c25
@@ -411,7 +411,7 @@ AND revoked_at IS NULL''', (eid,)):
         mem = [p for p in people if p['diploma'] and p['league'] == lg]
         mem.sort(key=lambda p: (p['lrank'] if p['lrank'] is not None else 10 ** 6, (p['name'] or '').lower(), p['ep']))
         for n, p in enumerate(mem, 1):
-            want = f'FPL-S{w.season["season_no"]}-02-{letter}-{n:04d}'
+            want = f'FPL-S{w.season["season_no"]}-{getattr(w, "game_no", 2):02d}-{letter}-{n:04d}'
             cs = certs.get(p['ep'], [])
             if cs and cs[0]['certificate_number'] != want:
                 bad['номер диплома'].append(f"{p['name']}: {cs[0]['certificate_number']} ≠ {want}")
