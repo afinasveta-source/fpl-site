@@ -185,9 +185,10 @@ def main():
         rating = q1('SELECT site_export_rating()')
         players = rating['seasons'][0]['players']
         names = [p['name'] for p in players]
-        check(len(players) == 9, 'в рейтинге на сайте 9 (без имени — скрыт): %d' % len(players))
-        check('Мастер C3' not in names and all(n for n in names), 'без публичного имени не показывается')
-        check([p['place'] for p in players][:3] == [1, 2, 4], 'места считаются по всем (скрытый №3 не сдвигает)')
+        check(len(players) == 10, 'в рейтинге на сайте 10 (без публичного имени — имя из ФИО, решение 13.10): %d' % len(players))
+        check('Мастер C3' not in names and all(n for n in names) and any(n.startswith('Фамилия') for n in names),
+              'без публичного имени — имя из ФИО')
+        check([p['place'] for p in players][:3] == [1, 2, 3], 'места по порядку')
         games = q1('SELECT site_export_games()')
         r1 = games['games'][0]['rounds'][0]
         check(r1['published'] and r1['top_work_count'] == 2 and sorted(x['name'] for x in r1['top_work']) == ['Мастер C1', 'Мастер C2'],
@@ -224,7 +225,7 @@ def main():
         check(st.get('status') == 'completed', 'пакет completed (%s)' % p.stderr.strip()[-300:])
         check(q1('SELECT count(*) FROM consents') == 46, 'отзыв добавлен новой записью')
         names = [x['name'] for x in q1('SELECT site_export_rating()')['seasons'][0]['players']]
-        check('Мастер C4' not in names and len(names) == 8, 'отозвавшая скрыта с сайта')
+        check('Мастер C4' not in names and len(names) == 9, 'отозвавшая скрыта с сайта: %d' % len(names))
         check(q1("SELECT public_rating FROM users u JOIN external_identities e ON e.user_id=u.id AND e.external_id='c4'") is False,
               'флаг публичности снят')
         check(q1("SELECT count(*) FROM rating_transactions WHERE status='void'") == 10 and

@@ -354,3 +354,19 @@ def test_registration_joins_season_and_shows_rating(app, seed, clock):
     assert c.post('/api/publicity/revoke', headers=ORIGIN).status_code == 200
     with app.state.db.transaction() as conn:
         assert conn.execute("SELECT public_rating FROM users WHERE email='anna@example.com'").fetchone()['public_rating'] is False
+
+
+def test_site_name_when_public_name_empty(app, seed, clock):
+    """Публичное имя не заполнено — при записи на Игру на сайт идёт имя из ФИО (решение 13.10)."""
+    from kabinet.participation.rules import name_for_site
+    assert name_for_site('Петрова Анна Сергеевна') == 'Анна Петрова'
+    assert name_for_site('Анна Петрова') == 'Анна Петрова' and name_for_site('  ') is None and name_for_site(None) is None
+    c = login(app, seed, 'anna@example.com')
+    with app.state.db.transaction() as conn:
+        add_docs(conn)
+        game = build_game(conn, status='registration')
+        conn.execute("UPDATE users SET full_name='Петрова Анна Сергеевна' WHERE email='anna@example.com'")
+        conn.execute("INSERT INTO users(email,account_status,full_name,display_name) VALUES ('b@example.com','imported','X Y Z','Бэлла')")
+    assert register(c, game['event']).status_code == 201
+    with app.state.db.transaction() as conn:
+        assert conn.execute("SELECT display_name FROM users WHERE email='anna@example.com'").fetchone()['display_name'] == 'Анна Петрова'

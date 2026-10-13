@@ -12,9 +12,19 @@ ORDER BY c.user_id, c.consent_type, c.recorded_at DESC, c.id DESC;
 
 -- Кто может быть показан: работы/результаты/рейтинг — согласие publication (1.3);
 -- анкета мастера — public_profile; контакты — public_contacts.
+-- Имя на сайте: публичное имя, а если его нет — из ФИО (решение 13.10): «Фамилия Имя Отчество» → «Имя Фамилия»,
+-- два слова — как введено. Так же считает кабинет (participation/rules.py name_for_site).
+CREATE OR REPLACE FUNCTION site_name_for(display_name text, full_name text) RETURNS text LANGUAGE sql IMMUTABLE AS $$
+  SELECT coalesce(nullif(trim(display_name), ''),
+    CASE WHEN array_length(w, 1) >= 3 THEN left(w[2] || ' ' || w[1], 40)
+         WHEN array_length(w, 1) >= 1 AND length(array_to_string(w, ' ')) >= 2 THEN left(array_to_string(w, ' '), 40) END)
+  FROM (SELECT CASE WHEN coalesce(trim(full_name), '') = '' THEN NULL::text[]
+                    ELSE regexp_split_to_array(trim(full_name), '\s+') END AS w) x
+$$;
+
 CREATE OR REPLACE VIEW site_public_people AS
 SELECT u.id AS user_id,
-       u.display_name,
+       site_name_for(u.display_name, u.full_name) AS display_name,
        (pub.status = 'accepted' AND u.public_rating) AS show_rating,
        (pub.status = 'accepted' AND u.public_works)  AS show_works,
        (prof.status = 'accepted' AND u.public_profile) AS show_profile,
@@ -25,7 +35,7 @@ LEFT JOIN site_consent_latest pub  ON pub.user_id = u.id  AND pub.consent_type =
 LEFT JOIN site_consent_latest prof ON prof.user_id = u.id AND prof.consent_type = 'public_profile'
 LEFT JOIN site_consent_latest cont ON cont.user_id = u.id AND cont.consent_type = 'public_contacts'
 WHERE u.deleted_at IS NULL AND u.anonymized_at IS NULL
-  AND coalesce(nullif(trim(u.display_name), ''), NULL) IS NOT NULL;
+  AND site_name_for(u.display_name, u.full_name) IS NOT NULL;
 
 -- Рейтинг текущего сезона. Место считается среди ВСЕХ с рейтингом (скрытые не сдвигают места),
 -- в выгрузку попадают только показываемые.
@@ -116,7 +126,8 @@ CREATE OR REPLACE FUNCTION site_export_certificates() RETURNS json LANGUAGE sql 
       SELECT json_object_agg(c.certificate_number, json_build_object(
         'type', c.certificate_type,
         -- имя — только пока действует согласие на публикацию (отозвала — проверка диплома показывает его без имени)
-        'name', CASE WHEN pub.status = 'accepted' THEN c.issue_snapshot->>'public_name' END,
+        'name', CASE WHEN pub.status = 'accepted'
+                     THEN coalesce(nullif(c.issue_snapshot->>'public_name', ''), site_name_for(u.display_name, u.full_name)) END,
         'game', c.issue_snapshot->>'game',
         'season', c.issue_snapshot->>'season',
         'season_en', c.issue_snapshot->>'season_en',
@@ -126,6 +137,7 @@ CREATE OR REPLACE FUNCTION site_export_certificates() RETURNS json LANGUAGE sql 
         'issued_at', c.issued_at))
       FROM certificates c
       JOIN event_participants ep ON ep.id = c.event_participant_id
+      JOIN users u ON u.id = ep.user_id
       LEFT JOIN site_consent_latest pub ON pub.user_id = ep.user_id AND pub.consent_type = 'publication'
       WHERE c.status = 'issued' AND c.revoked_at IS NULL AND c.certificate_number IS NOT NULL), '{}'::json));
 $$;

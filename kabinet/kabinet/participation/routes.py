@@ -161,6 +161,9 @@ def register(event_id: UUID, body: Registration, request: Request, user=Depends(
             raise HTTPException(422, 'place_required')
         if (country, city) != (person['country_code'], person['city']):
             conn.execute('UPDATE users SET country_code=%s, city=%s WHERE id=%s', (country, city, user['id']))
+        if not (person['display_name'] or '').strip() and R.name_for_site(person['full_name']):
+            # публичное имя не заполнено — на сайте будет имя из ФИО (его можно поменять в профиле)
+            conn.execute('UPDATE users SET display_name=%s WHERE id=%s', (R.name_for_site(person['full_name']), user['id']))
         paid = event['payment_required']
         conn.execute('SAVEPOINT reg')
         try:

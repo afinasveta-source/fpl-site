@@ -70,7 +70,7 @@ WHERE rr.event_id=%s AND rr.is_current AND rr.status='published' ''', (e['id'],)
                      top_works=[str(r['id']) for r in mine if r['top_work']])
         out.append(p)
         extra[p.id] = {'ep': ep, 'mode': mode, 'diploma_name': ep['display_name'] or ep['full_name'] or 'Участница FPL',
-                       'public_name': ep['display_name']}
+                       'public_name': ep['display_name'] or R.name_for_site(ep['full_name'])}
     return out, extra
 
 

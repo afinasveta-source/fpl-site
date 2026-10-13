@@ -288,3 +288,13 @@ def game_flags(event, mode, rounds, assignments_by_round, on_time, by_end, pa_by
     else:
         diploma = 'pending'
     return {'counted': counted, 'diploma': diploma}
+
+
+def name_for_site(full_name):
+    """Имя для сайта, если участница не заполнила публичное имя (решение 13.10: «просто имя»).
+    ФИО из бота — «Фамилия Имя Отчество» → «Имя Фамилия»; из кабинета — «Имя Фамилия» (так и введено)."""
+    words = (full_name or '').split()
+    if not words:
+        return None
+    name = f'{words[1]} {words[0]}' if len(words) >= 3 else ' '.join(words)
+    return name[:40] if len(name) >= 2 else None
