@@ -391,7 +391,7 @@
   });
 
   var FIELD = [['required', 'Обязательно'], ['optional', 'Можно добавить'], ['none', 'Не нужно']];
-  function drawRound(r) {
+  function drawRound(r, drafts) {
     O.round = r;
     var ro = r.readonly, t = r.task || { title: '', form: { photo: 'required', link: 'required', photo_max: 1 }, variants: [{ league: null, instructions: '' }] };
     var byLeague = {};
@@ -403,7 +403,7 @@
     if (!ro && r.status === 'scheduled' && !r.all_open) acts.push('<button class="btn" type="button" data-act="roundAct" data-a="open_now">' + (r.state === 'plan' ? 'Открыть сейчас' : 'Открыть сейчас всем лигам') + '</button>');
     if (!ro && r.state === 'plan') acts.push('<button class="btn sec" type="button" data-act="roundAct" data-a="unpublish">Вернуть в черновик</button>');
     if (!ro && r.status === 'draft' && r.is_last) acts.push('<button class="btn ghost" type="button" data-act="roundDelete">Удалить тур</button>');
-    h += '<section class="card"><h2>Состояние</h2><p class="small muted">' + ({ draft: 'Черновик: участницы тур не видят. Заполните даты и задание и опубликуйте.', plan: 'Опубликован: виден в плане Игры. Задание откроется ' + esc(O.when(r.opens_at)) + '.',
+    h += '<section class="card"><h2>Состояние</h2><p class="small muted">' + ({ draft: 'Черновик: участницы тур не видят. Заполните даты и задание, нажмите «Сохранить» (любая кнопка «Сохранить» сохраняет всю страницу) и опубликуйте.', plan: 'Опубликован: виден в плане Игры. Задание откроется ' + esc(O.when(r.opens_at)) + '.',
       open: 'Идёт сдача до ' + esc(O.when(r.deadline)) + '.', closed: 'Приём работ закрыт.' }[r.state] || '') + '</p>' + ownDatesNote(r) + O.issues(r.checks) + (acts.length ? '<div class="row">' + acts.join('') + '</div>' : '') +
       (r.status !== 'draft' ? '<div class="row"><button class="btn sec" type="button" data-href="/org/rounds/' + r.id + '/judging">Судейство тура</button></div>' : '') +
       (r.state !== 'draft' ? '<div class="stats"><div class="stat"><span>Участниц в Игре</span><b class="num">' + r.stats.participants + '</b></div><div class="stat"><span>Открыли задание</span><b class="num">' + r.stats.issued + '</b></div>' +
@@ -431,46 +431,123 @@
           '<div class="grid2">' + O.dt('lo-' + l[0], 'Открытие задания для ' + l[1], v ? v.opens_at : null, ro || lockedOpen(l[0]) ? ' disabled' : '',
             lockedOpen(l[0]) ? 'Задание этой лиге уже открылось.' : 'Пусто — общее открытие тура.') +
           O.dt('ld-' + l[0], 'Срок сдачи для ' + l[1], v ? v.deadline : null, ro ? ' disabled' : '', 'Пусто — общий срок тура.') + '</div></div></fieldset>';
-      }).join('') + O.errBox + (ro ? '' : '<button class="btn" type="submit">Сохранить задание</button>') + '</form>';
+      }).join('') + O.errBox + (ro ? '' : '<button class="btn" type="submit">Сохранить</button>') + '</form>';
     h += relayCard(r, ro);
     K.page(h, crumbs);
-    var fr = document.getElementById('f-relay');
-    if (fr) fr.addEventListener('submit', function (ev) {
-      ev.preventDefault();
-      var on = fr.querySelector('#rl-on').checked;
-      var body = on ? { source: fr.querySelector('#rl-from').value, target: fr.querySelector('#rl-to').value, mode: fr.querySelector('#rl-mode').value,
-        top_n: +fr.querySelector('#rl-top').value || 10 } : { source: null, target: null };
-      O.send('PUT', '/api/org/rounds/' + r.id + '/relay', body, fr, function (d) { K.toast(on ? 'Эстафета сохранена' : 'Эстафета выключена'); drawRound(d); });
+    restoreDrafts(drafts);
+    ['f-round', 'f-task', 'f-relay'].forEach(function (fid) {
+      var form = document.getElementById(fid);
+      if (form) form.addEventListener('submit', function (ev) { ev.preventDefault(); saveRoundPage(r, fid); });
     });
-    var f = document.getElementById('f-round');
-    f.addEventListener('submit', function (ev) {
-      ev.preventDefault();
-      var title = f.querySelector('#r-title').value.trim();
-      if (!title) { K.formError(f, 'Название не может быть пустым.'); return; }
-      var body = { title: title, deadline: K.fromInput(f.querySelector('#r-deadline').value), judging_deadline: K.fromInput(f.querySelector('#r-judging').value) };
-      if (!r.locks.opens_at) body.opens_at = K.fromInput(f.querySelector('#r-open').value);
-      if (body.deadline === null && r.deadline === null) delete body.deadline;
-      if (body.judging_deadline === null && r.judging_deadline === null) delete body.judging_deadline;
-      if (body.opens_at === null && r.opens_at === null) delete body.opens_at;
-      O.send('PATCH', '/api/org/rounds/' + r.id, body, f, function (d) { K.toast('Сохранено'); drawRound(d); });
+  }
+  /* Страница тура — три блока (сроки, задание, эстафета), но одна кнопка «Сохранить» сохраняет все изменения на странице.
+     Раньше каждая кнопка сохраняла только свой блок и перерисовывала страницу — несохранённое в других блоках пропадало. */
+  var ROUND_FORMS = ['f-round', 'f-task', 'f-relay'];
+  window.addEventListener('beforeunload', function (ev) {
+    if (ROUND_FORMS.some(function (fid) { return formDirty(document.getElementById(fid)); })) { ev.preventDefault(); ev.returnValue = ''; }
+  });
+  function fieldsOf(form) {
+    return Array.prototype.filter.call(form.querySelectorAll('input, select, textarea'), function (x) { return x.id; });
+  }
+  function isDirty(x) {
+    if (x.type === 'checkbox') return x.checked !== x.defaultChecked;
+    if (x.tagName === 'SELECT') {
+      var d = Array.prototype.filter.call(x.options, function (o) { return o.defaultSelected; })[0] || x.options[0];
+      return !!d && x.value !== d.value;
+    }
+    return x.value !== x.defaultValue;
+  }
+  function formDirty(form) { return !!form && fieldsOf(form).some(function (x) { return !x.disabled && isDirty(x); }); }
+  function pageDrafts(only) {
+    var out = {};
+    (only || ROUND_FORMS).forEach(function (fid) {
+      var form = document.getElementById(fid);
+      if (form) fieldsOf(form).forEach(function (x) { if (!x.disabled && isDirty(x)) out[x.id] = x.type === 'checkbox' ? x.checked : x.value; });
     });
-    var ft = document.getElementById('f-task');
-    ft.addEventListener('submit', function (ev) {
-      ev.preventDefault();
-      var title = ft.querySelector('#t-title').value.trim();
-      if (!title) { K.formError(ft, 'Введите название задания.'); return; }
-      var photo = ft.querySelector('#t-photo').value, link = ft.querySelector('#t-link').value;
-      if (photo === 'none' && link === 'none') { K.formError(ft, 'Включите хотя бы фото или ссылку.'); return; }
-      var variants = [{ league: null, instructions: ft.querySelector('#t-all').value }];
-      O.LEAGUES.forEach(function (l) {
-        if (!ft.querySelector('#lg-' + l[0]).checked) return;
-        variants.push({ league: l[0], title: ft.querySelector('#lt-' + l[0]).value.trim() || null, instructions: ft.querySelector('#li-' + l[0]).value,
-          opens_at: K.fromInput(ft.querySelector('#lo-' + l[0]).value), deadline: K.fromInput(ft.querySelector('#ld-' + l[0]).value) });
+    return out;
+  }
+  function restoreDrafts(d) {
+    if (!d) return;
+    Object.keys(d).forEach(function (id) {
+      var x = document.getElementById(id);
+      if (!x || x.disabled) return;
+      if (x.type === 'checkbox') { x.checked = d[id]; if (x.getAttribute('data-act') === 'toggleLeague') K.actions.toggleLeague(x); }
+      else x.value = d[id];
+    });
+    if (Object.keys(d).length) K.toast('Есть несохранённые изменения — нажмите «Сохранить»');
+  }
+  function roundBody(r, f) {
+    var title = f.querySelector('#r-title').value.trim();
+    if (!title) return { err: 'Название не может быть пустым.' };
+    var body = { title: title, deadline: K.fromInput(f.querySelector('#r-deadline').value), judging_deadline: K.fromInput(f.querySelector('#r-judging').value) };
+    if (!r.locks.opens_at) body.opens_at = K.fromInput(f.querySelector('#r-open').value);
+    if (body.deadline === null && r.deadline === null) delete body.deadline;
+    if (body.judging_deadline === null && r.judging_deadline === null) delete body.judging_deadline;
+    if (body.opens_at === null && r.opens_at === null) delete body.opens_at;
+    return { method: 'PATCH', path: '/api/org/rounds/' + r.id, body: body };
+  }
+  function taskBody(r, ft) {
+    var title = ft.querySelector('#t-title').value.trim();
+    if (!title) return { err: 'Введите название задания.' };
+    var photo = ft.querySelector('#t-photo').value, link = ft.querySelector('#t-link').value;
+    if (photo === 'none' && link === 'none') return { err: 'Включите хотя бы фото или ссылку.' };
+    var variants = [{ league: null, instructions: ft.querySelector('#t-all').value }];
+    O.LEAGUES.forEach(function (l) {
+      if (!ft.querySelector('#lg-' + l[0]).checked) return;
+      variants.push({ league: l[0], title: ft.querySelector('#lt-' + l[0]).value.trim() || null, instructions: ft.querySelector('#li-' + l[0]).value,
+        opens_at: K.fromInput(ft.querySelector('#lo-' + l[0]).value), deadline: K.fromInput(ft.querySelector('#ld-' + l[0]).value) });
+    });
+    return { method: 'PUT', path: '/api/org/rounds/' + r.id + '/task', body: { title: title, form: { photo: photo, link: link, photo_max: +ft.querySelector('#t-max').value }, variants: variants } };
+  }
+  function relayBody(r, fr) {
+    var on = fr.querySelector('#rl-on').checked;
+    return { method: 'PUT', path: '/api/org/rounds/' + r.id + '/relay', body: on ? { source: fr.querySelector('#rl-from').value, target: fr.querySelector('#rl-to').value,
+      mode: fr.querySelector('#rl-mode').value, top_n: +fr.querySelector('#rl-top').value || 10 } : { source: null, target: null } };
+  }
+  var BUILD = { 'f-round': roundBody, 'f-task': taskBody, 'f-relay': relayBody };
+  function setBusy(on) {
+    ROUND_FORMS.forEach(function (fid) {
+      var form = document.getElementById(fid);
+      if (!form) return;
+      Array.prototype.forEach.call(form.querySelectorAll('button, input, select, textarea'), function (b) {
+        if (on) { b.setAttribute('data-was-disabled', b.disabled ? '1' : ''); b.disabled = true; }
+        else { b.disabled = b.getAttribute('data-was-disabled') === '1'; b.removeAttribute('data-was-disabled'); }
       });
-      O.send('PUT', '/api/org/rounds/' + r.id + '/task', { title: title, form: { photo: photo, link: link, photo_max: +ft.querySelector('#t-max').value }, variants: variants }, ft, function (d) {
-        K.toast(d.notified ? 'Сохранено. Уведомление получили: ' + d.notified : 'Задание сохранено'); drawRound(d);
-      });
     });
+  }
+  function saveRoundPage(r, submitted) {
+    // Сохраняем по порядку: сроки тура → задание (сроки лиг проверяются по срокам тура) → эстафета.
+    var steps = ROUND_FORMS.filter(function (fid) { var form = document.getElementById(fid); return form && (fid === submitted || formDirty(form)); });
+    var jobs = [];
+    for (var i = 0; i < steps.length; i++) {
+      var form = document.getElementById(steps[i]);
+      K.formError(form, '');
+      var job = BUILD[steps[i]](r, form);
+      if (job.err) { K.formError(form, job.err); return; }
+      job.fid = steps[i]; jobs.push(job);
+    }
+    setBusy(true);
+    var last = null, notified = 0;
+    (function next(k) {
+      if (k >= jobs.length) {
+        setBusy(false);
+        K.toast(notified ? 'Сохранено. Уведомление получили: ' + notified : 'Сохранено');
+        drawRound(last);
+        return;
+      }
+      K.api(jobs[k].method, jobs[k].path, jobs[k].body).then(function (res) {
+        if (res.ok) { last = res.data; notified += res.data.notified || 0; next(k + 1); return; }
+        setBusy(false);
+        var failed = jobs[k].fid, msg = O.err(res);
+        if (last) {
+          // Часть уже сохранена — показать свежие данные, но вернуть то, что ещё не сохранилось.
+          var keep = pageDrafts(jobs.slice(k).map(function (j) { return j.fid; }));
+          drawRound(last, keep);
+        }
+        var f2 = document.getElementById(failed);
+        if (f2) K.formError(f2, msg); else K.toast(msg);
+      });
+    })(0);
   }
   // Тур-эстафета: вторая лига работает по работам первой (исходники раздаются после срока первой лиги).
   function relayCard(r, ro) {
@@ -497,7 +574,7 @@
         (rl.released ? 'Посмотреть раздачу' : 'Проверить и отправить исходники') + '</button></div>';
       if (rl.started) h += '<p class="small muted">Раздача уже готовилась — настройку эстафеты не поменять.</p>';
     }
-    return h + O.errBox + (locked ? '' : '<button class="btn sec" type="submit">Сохранить эстафету</button>') + '</form>';
+    return h + O.errBox + (locked ? '' : '<button class="btn" type="submit">Сохранить</button>') + '</form>';
   }
   K.actions.toggleLeague = function (el) {
     var box = el.closest('.league-box');
@@ -509,7 +586,7 @@
       open_now: ['Открыть задание сейчас?', 'Задание сразу увидят участницы всех лиг (свои будущие даты открытия у лиг снимутся). Срок сдачи — ' + O.when(r.deadline) + (ownDates(r).length ? ', у лиг со своим сроком — свой' : '') + '.', 'Открыть всем'],
       unpublish: ['Вернуть тур в черновик?', 'Участницы перестанут видеть его в плане Игры.', 'В черновик'] }[a];
     O.confirm({ title: info[0], html: '<p>' + esc(info[1]) + '</p>' + (a === 'publish' && r.checks.warnings.length ? O.issues({ problems: [], warnings: r.checks.warnings }) : ''), ok: info[2],
-      path: '/api/org/rounds/' + r.id + '/status', body: function () { return { action: a }; }, done: function (d) { K.toast('Готово'); drawRound(d); } });
+      path: '/api/org/rounds/' + r.id + '/status', body: function () { return { action: a }; }, done: function (d) { var keep = pageDrafts(); K.toast('Готово'); drawRound(d, keep); } });
   };
   function ownDates(r) {
     return ((r.task && r.task.variants) || []).filter(function (v) { return v.league && (v.opens_at || v.deadline); });
