@@ -140,6 +140,11 @@
     p = ROOT && p.indexOf(ROOT) === 0 ? p.slice(ROOT.length) : p;
     return p || '/';
   };
+  // «Тур 3 · Цветы Пандоры»; если у тура нет своего названия (просто «Тур 3») — без повтора. Возвращает уже экранированный текст.
+  K.roundName = function (no, title) {
+    var t = (title || '').trim();
+    return 'Тур ' + no + (t && !/^(Тур|Round)\s*\d+$/i.test(t) ? ' · ' + K.esc(t) : '');
+  };
   K.query = function () { return new URLSearchParams(location.search); };
   K.go = function (to, replace) {
     history[replace ? 'replaceState' : 'pushState'](null, '', ROOT + to);

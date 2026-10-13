@@ -41,7 +41,7 @@
         }).join('') + '</div><p class="small muted">Рейтинг считается с учётом силы соперников. Он не равен оценке тура.</p></section>';
       }
       h += '<section class="card"><h2>История результатов</h2>' + (a.results.length ? '<div class="list">' + a.results.map(function (r) {
-        return li(esc(r.game + ' · Тур ' + r.round_no + ' · ' + r.round_title), 'Оценка ' + K.score(r.score) + (r.league ? ' · ' + K.LEAGUE[r.league] : ''),
+        return li(esc(r.game) + ' · ' + K.roundName(r.round_no, r.round_title), 'Оценка ' + K.score(r.score) + (r.league ? ' · ' + K.LEAGUE[r.league] : ''),
           r.top_work ? pill(K.topWork(r.league), 'acc') : '', '/games/' + r.event_id + '/rounds/' + r.round_no);
       }).join('') + '</div>' : '<p class="muted">История пуста.</p>') + '</section>';
       h += '<section class="card"><h2>Очки FPL</h2>' + (a.points.items.length ? '<div class="list">' + a.points.items.map(function (p) {

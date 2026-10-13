@@ -111,17 +111,17 @@
           '<p class="small">До принятия новой редакции сдать работу нельзя.</p><button class="btn" type="button" data-href="/documents/' + home.rules_update.id + '">Посмотреть и принять</button></section>';
       }
       if (g) {
-        var r = act.round, head = r && act.kind !== 'choose' ? 'Тур ' + r.round_no + ' · ' + r.title : g.event.title;
-        h += '<div class="card hero"><div class="hero-game"><span class="hg-name">' + esc(head) + '</span>' + modePill(g.me, g.event) + '</div>' +
+        var r = act.round, head = r && act.kind !== 'choose' ? K.roundName(r.round_no, r.title) : esc(g.event.title);
+        h += '<div class="card hero"><div class="hero-game"><span class="hg-name">' + head + '</span>' + modePill(g.me, g.event) + '</div>' +
           (g.rounds.length ? tsteps(g.rounds) : '') + (actionBlock(g, act) || '<div class="row"><button class="btn sec" type="button" data-href="/games/' + g.event.id + '">Обзор Игры</button></div>') + '</div>';
         var pubs = g.rounds.filter(function (x) { return x.result; });
         if (pubs.length) {
           var lp = pubs[pubs.length - 1];
-          h += '<section class="card last-res"><h2>Итоги туров</h2><div class="lr-main"><span class="eyebrow">Последний · Тур ' + lp.round_no + ' · ' + esc(lp.title) + '</span>' +
+          h += '<section class="card last-res"><h2>Итоги туров</h2><div class="lr-main"><span class="eyebrow">Последний · ' + K.roundName(lp.round_no, lp.title) + '</span>' +
             '<div class="between"><div class="score num">' + K.score(lp.result.score) + ' <small>из 100</small></div>' + (lp.result.top_work ? pill(K.topWork(lp.result.league), 'acc') : '') + '</div>' +
             '<button class="btn sec" type="button" data-href="/games/' + g.event.id + '/rounds/' + lp.round_no + '">Подробнее о туре ' + lp.round_no + '</button></div>' +
             (pubs.length > 1 ? '<div class="lr-prev"><span class="eyebrow">Предыдущие туры</span><div class="list">' + pubs.slice(0, -1).reverse().map(function (x) {
-              return li('Тур ' + x.round_no + ' · ' + esc(x.title), 'Оценка ' + K.score(x.result.score), x.result.top_work ? pill(K.topWork(x.result.league), 'acc') : '', '/games/' + g.event.id + '/rounds/' + x.round_no);
+              return li(K.roundName(x.round_no, x.title), 'Оценка ' + K.score(x.result.score), x.result.top_work ? pill(K.topWork(x.result.league), 'acc') : '', '/games/' + g.event.id + '/rounds/' + x.round_no);
             }).join('') + '</div></div>' : '') + '</section>';
         }
       }
@@ -230,7 +230,7 @@
         (e.description ? '<p>' + esc(e.description) + '</p>' : '') + '</section>' + prizesCard(e.prizes);
       if (e.rounds.length) {
         h += '<details class="more card"><summary>Этапы и сроки</summary><div class="list">' + e.rounds.map(function (r) {
-          return li('Тур ' + r.round_no + ' · ' + esc(r.title), r.opens_at ? esc(K.day(r.opens_at)) + (r.deadline ? ' — ' + esc(K.msk(r.deadline)) : '') : '', '', null);
+          return li(K.roundName(r.round_no, r.title), r.opens_at ? esc(K.day(r.opens_at)) + (r.deadline ? ' — ' + esc(K.msk(r.deadline)) : '') : '', '', null);
         }).join('') + '</div><p class="small muted">Все сроки — ' + K.TZ + '.</p></details>';
       }
       if (e.my_mode) {
@@ -347,7 +347,7 @@
     else sub = r.deadline ? 'Срок был ' + K.msk(r.deadline) : '';
     right = r.work === 'missed' && r.state !== 'pub' ? pill('Не сдана', 'bad') : stateP;
     if (r.state !== 'plan' && r.assignment_id) href = r.result ? '/games/' + g.event.id + '/rounds/' + r.round_no : taskHref(g, r);
-    return li('Тур ' + r.round_no + ' · ' + esc(r.title), esc(sub), right, href, r.state === 'open' || r.state === 'judging' ? 'now' : '');
+    return li(K.roundName(r.round_no, r.title), esc(sub), right, href, r.state === 'open' || r.state === 'judging' ? 'now' : '');
   }
   function statusCard(g) {
     var me = g.me, f = g.flags;
@@ -409,7 +409,7 @@
       }
       var res = r.result, idx = g.rounds.indexOf(r), nextR = g.rounds[idx + 1];
       var adv = res.advanced == null ? '' : res.advanced ? pill(nextR ? 'Проходите в тур ' + nextR.round_no : 'Проходите дальше', 'ok') : pill('В отбор не прошли', 'warn');
-      K.page('<div class="stack"><span class="eyebrow">Тур ' + r.round_no + ' · ' + esc(r.title) + '</span><h1>Итог тура ' + r.round_no + '</h1></div>' +
+      K.page('<div class="stack"><span class="eyebrow">' + K.roundName(r.round_no, r.title) + '</span><h1>Итог тура ' + r.round_no + '</h1></div>' +
         '<section class="card"><div class="between"><div><div class="score num">' + K.score(res.score) + ' <small>из 100</small></div><p class="small muted">Опубликовано ' + esc(K.date(res.published_at)) + ' МСК</p></div>' +
         (res.top_work ? pill(K.topWork(res.league), 'acc') : '') + '</div>' + (res.top_work ? '<p class="small">Ваша работа вошла в число лучших работ тура' + (res.league ? ' в лиге ' + esc(K.LEAGUE[res.league]) : '') + '.</p>' : '') +
         '<dl class="kv">' + (adv ? '<dt>Дальше</dt><dd>' + adv + '</dd>' : '') + (res.league ? '<dt>Лига</dt><dd>' + esc(K.LEAGUE[res.league]) + '</dd>' : '') +
