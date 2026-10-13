@@ -93,6 +93,17 @@ if [ -d kabinet-src ]; then
   fi
 fi
 
+# 10. Тестовый кабинет для генеральной репетиции (/kabinet-test/): пакет с rehearsal.on — поднять, с rehearsal.off — удалить.
+#     Обычный пакет его не трогает, только перезапускает на новом коде.
+if [ -f fpl-kabinet-rehearsal ]; then install -m 0755 fpl-kabinet-rehearsal /usr/local/bin/fpl-kabinet-rehearsal; fi
+if [ -f rehearsal.off ]; then
+  /usr/local/bin/fpl-kabinet-rehearsal off || echo "репетиция: ошибка удаления"
+elif [ -f rehearsal.on ]; then
+  /usr/local/bin/fpl-kabinet-rehearsal on || echo "репетиция: ошибка (см. /var/lib/fpl/kabinet-test-status)"
+elif systemctl is-enabled --quiet fpl-kabinet-test 2>/dev/null; then
+  systemctl restart fpl-kabinet-test || true
+fi
+
 /usr/local/bin/fpl-sync || true
 /usr/local/bin/fpl-photo-archive || true
 echo "ok $(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$STATUS"

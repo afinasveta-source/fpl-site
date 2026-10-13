@@ -141,3 +141,5 @@ body.org main h3{font:700 15px/1.3 var(--f-body);margin:6px 0 0}
 .crit-row .btn{justify-self:start}
 @media (max-width:520px){ .jgrid{gap:8px} .jphoto img{max-height:55vh} .jside .btn{padding-inline:8px} }
 .nowrap{white-space:nowrap}
+
+.test-band{background:#ffd43b;color:#1a1a1a;font:600 13px/1.3 var(--f-body);text-align:center;padding:6px 16px}

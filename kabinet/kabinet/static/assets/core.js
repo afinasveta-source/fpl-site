@@ -513,6 +513,9 @@
         return;
       }
       K.state.config = r[0].ok ? r[0].data : { password_min_length: 12, mail_delivery: false, setup_needed: false };
+      if (K.state.config.is_test && !document.querySelector('.test-band')) {
+        document.body.insertAdjacentHTML('afterbegin', '<div class="test-band" role="note">Тестовый кабинет — репетиция. Данные здесь не настоящие и будут удалены.</div>');
+      }
       K.state.me = r[1].ok ? r[1].data : null;
       if (K.state.me) K.refreshUnread().then(K.route); else K.route();
     });

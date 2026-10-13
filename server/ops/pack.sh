@@ -9,5 +9,10 @@ mkdir -p ../../out
 cp ../kabinet/fpl-kabinet-setup ../kabinet/fpl-media-backup .
 rm -rf kabinet-src && mkdir kabinet-src && cp -r ../../kabinet/kabinet ../../kabinet/requirements.txt kabinet-src/
 find kabinet-src -name '__pycache__' -prune -exec rm -rf {} +
-tar --owner=0 --group=0 -czf ../../out/fpl-ops.tgz apply.sh fpl-sync fpl-ingest.py fpl-photo-archive.py fpl_s3.py db fpl-kabinet-setup fpl-media-backup kabinet-src
+cp ../kabinet/fpl-kabinet-rehearsal .
+# REHEARSAL=on — поднять тестовый кабинет /kabinet-test/, REHEARSAL=off — удалить его; без переменной — не трогать
+rm -f rehearsal.on rehearsal.off; EXTRA=""
+case "${REHEARSAL:-}" in on|off) touch "rehearsal.$REHEARSAL"; EXTRA="rehearsal.$REHEARSAL" ;; esac
+tar --owner=0 --group=0 -czf ../../out/fpl-ops.tgz apply.sh fpl-sync fpl-ingest.py fpl-photo-archive.py fpl_s3.py db fpl-kabinet-setup fpl-media-backup fpl-kabinet-rehearsal kabinet-src $EXTRA
+rm -f rehearsal.on rehearsal.off
 tar -tzvf ../../out/fpl-ops.tgz

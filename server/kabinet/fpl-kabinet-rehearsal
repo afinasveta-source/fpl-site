@@ -1,0 +1,171 @@
+#!/bin/bash
+# fpl-kabinet-rehearsal: тестовый кабинет для генеральной репетиции — https://<домен>/kabinet-test/.
+#  - тот же код и Python, что у кабинета (/opt/fpl/kabinet), но своя база fpl_rehearsal_test, своя папка фото
+#    /var/lib/fpl/kabinet-media-test, своя служба fpl-kabinet-test (127.0.0.1:8101) и сверка опоздавших;
+#  - режим TEST: другое имя cookie (вход в рабочий кабинет не сбивается), полоса «Тестовый кабинет» на страницах;
+#  - рабочая база, сайт, выгрузка на сайт и копии в бакет репетицию не видят;
+#  - первый администратор — на /kabinet-test/setup тем же ключом сервера, что и в рабочем кабинете.
+# Запуск: fpl-kabinet-rehearsal on | off   (off — остановить, убрать адрес, удалить тестовую базу и фото).
+# Итог — /var/lib/fpl/kabinet-test-status.
+set -euo pipefail
+MODE=${1:-on}
+APP=/opt/fpl/kabinet
+PORT=8101
+DB=fpl_rehearsal_test
+MEDIA=/var/lib/fpl/kabinet-media-test
+STATUS=/var/lib/fpl/kabinet-test-status
+SN=/etc/nginx/snippets/fpl-kabinet-test.conf
+NG=/etc/nginx/sites-available/fpl
+fail() { echo "error $(date -u +%Y-%m-%dT%H:%M:%SZ) line $1" > "$STATUS"; }
+trap 'fail $LINENO' ERR
+. /etc/fpl.env
+DOMAIN=${DOMAIN:-facepaintingleague.com}
+. /etc/fpl-db.env
+
+if [ "$MODE" = off ]; then
+  systemctl disable --now fpl-kabinet-test fpl-kabinet-test-sync.timer >/dev/null 2>&1 || true
+  rm -f /etc/systemd/system/fpl-kabinet-test.service /etc/systemd/system/fpl-kabinet-test-sync.service \
+        /etc/systemd/system/fpl-kabinet-test-sync.timer /etc/fpl-kabinet-test.env
+  systemctl daemon-reload
+  if [ -f "$NG" ] && grep -q 'snippets/fpl-kabinet-test.conf' "$NG"; then
+    cp "$NG" "$NG.bak-kabinet-test"
+    sed -i '/snippets\/fpl-kabinet-test.conf/d' "$NG"
+    if nginx -t >/dev/null 2>&1; then systemctl reload nginx; else cp "$NG.bak-kabinet-test" "$NG"; fi
+  fi
+  rm -f "$SN"
+  su postgres -c "psql -v ON_ERROR_STOP=1 -tAq -c 'DROP DATABASE IF EXISTS $DB WITH (FORCE)'"
+  rm -rf "$MEDIA"
+  echo "off $(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$STATUS"
+  echo "репетиция: тестовый кабинет удалён"
+  exit 0
+fi
+
+[ -x "$APP/venv/bin/python" ] && [ -d "$APP/code" ] || { echo "error $(date -u +%Y-%m-%dT%H:%M:%SZ) kabinet not installed" > "$STATUS"; exit 0; }
+
+# 1. База: своя, схема та же (fpl-db-setup с другим именем базы); роль кабинета — только данные
+FPL_DB_NAME_OVERRIDE=$DB /usr/local/bin/fpl-db-setup /opt/fpl/db >/dev/null
+KPW=$(cat /etc/fpl-kabinet-db.pw)
+su postgres -c "psql -v ON_ERROR_STOP=1 -d $DB -tAq -c \"GRANT CONNECT ON DATABASE $DB TO fpl_kabinet; GRANT USAGE ON SCHEMA public TO fpl_kabinet; GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO fpl_kabinet; GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO fpl_kabinet; ALTER DEFAULT PRIVILEGES FOR ROLE $FPL_DB_USER IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO fpl_kabinet; ALTER DEFAULT PRIVILEGES FOR ROLE $FPL_DB_USER IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO fpl_kabinet\""
+
+# 2. Фото и настройки
+mkdir -p "$MEDIA" && chown fplkab:fplkab "$MEDIA" && chmod 750 "$MEDIA"
+KEY_SHA=$(sed -n 's/^FPL_SETUP_KEY_SHA256=//p' /etc/fpl-kabinet.env | tail -1)
+TMP=$(mktemp)
+{
+  echo "FPL_ENVIRONMENT=TEST"
+  echo "FPL_DATABASE_DSN=postgresql://fpl_kabinet:$KPW@127.0.0.1:5432/$DB"
+  echo "FPL_MAIL_MODE=disabled"
+  echo "FPL_FRONTEND_URL=https://$DOMAIN/kabinet-test"
+  echo "FPL_ROOT_PATH=/kabinet-test"
+  echo "FPL_MEDIA_DIR=$MEDIA"
+  [ -n "$KEY_SHA" ] && echo "FPL_SETUP_KEY_SHA256=$KEY_SHA"
+} > "$TMP"
+install -m 0640 -o root -g fplkab "$TMP" /etc/fpl-kabinet-test.env
+rm -f "$TMP"
+
+# 3. Службы: кабинет (меньше памяти, чем рабочему) и сверка опоздавших каждые 10 минут
+cat > /etc/systemd/system/fpl-kabinet-test.service <<EOF
+[Unit]
+Description=FPL kabinet — тестовый (генеральная репетиция)
+After=network.target postgresql.service
+
+[Service]
+User=fplkab
+Group=fplkab
+EnvironmentFile=/etc/fpl-kabinet-test.env
+WorkingDirectory=$APP/code
+ExecStart=$APP/venv/bin/uvicorn kabinet.main:create_app --factory --host 127.0.0.1 --port $PORT --proxy-headers --forwarded-allow-ips 127.0.0.1 --no-access-log --workers 1
+Restart=always
+RestartSec=3
+MemoryMax=250M
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ReadWritePaths=$MEDIA
+
+[Install]
+WantedBy=multi-user.target
+EOF
+cat > /etc/systemd/system/fpl-kabinet-test-sync.service <<EOF
+[Unit]
+Description=FPL kabinet — тестовый: опоздавшие — вне конкурса
+After=postgresql.service
+
+[Service]
+Type=oneshot
+User=fplkab
+Group=fplkab
+EnvironmentFile=/etc/fpl-kabinet-test.env
+WorkingDirectory=$APP/code
+ExecStart=$APP/venv/bin/python -m kabinet.cli sync-late
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+MemoryMax=200M
+EOF
+cat > /etc/systemd/system/fpl-kabinet-test-sync.timer <<EOF
+[Unit]
+Description=FPL kabinet — тестовый: сверка каждые 10 минут
+
+[Timer]
+OnCalendar=*:5/10
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+systemctl daemon-reload
+systemctl enable fpl-kabinet-test >/dev/null 2>&1
+systemctl restart fpl-kabinet-test          # код общий с рабочим кабинетом — после каждого пакета заново
+systemctl enable --now fpl-kabinet-test-sync.timer >/dev/null 2>&1 || true
+
+# 4. nginx: /kabinet-test/ → тестовая служба (с проверкой и откатом)
+mkdir -p /etc/nginx/snippets
+cat > "$SN.tmp" <<EOF
+# Тестовый кабинет FPL — генеральная репетиция (fpl-kabinet-rehearsal)
+location = /kabinet-test { return 301 /kabinet-test/; }
+location /kabinet-test/ {
+  proxy_pass http://127.0.0.1:$PORT/;
+  proxy_set_header Host \$host;
+  proxy_set_header X-Forwarded-For \$remote_addr;
+  proxy_set_header X-Forwarded-Proto \$scheme;
+  proxy_read_timeout 60s;
+  client_max_body_size 25m;
+}
+EOF
+if [ -f "$NG" ]; then
+  cp "$NG" "$NG.bak-kabinet-test"
+  [ -f "$SN" ] && cp "$SN" "$SN.bak" || true
+  mv "$SN.tmp" "$SN"
+  if ! grep -q 'snippets/fpl-kabinet-test.conf' "$NG"; then
+    sed -i '/include snippets\/fpl-kabinet.conf;/a\  include snippets/fpl-kabinet-test.conf;' "$NG"
+  fi
+  if nginx -t >/dev/null 2>&1; then
+    systemctl reload nginx
+  else
+    cp "$NG.bak-kabinet-test" "$NG"; [ -f "$SN.bak" ] && cp "$SN.bak" "$SN" || rm -f "$SN"
+    nginx -t >/dev/null 2>&1 && systemctl reload nginx || true
+    echo "error $(date -u +%Y-%m-%dT%H:%M:%SZ) nginx config rejected, rolled back" > "$STATUS"
+    exit 0
+  fi
+else
+  rm -f "$SN.tmp"
+fi
+
+# 5. Проверка
+ok=""
+for i in $(seq 1 20); do
+  r=$(curl -s --max-time 3 "http://127.0.0.1:$PORT/ready" || true)
+  case "$r" in *'"ready"'*) ok="$r"; break ;; esac
+  sleep 1
+done
+if [ -n "$ok" ]; then
+  echo "ok $(date -u +%Y-%m-%dT%H:%M:%SZ) $ok" > "$STATUS"
+  echo "репетиция: тестовый кабинет работает"
+else
+  echo "error $(date -u +%Y-%m-%dT%H:%M:%SZ) not ready" > "$STATUS"
+  echo "репетиция: тестовая служба не ответила"
+fi
