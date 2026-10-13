@@ -112,6 +112,8 @@ def start_checks(conn, event, rnd, cfg, now):
         elif cfg['method'] == 'pairwise' and len(judges) % 2 == 0:
             warnings.append('even_judges')
     for key, n in pools.items():
+        if cfg['method'] == 'pairwise' and n == 1:
+            warnings.append('lonely_work')
         if cfg['method'] == 'pairwise' and n < 3:
             warnings.append('small_pool')
         q = cfg['quota'].get(key or 'all')

@@ -90,7 +90,23 @@ def imported(conn, event_id):
                         (event_id,)).fetchone() is not None
 
 
-def checks(conn, e, cfg, order):
+def open_rounds(conn, e, now):
+    """Туры, которые ещё надо отсудить: судейство идёт, или тур не судили, а работы в конкурсе есть.
+    Тур, в который никто не сдал работу в срок, итоги не держит (его нельзя и начать судить — «нет работ»)."""
+    from kabinet.judging.service import acceptance_end, candidates
+    blocking, empty = [], []
+    for r in conn.execute("SELECT * FROM rounds WHERE event_id=%s AND status NOT IN ('draft','published') ORDER BY round_no", (e['id'],)):
+        end = acceptance_end(conn, r)
+        if r['status'] == 'scheduled' and end is not None and end <= now:
+            works, pending = candidates(conn, e, r, now)
+            if not works and not pending:
+                empty.append(r['round_no'])
+                continue
+        blocking.append(r['round_no'])
+    return blocking, empty
+
+
+def checks(conn, e, cfg, order, now):
     problems, warnings = [], []
     if published(e):
         problems.append('already_published')
@@ -98,8 +114,11 @@ def checks(conn, e, cfg, order):
         problems.append('game_not_finished')
     if imported(conn, e['id']):
         problems.append('imported_game')    # итоги перенесённой из бота Игры переносятся готовыми (решение 12.10)
-    if conn.execute("SELECT 1 FROM rounds WHERE event_id=%s AND status NOT IN ('draft','published') LIMIT 1", (e['id'],)).fetchone():
+    blocking, empty = open_rounds(conn, e, now)
+    if blocking:
         problems.append('rounds_not_published')
+    if empty:
+        warnings.append('empty_rounds')
     if any(p.tie for p in order):
         problems.append('place_tie')
     if cfg['final_round'] is None and not cfg['path_rounds']:
@@ -141,7 +160,7 @@ def view(conn, e, now):
         out['checks'] = {'problems': ['already_published'], 'warnings': []}
         return out
     out['rows'] = [row_view(p, extra) for p in order]
-    out['checks'] = checks(conn, e, cfg, order)
+    out['checks'] = checks(conn, e, cfg, order, now)
     return out
 
 
@@ -190,7 +209,7 @@ def publish(conn, e, actor_id, now):
     # опоздавшие, которых таймер ещё не перевёл вне конкурса, — перевести сейчас, чтобы общий список был верным
     G.sync_event(conn, e['id'], now)
     cfg, order, extra = evaluate(conn, e, now)
-    ch = checks(conn, e, cfg, order)
+    ch = checks(conn, e, cfg, order, now)
     if ch['problems']:
         raise problem(ch['problems'][0], 409)
     season = conn.execute('SELECT * FROM seasons WHERE id=%s', (e['season_id'],)).fetchone() if e['season_id'] else None

@@ -198,3 +198,71 @@ JOIN users u ON u.id=p.user_id WHERE t.evaluation_stream_id=%s''', (st['id'],))}
         lg = conn.execute('''SELECT league FROM round_results rr JOIN event_participants p ON p.id=rr.event_participant_id
 JOIN users u ON u.id=p.user_id WHERE rr.round_id=%s AND u.email='sa@example.com' ''', (rounds[0],)).fetchone()['league']
         assert lg == 'silver'                                                      # в итоге тура — лига участницы
+
+
+def test_empty_round_does_not_block_results(app, seed, clock):
+    """Тур, в который никто не сдал работу в срок, судить нечего («нет работ») — итоги Игры он не держит.
+    Но тур, приём в который ещё идёт, — держит (Игру завершили раньше времени)."""
+    c, eid, rounds = game_with_season(app, seed, clock)
+    ok(c.post(f'/api/org/events/{eid}/status', headers=ORIGIN, json={'action': 'publish'}))
+    people = {}
+    for n in ('ann', 'bea', 'cat'):
+        p = login(app, seed, f'{n}@example.com')
+        ok(register(p, eid), 201)
+        people[n] = p
+    ok(c.post(f'/api/org/events/{eid}/status', headers=ORIGIN, json={'action': 'start'}))
+    lst = ok(c.get(f'/api/org/events/{eid}/participants'))['participants']
+    for x in lst:
+        ok(c.post(f"/api/org/participants/{x['id']}/league", headers=ORIGIN, json={'league': 'gold'}))
+    for n, p in people.items():
+        g = ok(p.get(f'/api/games/{eid}'))
+        send_work(p, {'event': eid, 'tasks': [g['rounds'][0]['assignment_id']]}, 0, color=(10 * len(n), 20, 30))
+    js = judges(app, seed, 1)
+    url1 = f'/api/org/rounds/{rounds[0]}/judging'
+    ok(c.put(url1, headers=ORIGIN, json={'method': 'criteria', 'pools': 'common', 'criteria': [{'label': 'Идея', 'weight': 1}],
+                                         'judges': {'all': [js[0][0]]}}))
+    clock.set(h(days=1, minutes=5))
+    st = ok(c.post(url1 + '/start', headers=ORIGIN))['streams'][0]
+    with app.state.db.transaction() as conn:
+        targets = [str(r['id']) for r in conn.execute('SELECT id FROM evaluation_targets WHERE evaluation_stream_id=%s', (st['id'],))]
+    for k, t in enumerate(targets):
+        ok(js[0][1].post(f"/api/judging/streams/{st['id']}/works/{t}", headers=ORIGIN, json={'scores': {'c1': 90 - k}}))
+    ok(c.post(url1 + '/publish', headers=ORIGIN))
+    url = f'/api/org/events/{eid}/results'
+    # приём во 2 тур ещё идёт — Игру завершили раньше времени: итоги ждут
+    ok(c.post(f'/api/org/events/{eid}/status', headers=ORIGIN, json={'action': 'finish'}))
+    assert 'rounds_not_published' in ok(c.get(url))['checks']['problems']
+    ok(c.post(f'/api/org/events/{eid}/status', headers=ORIGIN, json={'action': 'reopen'}))
+    # во 2 тур никто не сдал: судейство не начать — и итоги он больше не держит
+    clock.set(h(days=4, minutes=5))
+    url2 = f'/api/org/rounds/{rounds[1]}/judging'
+    ok(c.put(url2, headers=ORIGIN, json={'method': 'criteria', 'pools': 'common', 'criteria': [{'label': 'Идея', 'weight': 1}],
+                                         'judges': {'all': [js[0][0]]}}))
+    assert c.post(url2 + '/start', headers=ORIGIN).json()['detail'] == 'no_works'
+    ok(c.post(f'/api/org/events/{eid}/status', headers=ORIGIN, json={'action': 'finish'}))
+    v = ok(c.get(url))
+    assert 'rounds_not_published' not in v['checks']['problems'] and 'empty_rounds' in v['checks']['warnings']
+    ok(c.post(url + '/publish', headers=ORIGIN))
+
+
+def test_lonely_work_in_pairs_warned(app, seed, clock):
+    c, eid, rounds = game_with_season(app, seed, clock)
+    ok(c.post(f'/api/org/events/{eid}/status', headers=ORIGIN, json={'action': 'publish'}))
+    people = {}
+    for n in ('ann', 'bea', 'cat'):
+        p = login(app, seed, f'{n}@example.com')
+        ok(register(p, eid), 201)
+        people[n] = p
+    ok(c.post(f'/api/org/events/{eid}/status', headers=ORIGIN, json={'action': 'start'}))
+    lst = {x['email'].split('@')[0]: x for x in ok(c.get(f'/api/org/events/{eid}/participants'))['participants']}
+    for n, lg in (('ann', 'gold'), ('bea', 'silver'), ('cat', 'silver')):
+        ok(c.post(f"/api/org/participants/{lst[n]['id']}/league", headers=ORIGIN, json={'league': lg}))
+    for n, p in people.items():
+        g = ok(p.get(f'/api/games/{eid}'))
+        send_work(p, {'event': eid, 'tasks': [g['rounds'][0]['assignment_id']]}, 0, color=(10 * len(n), 20, 30))
+    js = judges(app, seed, 1)
+    url1 = f'/api/org/rounds/{rounds[0]}/judging'
+    ok(c.put(url1, headers=ORIGIN, json={'method': 'pairwise', 'pools': 'leagues', 'per_target': 2,
+                                         'judges': {'gold': [js[0][0]], 'silver': [js[0][0]]}}))
+    clock.set(h(days=1, minutes=5))
+    assert 'lonely_work' in ok(c.get(url1))['checks']['warnings']
