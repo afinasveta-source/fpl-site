@@ -29,6 +29,11 @@ AND registration_status='participating' ''', (e['id'],)).fetchone()['n']
                 alerts.append({'title': f'Пора начать «{title}»', 'href': f'/org/games/{gid}',
                                'text': 'Время старта прошло. Нажмите «Начать Игру» — без этого не запустится судейство, а опоздавшие не перейдут вне конкурса.'})
             if e['status'] == 'active':
+                from kabinet import relay
+                for r in rounds:
+                    if relay.relay_of(r) and not relay.released(r) and relay.ready(conn, r, now):
+                        alerts.append({'title': f'«{title}», тур {r["round_no"]}: проверьте исходники', 'href': f'/org/rounds/{r["id"]}',
+                                       'text': 'Первая лига сдала работы. Проверьте раздачу и нажмите «Отправить исходники» — до этого вторая лига работать не может.'})
                 for b in briefs:
                     if b['state'] == 'closed' and b['status'] == 'scheduled':
                         alerts.append({'title': f'«{title}», тур {b["round_no"]}: приём закрыт', 'href': f'/org/rounds/{b["id"]}/judging',

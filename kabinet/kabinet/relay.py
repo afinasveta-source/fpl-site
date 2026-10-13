@@ -3,22 +3,23 @@
 3 тур: Gold (Лига А) делает свою работу, после её срока каждой участнице Silver (Лига Б) выдаётся работа Gold как исходник —
 повторить. 4 тур — зеркально: Silver делает, Gold усложняет. Настройка тура: rounds.settings.relay = {'from': лига, 'to': лига}.
 
-Правила раздачи:
-- раздача начинается, когда второй лиге открылось задание (своя дата открытия лиги не раньше срока первой лиги — проверяет
-  организатор при настройке); набор исходников закрепляется при первой раздаче и дальше не меняется;
-- исходники — работы первой лиги, сданные в конкурс в срок (версия, которая идёт судьям); если таких нет — любые сданные
-  работы первой лиги (вне конкурса тоже);
-- исходник получают все участницы второй лиги — и в конкурсе, и вне конкурса (в боте вне конкурса оставались без исходника —
-  дыра, найденная 03.10); поздно пришедшие получают его при первом открытии задания;
-- раздача равномерная: каждой — исходник, у которого сейчас меньше всего получателей (при равенстве — случайный);
-  работ меньше, чем получателей, — одна работа достаётся нескольким;
-- выданный исходник не меняется; автор не узнаёт, кому досталась её работа, получательница — чья она (без имён и ссылок).
+Как раздаются исходники (решение 13.10, вечер: «не автоматически, а по ручной проверке»):
+1. После срока первой лиги (с учётом личных продлений) кабинет готовит раздачу — черновик: каждой участнице второй лиги
+   (и в конкурсе, и вне конкурса) — работа первой лиги. Участницы черновик не видят.
+2. Организатор проверяет работы: неподходящую убирает из исходников (с причиной) — раздача пересобирается; может перераздать.
+3. «Отправить исходники» — участницы получают исходники и уведомление; задание открывается им в их дату.
+4. После отправки: кому исходника не хватило (пришла позже, перевели в эту лигу) — выдаётся одна из уже отправленных работ.
+Исходники — только работы участниц в конкурсе, сданные в срок (версия, которая идёт судьям). Работ меньше, чем получательниц, —
+одна работа достаётся нескольким, поровну; свою работу участница не получает. Отправленный исходник не меняется.
+Автор не узнаёт, кому досталась её работа; получательница — чья она (без имён и ссылок).
 """
 import random
+from datetime import timedelta, timezone
 
 from kabinet.participation import rules as R
 
 GROUP = 'relay'
+MSK = timezone(timedelta(hours=3))
 LEAGUES = ('bronze', 'silver', 'gold')
 
 
@@ -81,24 +82,14 @@ def _lock(conn, round_id):
 
 
 def _pool(conn, rnd, cfg, assignment_id):
-    rows = conn.execute('''SELECT p.id AS ep_id, s.competition_version_id AS version_id, v.submitted_at
+    """Работы первой лиги для исходников: только участницы в конкурсе, работа сдана в конкурс в срок, есть фото."""
+    return conn.execute('''SELECT p.id AS ep_id, s.competition_version_id AS version_id, v.submitted_at
 FROM event_participants p
 JOIN participant_assignments pa ON pa.event_participant_id=p.id AND pa.assignment_id=%s AND pa.active
 JOIN submissions s ON s.participant_assignment_id=pa.id AND s.deleted_at IS NULL
 JOIN submission_versions v ON v.id=s.competition_version_id
 WHERE p.event_id=%s AND p.entry_league=%s AND p.registration_status='participating'
-AND (p.competition_status IS NULL OR p.competition_status <> 'disqualified')
-AND EXISTS (SELECT 1 FROM submission_version_media m WHERE m.submission_version_id=v.id AND m.field_key='photo')''',
-                        (assignment_id, rnd['event_id'], cfg['from'])).fetchall()
-    if rows:
-        return rows
-    return conn.execute('''SELECT p.id AS ep_id, s.latest_version_id AS version_id, v.submitted_at
-FROM event_participants p
-JOIN participant_assignments pa ON pa.event_participant_id=p.id AND pa.assignment_id=%s AND pa.active
-JOIN submissions s ON s.participant_assignment_id=pa.id AND s.deleted_at IS NULL
-JOIN submission_versions v ON v.id=s.latest_version_id
-WHERE p.event_id=%s AND p.entry_league=%s AND p.registration_status='participating'
-AND (p.competition_status IS NULL OR p.competition_status <> 'disqualified')
+AND (p.competition_status IS NULL OR p.competition_status='active') AND s.counts_for_competition
 AND EXISTS (SELECT 1 FROM submission_version_media m WHERE m.submission_version_id=v.id AND m.field_key='photo')''',
                         (assignment_id, rnd['event_id'], cfg['from'])).fetchall()
 
@@ -131,54 +122,62 @@ AND (p.competition_status IS NULL OR p.competition_status='active')''', (a['id']
     return max(deadline, row['d']) if row and row['d'] else deadline
 
 
-def distribute(conn, rnd, now, only_ep=None, rng=None):
-    """Выдать исходники тем участницам второй лиги, у кого их ещё нет. Возвращает число выданных.
-    only_ep — только этой участнице (при открытии задания). Безопасно вызывать сколько угодно раз."""
-    rnd = conn.execute('SELECT * FROM rounds WHERE id=%s', (rnd['id'],)).fetchone()   # тур из базы, а не «глазами лиги»
+def released(rnd):
+    return bool((((rnd or {}).get('settings') or {}).get('relay') or {}).get('released_at'))
+
+
+def _round(conn, rnd):
+    return conn.execute('SELECT * FROM rounds WHERE id=%s', (rnd['id'],)).fetchone()   # тур из базы, а не «глазами лиги»
+
+
+def _items(conn, round_id):
+    return conn.execute('''SELECT id, event_participant_id AS author FROM exchange_items
+WHERE round_id=%s AND exchange_group_key=%s AND excluded_at IS NULL ORDER BY id''', (round_id, GROUP)).fetchall()
+
+
+def ready(conn, rnd, now):
+    """Первая лига закончила сдавать (с учётом личных продлений) — можно готовить раздачу."""
     cfg = relay_of(rnd)
-    if not cfg:
-        return 0
-    if only_ep is not None and has_source(conn, rnd['id'], only_ep):
-        return 0            # уже выдан — без общей блокировки раздачи
-    if not second_open(conn, rnd, now):
-        return 0
+    if not cfg or rnd['status'] == 'draft' or main_task(conn, rnd['id']) is None:
+        return False
+    deadline = source_deadline(conn, rnd, cfg)
+    return deadline is not None and now > deadline
+
+
+def _fill_pool(conn, rnd, cfg):
+    """Набор исходников закрепляется при первой подготовке раздачи."""
+    if conn.execute('SELECT 1 FROM exchange_items WHERE round_id=%s AND exchange_group_key=%s LIMIT 1', (rnd['id'], GROUP)).fetchone():
+        return
     a = main_task(conn, rnd['id'])
-    if a is None:
-        return 0
-    first_deadline = source_deadline(conn, rnd, cfg)
-    if first_deadline is None or now <= first_deadline:
-        return 0            # первая лига ещё сдаёт (в том числе по личному продлению) — исходники не раздаются
-    rng = rng or random.SystemRandom()
-    _lock(conn, rnd['id'])
-    items = conn.execute('SELECT id FROM exchange_items WHERE round_id=%s AND exchange_group_key=%s', (rnd['id'], GROUP)).fetchall()
-    if not items:
-        for w in _pool(conn, rnd, cfg, a['id']):
-            conn.execute('''INSERT INTO exchange_items(round_id,event_participant_id,assignment_id,exchange_group_key,item_type,
+    works = _pool(conn, rnd, cfg, a['id'])
+    for w in works:
+        conn.execute('''INSERT INTO exchange_items(round_id,event_participant_id,assignment_id,exchange_group_key,item_type,
 source_submission_version_id,submitted_at) VALUES (%s,%s,%s,%s,'media',%s,%s)
 ON CONFLICT (round_id, exchange_group_key, source_submission_version_id) WHERE source_submission_version_id IS NOT NULL DO NOTHING''',
-                         (rnd['id'], w['ep_id'], a['id'], GROUP, w['version_id'], w['submitted_at']))
-        items = conn.execute('SELECT id FROM exchange_items WHERE round_id=%s AND exchange_group_key=%s', (rnd['id'], GROUP)).fetchall()
-        if items:
-            conn.execute('''INSERT INTO audit_log(entity_type,entity_id,action,after_data) VALUES ('round',%s,'relay_pool_fixed',%s)''',
-                         (rnd['id'], _json({'from': cfg['from'], 'to': cfg['to'], 'works': len(items)})))
+                     (rnd['id'], w['ep_id'], a['id'], GROUP, w['version_id'], w['submitted_at']))
+    conn.execute("INSERT INTO audit_log(entity_type,entity_id,action,after_data) VALUES ('round',%s,'relay_pool_fixed',%s)",
+                 (rnd['id'], _json({'from': cfg['from'], 'to': cfg['to'], 'works': len(works)})))
+
+
+def _assign(conn, rnd, cfg, now, rng, only_ep=None):
+    """Каждой получательнице без исходника — работа с наименьшим числом получательниц (при равенстве — случайная), не своя."""
+    items = _items(conn, rnd['id'])
     if not items:
-        return 0
-    items = conn.execute('SELECT id, event_participant_id AS author FROM exchange_items WHERE round_id=%s AND exchange_group_key=%s',
-                         (rnd['id'], GROUP)).fetchall()
+        return []
     author = {i['id']: i['author'] for i in items}
     counts = {i['id']: 0 for i in items}
     for r in conn.execute('''SELECT exchange_item_id, count(*) AS n FROM exchange_assignments
 WHERE round_id=%s AND exchange_group_key=%s AND active GROUP BY exchange_item_id''', (rnd['id'], GROUP)):
-        counts[r['exchange_item_id']] = r['n']
+        if r['exchange_item_id'] in counts:
+            counts[r['exchange_item_id']] = r['n']
     have = {r['recipient_event_participant_id'] for r in conn.execute('''SELECT recipient_event_participant_id FROM exchange_assignments
 WHERE round_id=%s AND exchange_group_key=%s AND active''', (rnd['id'], GROUP))}
     todo = [p for p in _recipients(conn, rnd, cfg, only_ep, lock=only_ep is None) if p['id'] not in have]
     rng.shuffle(todo)
-    order = sorted(counts)          # стабильный порядок, случайность — только в выборе среди равных
-    from kabinet.participation.game import notify
-    given = 0
+    order = sorted(counts)
+    out = []
     for p in todo:
-        options = [i for i in order if author[i] != p['id']]     # свою работу (если сменила лигу) не получает
+        options = [i for i in order if author[i] != p['id']]
         if not options:
             continue
         low = min(counts[i] for i in options)
@@ -186,11 +185,89 @@ WHERE round_id=%s AND exchange_group_key=%s AND active''', (rnd['id'], GROUP))}
         conn.execute('''INSERT INTO exchange_assignments(round_id,exchange_group_key,exchange_item_id,recipient_event_participant_id,source,assigned_at)
 VALUES (%s,%s,%s,%s,'automatic',%s)''', (rnd['id'], GROUP, pick, p['id'], now))
         counts[pick] += 1
-        given += 1
+        out.append(p)
+    return out
+
+
+def _notify(conn, rnd, people):
+    from kabinet.participation.game import notify
+    a = main_task(conn, rnd['id'])
+    cfg = relay_of(rnd)
+    opens, _ = league_dates(conn, rnd, cfg['to'])
+    for p in people:
         notify(conn, p['user_id'], 'task', f"relay:{rnd['id']}:{p['id']}",
-               {'title': f"Тур {rnd['round_no']}: ваш исходник готов", 'text': 'Задание и работа-исходник — в кабинете.',
+               {'title': f"Тур {rnd['round_no']}: ваш исходник готов",
+                'text': 'Задание и работа-исходник — в кабинете.' + (f" Задание откроется {opens.astimezone(MSK):%d.%m в %H:%M} МСК." if opens else ''),
                 'route': 'task', 'event_id': str(rnd['event_id']), 'assignment_id': str(a['id'])}, rnd['event_id'], rnd['id'])
-    return given
+
+
+def prepare(conn, rnd, now, rng=None):
+    """Черновик раздачи (до отправки): набор исходников и выдача всем получательницам. Возвращает число выданных."""
+    rnd = _round(conn, rnd)
+    cfg = relay_of(rnd)
+    if not cfg or released(rnd) or not ready(conn, rnd, now):
+        return 0
+    _lock(conn, rnd['id'])
+    _fill_pool(conn, rnd, cfg)
+    return len(_assign(conn, rnd, cfg, now, rng or random.SystemRandom()))
+
+
+def reshuffle(conn, rnd, now, rng=None):
+    """Перераздать черновик заново (до отправки)."""
+    rnd = _round(conn, rnd)
+    cfg = relay_of(rnd)
+    if not cfg or released(rnd):
+        return 0
+    _lock(conn, rnd['id'])
+    conn.execute('DELETE FROM exchange_assignments WHERE round_id=%s AND exchange_group_key=%s', (rnd['id'], GROUP))
+    if not ready(conn, rnd, now):
+        return 0
+    _fill_pool(conn, rnd, cfg)
+    return len(_assign(conn, rnd, cfg, now, rng or random.SystemRandom()))
+
+
+def exclude(conn, rnd, item_id, excluded, reason, actor_id, now, rng=None):
+    """Убрать работу из исходников (или вернуть) до отправки — раздача пересобирается."""
+    conn.execute('''UPDATE exchange_items SET excluded_at=%s, excluded_by=%s, excluded_reason=%s
+WHERE id=%s AND round_id=%s AND exchange_group_key=%s''', (now if excluded else None, actor_id if excluded else None,
+                                                          reason if excluded else None, item_id, rnd['id'], GROUP))
+    return reshuffle(conn, rnd, now, rng)
+
+
+def release(conn, rnd, actor_id, now, rng=None):
+    """«Отправить исходники»: черновик становится раздачей, участницы получают уведомление."""
+    rnd = _round(conn, rnd)
+    cfg = relay_of(rnd)
+    _lock(conn, rnd['id'])
+    _fill_pool(conn, rnd, cfg)
+    _assign(conn, rnd, cfg, now, rng or random.SystemRandom())
+    settings = dict(rnd['settings'] or {})
+    settings['relay'] = {**settings['relay'], 'released_at': now.isoformat(), 'released_by': str(actor_id)}
+    conn.execute('UPDATE rounds SET settings=%s WHERE id=%s', (_json(settings), rnd['id']))
+    people = conn.execute('''SELECT p.id, p.user_id FROM exchange_assignments ea JOIN event_participants p ON p.id=ea.recipient_event_participant_id
+WHERE ea.round_id=%s AND ea.exchange_group_key=%s AND ea.active''', (rnd['id'], GROUP)).fetchall()
+    rnd = _round(conn, rnd)
+    _notify(conn, rnd, people)
+    conn.execute("INSERT INTO audit_log(actor_user_id,entity_type,entity_id,action,after_data) VALUES (%s,'round',%s,'relay_released',%s)",
+                 (actor_id, rnd['id'], _json({'given': len(people)})))
+    return len(people)
+
+
+def distribute(conn, rnd, now, only_ep=None, rng=None):
+    """Сверка и открытие задания. До отправки: сверка готовит черновик (участница ничего не получает).
+    После отправки: кому исходника не хватило — одна из уже отправленных работ, с уведомлением. Возвращает число выданных."""
+    rnd = _round(conn, rnd)
+    cfg = relay_of(rnd)
+    if not cfg:
+        return 0
+    if not released(rnd):
+        return prepare(conn, rnd, now, rng) if only_ep is None else 0
+    if only_ep is not None and has_source(conn, rnd['id'], only_ep):
+        return 0
+    _lock(conn, rnd['id'])
+    given = _assign(conn, rnd, cfg, now, rng or random.SystemRandom(), only_ep)
+    _notify(conn, rnd, given)
+    return len(given)
 
 
 def league_changed(conn, ep_id, league):
@@ -218,6 +295,7 @@ def source_rows(conn, round_id, ep_ids):
 FROM exchange_assignments ea JOIN exchange_items ei ON ei.id=ea.exchange_item_id
 JOIN submission_version_media svm ON svm.submission_version_id=ei.source_submission_version_id AND svm.field_key='photo'
 JOIN media_files mf ON mf.id=svm.media_file_id
+JOIN rounds r ON r.id=ea.round_id AND r.settings->'relay' ? 'released_at'
 WHERE ea.round_id=%s AND ea.exchange_group_key=%s AND ea.active AND ea.recipient_event_participant_id = ANY(%s)
 ORDER BY svm.sort_order''', (round_id, GROUP, list(ep_ids))):
         out.setdefault(r['ep_id'], []).append(r)
@@ -225,8 +303,10 @@ ORDER BY svm.sort_order''', (round_id, GROUP, list(ep_ids))):
 
 
 def has_source(conn, round_id, ep_id):
-    return conn.execute('''SELECT 1 FROM exchange_assignments WHERE round_id=%s AND exchange_group_key=%s AND active
-AND recipient_event_participant_id=%s''', (round_id, GROUP, ep_id)).fetchone() is not None
+    """Отправленный исходник есть (черновик до отправки не считается)."""
+    return conn.execute('''SELECT 1 FROM exchange_assignments ea JOIN rounds r ON r.id=ea.round_id AND r.settings->'relay' ? 'released_at'
+WHERE ea.round_id=%s AND ea.exchange_group_key=%s AND ea.active AND ea.recipient_event_participant_id=%s''',
+                        (round_id, GROUP, ep_id)).fetchone() is not None
 
 
 def media_allowed(conn, user_id, media_id):
@@ -235,6 +315,7 @@ def media_allowed(conn, user_id, media_id):
 JOIN event_participants p ON p.id=ea.recipient_event_participant_id AND p.user_id=%s AND p.registration_status='participating'
 JOIN exchange_items ei ON ei.id=ea.exchange_item_id
 JOIN submission_version_media svm ON svm.submission_version_id=ei.source_submission_version_id
+JOIN rounds r ON r.id=ea.round_id AND r.settings->'relay' ? 'released_at'
 WHERE ea.active AND ea.exchange_group_key=%s AND svm.media_file_id=%s LIMIT 1''', (user_id, GROUP, media_id)).fetchone() is not None
 
 
@@ -243,6 +324,7 @@ def media_allowed_judge(conn, user_id, media_id):
     return conn.execute('''SELECT 1 FROM exchange_items ei
 JOIN submission_version_media svm ON svm.submission_version_id=ei.source_submission_version_id AND svm.media_file_id=%s
 JOIN exchange_assignments ea ON ea.exchange_item_id=ei.id AND ea.active
+JOIN rounds r ON r.id=ea.round_id AND r.settings->'relay' ? 'released_at'
 JOIN evaluation_target_members m ON m.event_participant_id=ea.recipient_event_participant_id
 JOIN evaluation_targets t ON t.id=m.evaluation_target_id
 JOIN evaluation_streams st ON st.id=t.evaluation_stream_id AND st.round_id=ea.round_id
@@ -251,18 +333,44 @@ WHERE ei.exchange_group_key=%s LIMIT 1''', (media_id, user_id, GROUP)).fetchone(
 
 
 def overview(conn, rnd, now):
-    """Для организатора: настройка, сколько исходников и выдано, сколько ждут."""
+    """Для организатора: настройка, состояние раздачи (черновик / отправлено), сколько выдано и ждут."""
     cfg = relay_of(rnd)
     if not cfg:
         return None
-    items = conn.execute('SELECT count(*) AS n FROM exchange_items WHERE round_id=%s AND exchange_group_key=%s',
-                         (rnd['id'], GROUP)).fetchone()['n']
+    items = conn.execute('''SELECT count(*) FILTER (WHERE excluded_at IS NULL) AS n, count(*) FILTER (WHERE excluded_at IS NOT NULL) AS x
+FROM exchange_items WHERE round_id=%s AND exchange_group_key=%s''', (rnd['id'], GROUP)).fetchone()
     given = conn.execute('''SELECT count(*) AS n FROM exchange_assignments WHERE round_id=%s AND exchange_group_key=%s AND active''',
                          (rnd['id'], GROUP)).fetchone()['n']
     waiting = len(_recipients(conn, rnd, cfg)) - given
     first_deadline = source_deadline(conn, rnd, cfg)
     second_opens, _ = league_dates(conn, rnd, cfg['to'])
-    return {'from': cfg['from'], 'to': cfg['to'], 'sources': items, 'given': given, 'waiting': max(0, waiting),
-            'started': bool(items), 'second_open': second_open(conn, rnd, now),
+    rel = (((rnd.get('settings') or {}).get('relay')) or {}).get('released_at')
+    return {'from': cfg['from'], 'to': cfg['to'], 'sources': items['n'], 'excluded': items['x'], 'given': given,
+            'waiting': max(0, waiting), 'started': bool(items['n'] or items['x']), 'released': bool(rel), 'released_at': rel,
+            'ready': ready(conn, rnd, now), 'second_open': second_open(conn, rnd, now),
             'source_deadline': first_deadline.isoformat() if first_deadline else None,
             'second_opens_at': second_opens.isoformat() if second_opens else None}
+
+
+def detail(conn, rnd, root):
+    """Раздача для проверки организатором: работы-исходники (фото, автор, сколько получательниц), кому что досталось."""
+    from kabinet.participation.views import photo_view
+    rows = conn.execute('''SELECT ei.id, ei.excluded_at, ei.excluded_reason, u.full_name, u.display_name,
+  (SELECT count(*) FROM exchange_assignments ea WHERE ea.exchange_item_id=ei.id AND ea.active) AS n
+FROM exchange_items ei JOIN event_participants p ON p.id=ei.event_participant_id JOIN users u ON u.id=p.user_id
+WHERE ei.round_id=%s AND ei.exchange_group_key=%s ORDER BY u.full_name''', (rnd['id'], GROUP)).fetchall()
+    photos = {}
+    for m in conn.execute('''SELECT ei.id AS item, mf.* FROM exchange_items ei
+JOIN submission_version_media svm ON svm.submission_version_id=ei.source_submission_version_id AND svm.field_key='photo'
+JOIN media_files mf ON mf.id=svm.media_file_id WHERE ei.round_id=%s AND ei.exchange_group_key=%s ORDER BY svm.sort_order''',
+                          (rnd['id'], GROUP)):
+        photos.setdefault(m['item'], []).append(photo_view(m, root))
+    given = conn.execute('''SELECT ea.exchange_item_id AS item, u.full_name, p.competition_status FROM exchange_assignments ea
+JOIN event_participants p ON p.id=ea.recipient_event_participant_id JOIN users u ON u.id=p.user_id
+WHERE ea.round_id=%s AND ea.exchange_group_key=%s AND ea.active ORDER BY u.full_name''', (rnd['id'], GROUP)).fetchall()
+    to = {}
+    for g in given:
+        to.setdefault(g['item'], []).append({'name': g['full_name'], 'outside': g['competition_status'] == 'diploma_only'})
+    return [{'id': str(r['id']), 'author': r['full_name'] or r['display_name'], 'photos': photos.get(r['id'], []),
+             'recipients': to.get(r['id'], []), 'excluded': r['excluded_at'] is not None, 'excluded_reason': r['excluded_reason']}
+            for r in rows]

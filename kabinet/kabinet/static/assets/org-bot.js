@@ -77,6 +77,56 @@
       done: function (d) { IMP.done = d; IMP.preview = null; K.toast('Перенесено'); O.refreshCounts(); drawImport(); } });
   };
 
+  /* ---------- Тур-эстафета: проверка и отправка исходников ---------- */
+  O.addText({ relay_released: 'Исходники уже отправлены — раздача не меняется.', relay_not_ready: 'Первая лига ещё сдаёт работы — раздачу готовить рано.',
+    relay_no_sources: 'Нет ни одной работы-исходника: никто из первой лиги в конкурсе не сдал работу в срок (или все убраны).', not_relay: 'Это не тур-эстафета.' });
+  O.on(/^\/org\/rounds\/([0-9a-f-]{36})\/relay$/, function (id) {
+    K.load(['/api/org/rounds/' + id, '/api/org/rounds/' + id + '/relay'], function (r, d) { RL.round = r; drawRelay(r, d); },
+      [['Игры и туры', '/org/games'], ['Тур', '/org/rounds/' + id], ['Исходники']]);
+  });
+  var RL = {};
+  function drawRelay(r, d) {
+    var ov = d.overview, rel = ov.released;
+    var h = '<div class="stack" data-s="g6"><span class="eyebrow">' + esc(r.event.title) + ' · Тур ' + r.round_no + '</span><h1>Исходники: ' + LG[ov.from] + ' → ' + LG[ov.to] + '</h1></div>' +
+      '<section class="card"><p>' + (rel ? 'Отправлены участницам ' + esc(O.when(ov.released_at)) + '. Раздача больше не меняется; кто придёт позже — получит одну из этих работ.' :
+        'Это черновик — участницы его не видят. Проверьте работы: неподходящую уберите (раздача пересоберётся). Когда всё хорошо — «Отправить исходники».') + '</p>' +
+      '<dl class="kv"><dt>Работ-исходников</dt><dd>' + ov.sources + (ov.excluded ? ' · убрано ' + ov.excluded : '') + '</dd><dt>Получательниц</dt><dd>' + ov.given +
+      (ov.waiting ? ' · без исходника ' + ov.waiting : '') + '</dd></dl>' +
+      (rel ? '' : '<div class="row"><button class="btn" type="button" data-act="rlRelease"' + (ov.sources ? '' : ' disabled') + '>Отправить исходники</button>' +
+        '<button class="btn sec" type="button" data-act="rlPrepare">' + (ov.started ? 'Перераздать заново' : 'Подготовить раздачу') + '</button></div>') + '</section>';
+    h += d.items.length ? '<div class="stack">' + d.items.map(function (it) {
+      var ph = it.photos[0];
+      return '<section class="card rl-item' + (it.excluded ? ' rl-off' : '') + '"><div class="rl-row">' +
+        (ph ? '<a href="' + esc(ph.view_url) + '" target="_blank" rel="noopener"><img class="rl-ph" src="' + esc(ph.thumb_url) + '" alt="Работа: ' + esc(it.author || '') + '"></a>' : '<span class="photo rl-ph"></span>') +
+        '<div class="stack" data-s="g4"><b>' + esc(it.author || 'Участница') + '</b>' +
+        (it.excluded ? '<span class="small">Убрана: ' + esc(it.excluded_reason || '') + '</span>' :
+          '<span class="small muted">' + (it.recipients.length ? 'Получат: ' + it.recipients.map(function (x) { return esc(x.name) + (x.outside ? ' (вне конкурса)' : ''); }).join(', ') : 'Пока никому') + '</span>') +
+        (rel ? '' : '<div class="row"><button class="btn ghost small" type="button" data-act="rlToggle" data-id="' + it.id + '" data-x="' + (it.excluded ? '0' : '1') + '">' +
+          (it.excluded ? 'Вернуть в исходники' : 'Убрать из исходников') + '</button></div>') + '</div></div></section>';
+    }).join('') + '</div>' : '<div class="note">' + (ov.ready ? 'Раздача ещё не готовилась — нажмите «Подготовить раздачу».' : 'Первая лига ещё сдаёт работы.') + '</div>';
+    K.page(h, [['Игры и туры', '/org/games'], ['Тур ' + r.round_no, '/org/rounds/' + r.id], ['Исходники']]);
+  }
+  function relayCall(path, body, done) {
+    K.api('POST', '/api/org/rounds/' + RL.round.id + '/relay' + path, body).then(function (res) {
+      if (!res.ok) { K.toast(O.text(res.detail) || K.errorText(res)); return; }
+      if (done) done(res.data);
+      drawRelay(RL.round, res.data);
+    });
+  }
+  K.actions.rlPrepare = function () { relayCall('/prepare', {}, function () { K.toast('Раздача пересобрана'); }); };
+  K.actions.rlToggle = function (b) {
+    var id = b.getAttribute('data-id'), x = b.getAttribute('data-x') === '1';
+    if (!x) { relayCall('/items/' + id, { excluded: false }, function () { K.toast('Работа вернулась в исходники'); }); return; }
+    O.confirm({ title: 'Убрать работу из исходников?', html: '<div class="field"><label for="rl-why">Причина (для журнала)</label><input class="input" id="rl-why" maxlength="500" value="Не подходит как исходник"></div>',
+      ok: 'Убрать', path: '/api/org/rounds/' + RL.round.id + '/relay/items/' + id,
+      body: function () { return { excluded: true, reason: document.getElementById('rl-why').value.trim() || 'Не подходит' }; },
+      done: function (d) { K.toast('Работа убрана, раздача пересобрана'); drawRelay(RL.round, d); } });
+  };
+  K.actions.rlRelease = function () {
+    O.confirm({ title: 'Отправить исходники?', text: 'Участницы получат исходники и уведомление. После этого раздачу не поменять.', ok: 'Отправить',
+      path: '/api/org/rounds/' + RL.round.id + '/relay/release', done: function (d) { K.toast('Исходники отправлены'); O.refreshCounts(); drawRelay(RL.round, d); } });
+  };
+
   /* ---------- Заявки участниц из бота ---------- */
   O.on(/^\/org\/claims$/, function () {
     var status = K.query().get('status') || 'pending';

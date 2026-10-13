@@ -38,12 +38,12 @@ GAME = dict(season_no=1, season_name='Сезон 1', game_no=1, title='Игра 
             starts=datetime(2026, 9, 30, 0, 0, tzinfo=MSK), ends=datetime(2026, 11, 10, 23, 59, tzinfo=MSK))
 # Даты туров 1–2 в боте (для истории; итоги уже опубликованы участницам).
 BOT_ROUNDS = {
-    1: dict(title='Тур 1', opens=datetime(2026, 9, 30, 17, 0, tzinfo=MSK), deadline=datetime(2026, 10, 4, 2, 0, tzinfo=MSK),
+    1: dict(title='Подводный мир', opens=datetime(2026, 9, 30, 17, 0, tzinfo=MSK), deadline=datetime(2026, 10, 4, 2, 0, tzinfo=MSK),
             published=datetime(2026, 10, 6, 12, 0, tzinfo=MSK)),
-    2: dict(title='Тур 2', opens=datetime(2026, 10, 5, 12, 0, tzinfo=MSK), deadline=datetime(2026, 10, 8, 2, 0, tzinfo=MSK),
+    2: dict(title='Бабочка', opens=datetime(2026, 10, 5, 12, 0, tzinfo=MSK), deadline=datetime(2026, 10, 8, 2, 0, tzinfo=MSK),
             published=datetime(2026, 10, 9, 22, 0, tzinfo=MSK)),
 }
-NEXT_ROUNDS = {3: ('Тур 3', {'from': 'gold', 'to': 'silver'}), 4: ('Тур 4', {'from': 'silver', 'to': 'gold'}), 5: ('Финал', None)}
+NEXT_ROUNDS = {3: ('Цветы Пандоры', {'from': 'gold', 'to': 'silver'}), 4: ('Тур 4', {'from': 'silver', 'to': 'gold'}), 5: ('Финал', None)}
 LEAGUE = {'а': 'gold', 'a': 'gold', 'лига а': 'gold', 'gold': 'gold', 'б': 'silver', 'b': 'silver', 'лига б': 'silver',
           'silver': 'silver'}
 YES = {'да', 'yes', '1', 'true', '+'}
@@ -302,12 +302,12 @@ status=CASE WHEN status IN ('draft','registration') THEN 'active' ELSE status EN
             settings = {'source': 'bot', 'judging_details': False}
             if r is None:
                 r = self.one('''INSERT INTO rounds(event_id,round_no,title,title_i18n,status,opens_at,deadline,judging_deadline,settings)
-VALUES (%s,%s,%s,%s,'published',%s,%s,%s,%s) RETURNING *''', (ev['id'], no, cfg['title'], Jsonb({'ru': cfg['title'], 'en': f'Round {no}'}),
+VALUES (%s,%s,%s,%s,'published',%s,%s,%s,%s) RETURNING *''', (ev['id'], no, cfg['title'], Jsonb({'ru': cfg['title']}),
                                                        cfg['opens'], cfg['deadline'], cfg['published'], Jsonb(settings)))
             else:
-                r = self.one('''UPDATE rounds SET status='published', settings=settings || %s,
+                r = self.one('''UPDATE rounds SET status='published', settings=settings || %s, title=%s, title_i18n=%s,
 opens_at=coalesce(opens_at,%s), deadline=coalesce(deadline,%s) WHERE id=%s RETURNING *''',
-                             (Jsonb(settings), cfg['opens'], cfg['deadline'], r['id']))
+                             (Jsonb(settings), cfg['title'], Jsonb({'ru': cfg['title']}), cfg['opens'], cfg['deadline'], r['id']))
             self.rounds[no] = r
         for no, (title, relay) in NEXT_ROUNDS.items():
             r = self.one('SELECT * FROM rounds WHERE event_id=%s AND round_no=%s', (ev['id'], no))
@@ -324,7 +324,7 @@ opens_at=coalesce(opens_at,%s), deadline=coalesce(deadline,%s) WHERE id=%s RETUR
                 r = self.one('''INSERT INTO rounds(event_id,round_no,title,status,settings) VALUES (%s,%s,%s,'draft',%s) RETURNING *''',
                              (ev['id'], no, title, Jsonb({'relay': relay} if relay else {})))
             a = self.one('''INSERT INTO assignments(event_id,round_id,code,title) VALUES (%s,%s,'work',%s) RETURNING *''',
-                         (ev['id'], r['id'], f'Задание тура {no}' if no < 5 else 'Задание финала'))
+                         (ev['id'], r['id'], title if no == 3 else f'Задание тура {no}' if no < 5 else 'Задание финала'))
             self.conn.execute('''INSERT INTO assignment_variants(assignment_id,code,title_i18n,instructions_i18n,submission_schema)
 VALUES (%s,'all',%s,%s,%s)''', (a['id'], Jsonb({'ru': a['title']}), Jsonb({'ru': ''}), Jsonb(DEFAULT_FORM)))
             self.count('rounds_created')

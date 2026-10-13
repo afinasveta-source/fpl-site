@@ -1,5 +1,5 @@
-"""Тур-эстафета (решение 13.10): после срока Gold каждой участнице Silver выдаётся работа Gold как исходник —
-и в конкурсе, и вне конкурса; судья видит исходник рядом с работой."""
+"""Тур-эстафета (решения 13.10): после срока Gold кабинет готовит раздачу — каждой участнице Silver (и вне конкурса) работа
+участницы Gold в конкурсе; организатор проверяет, убирает неподходящие и отправляет; судья видит исходник рядом с работой."""
 import random
 from collections import Counter
 
@@ -38,52 +38,88 @@ WHERE u.id=p.user_id AND u.email=%s''', ('gold' if n in gold else 'silver', f'{n
     return g, people
 
 
+def rnd_of(conn, g):
+    return conn.execute('SELECT * FROM rounds WHERE id=%s', (g['rounds'][0],)).fetchone()
+
+
+def given(app, g):
+    with app.state.db.transaction() as conn:
+        return conn.execute('''SELECT ea.recipient_event_participant_id AS ep, ei.event_participant_id AS author, ei.id AS item
+FROM exchange_assignments ea JOIN exchange_items ei ON ei.id=ea.exchange_item_id WHERE ea.round_id=%s AND ea.active''',
+                            (g['rounds'][0],)).fetchall()
+
+
+
 def ep_of(app, email):
     with app.state.db.transaction() as conn:
         return conn.execute('''SELECT p.* FROM event_participants p JOIN users u ON u.id=p.user_id WHERE u.email=%s''',
                             (email,)).fetchone()
 
 
-def test_relay_sources_to_everyone_in_second_league(app, seed, clock):
-    g, people = relay_game(app, seed, clock)
-    with app.state.db.transaction() as conn:   # s4 — вне конкурса: исходник ей тоже положен (дыра бота 03.10)
+def make_outside(app, email, at):
+    with app.state.db.transaction() as conn:
         conn.execute('''UPDATE event_participants SET competition_status='diploma_only', elimination_reason='admin',
-out_of_competition_at=%s, out_of_competition_source='admin' WHERE id=%s''', (h(), ep_of(app, 's4@example.com')['id']))
-    # пока Gold сдаёт — у Silver задание закрыто, исходников нет
-    t = ok(people['s1'].get(task_url(g, 0)))
-    assert t['source'] is None and t['instructions'] is None
+out_of_competition_at=%s, out_of_competition_source='admin' WHERE id=%s''', (at, ep_of(app, email)['id']))
+
+
+def test_check_then_release_only_competition_works(app, seed, clock):
+    g, people = relay_game(app, seed, clock, submit=('g1', 'g2', 'g3'))
+    make_outside(app, 's4@example.com', h())          # вне конкурса во второй лиге — исходник ей тоже положен
+    make_outside(app, 'g3@example.com', h(hours=1))  # вне конкурса в первой лиге — её работа исходником не бывает
+    c = org(app, seed)
+    url = f"/api/org/rounds/{g['rounds'][0]}/relay"
+    assert c.post(url + '/prepare', headers=ORIGIN).json()['detail'] == 'relay_not_ready'     # Gold ещё сдаёт
     clock.set(h(days=1, hours=2))
-    t = ok(people['s1'].get(task_url(g, 0)))                     # первое открытие — исходник выдан ей
-    assert t['source'] and t['source']['league'] == 'gold' and len(t['source']['photos']) == 1
+    t = ok(people['s1'].get(task_url(g, 0)))           # открылось, но исходник ещё не отправлен
+    assert t['source'] is None and t['window']['reason'] == 'source_pending'
+    with app.state.db.transaction() as conn:          # сверка готовит черновик — участницы его не видят
+        assert relay.distribute(conn, rnd_of(conn, g), h(days=1, hours=2), rng=random.Random(1)) == 4
+    assert ok(people['s1'].get(task_url(g, 0)))['window']['reason'] == 'source_pending'
+    d = ok(c.get(url))
+    assert not d['overview']['released'] and d['overview']['sources'] == 2 and d['overview']['given'] == 4
+    authors = {it['author'] for it in d['items']}
+    assert len(d['items']) == 2 and all(sum(len(it['recipients']) for it in d['items']) == 4 for _ in [0])
+    g3 = ep_of(app, 'g3@example.com')['id']
+    assert g3 not in {r['author'] for r in given(app, g)}                     # только работы в конкурсе
+    photo = d['items'][0]['photos'][0]['view_url'].replace(app.state.settings.root_path, '')
+    assert people['s1'].get(photo).status_code == 404                        # черновик не виден
+    # организатор убирает одну работу — раздача пересобирается на оставшуюся
+    bad = d['items'][0]['id']
+    assert c.post(f'{url}/items/{bad}', headers=ORIGIN, json={'excluded': True}).json()['detail'] == 'reason_required'
+    d = ok(c.post(f'{url}/items/{bad}', headers=ORIGIN, json={'excluded': True, 'reason': 'Размытое фото'}))
+    assert d['overview']['sources'] == 1 and d['overview']['excluded'] == 1
+    assert {str(r['item']) for r in given(app, g)} == {d['items'][1]['id'] if d['items'][0]['excluded'] else d['items'][0]['id']}
+    d = ok(c.post(f'{url}/items/{bad}', headers=ORIGIN, json={'excluded': False}))     # вернула
+    assert d['overview']['sources'] == 2
+    ok(c.post(url + '/prepare', headers=ORIGIN))                                      # перераздать заново
+    d = ok(c.post(url + '/release', headers=ORIGIN))
+    assert d['overview']['released'] and d['overview']['given'] == 4
+    rows = given(app, g)
+    assert sorted(Counter(r['author'] for r in rows).values()) == [2, 2]
+    assert ep_of(app, 's4@example.com')['id'] in {r['ep'] for r in rows}
+    t = ok(people['s1'].get(task_url(g, 0)))
+    assert t['source'] and t['source']['league'] == 'gold' and t['window']['open']
     photo = t['source']['photos'][0]['view_url'].replace(app.state.settings.root_path, '')
-    assert people['s1'].get(photo).status_code == 200            # получательница видит исходник
-    assert people['g3'].get(photo).status_code == 404            # посторонняя — нет
-    assert t['window']['open']
-    with app.state.db.transaction() as conn:                     # сверка раздаёт остальным
-        rnd = conn.execute('SELECT * FROM rounds WHERE id=%s', (g['rounds'][0],)).fetchone()
-        assert relay.distribute(conn, rnd, h(days=1, hours=2), rng=random.Random(1)) == 3
-        assert relay.distribute(conn, rnd, h(days=1, hours=2)) == 0          # повтор ничего не меняет
-        rows = conn.execute('''SELECT ea.recipient_event_participant_id AS ep, ei.event_participant_id AS author
-FROM exchange_assignments ea JOIN exchange_items ei ON ei.id=ea.exchange_item_id WHERE ea.round_id=%s AND ea.active''',
-                            (g['rounds'][0],)).fetchall()
-    authors = Counter(r['author'] for r in rows)
-    assert len(rows) == 4 and sorted(authors.values()) == [2, 2]           # 4 получательницы на 2 работы — поровну
-    assert ep_of(app, 'g3@example.com')['id'] not in authors              # не сдавшая — не исходник
-    assert ep_of(app, 's4@example.com')['id'] in {r['ep'] for r in rows}  # вне конкурса — тоже получила
-    send_work(people['s1'], g, 0, color=(1, 2, 3))                         # сдаёт по исходнику
-    # автор (Gold) не видит, кому досталась её работа: в её задании исходника нет
-    assert 'source' not in ok(people['g1'].get(task_url(g, 0)))
+    assert people['s1'].get(photo).status_code == 200 and people['g3'].get(photo).status_code == 404
+    assert any('исходник' in str(n) for n in ok(people['s2'].get('/api/notifications'))['notifications'])
+    assert c.post(url + '/prepare', headers=ORIGIN).json()['detail'] == 'relay_released'
+    send_work(people['s1'], g, 0, color=(1, 2, 3))
+    assert 'source' not in ok(people['g1'].get(task_url(g, 0)))           # автор не видит, кому досталась её работа
+    assert authors
 
 
-def test_no_source_blocks_submission(app, seed, clock):
+def test_no_competition_works_cannot_release(app, seed, clock):
     g, people = relay_game(app, seed, clock, gold=('g1',), silver=('s1',), submit=())
+    c = org(app, seed)
     clock.set(h(days=1, hours=2))
     t = ok(people['s1'].get(task_url(g, 0)))
-    assert t['source'] is None and t['window'] == {'open': False, 'reason': 'no_source', 'deadline': t['window']['deadline'],
-                                                    'source': t['window']['source']}
+    assert t['source'] is None and t['window']['reason'] == 'source_pending'
+    url = f"/api/org/rounds/{g['rounds'][0]}/relay"
+    assert c.post(url + '/release', headers=ORIGIN).json()['detail'] == 'relay_no_sources'
     photo = people['s1'].post('/api/uploads', content=__import__('game_helpers').jpeg(), headers={'Content-Type': 'image/jpeg', **ORIGIN}).json()
     r = people['s1'].put(task_url(g, 0) + '/draft', headers=ORIGIN, json={'photos': [photo['id']]})
-    assert r.status_code == 409 and r.json()['detail'] == 'no_source'
+    assert r.status_code == 409 and r.json()['detail'] == 'source_pending'
+    assert any('исходники' in a['title'] for a in ok(c.get('/api/org/home'))['alerts'])
 
 
 def test_org_relay_settings_and_judge_sees_source(app, seed, clock):
@@ -92,7 +128,6 @@ def test_org_relay_settings_and_judge_sees_source(app, seed, clock):
     url = f"/api/org/rounds/{g['rounds'][0]}"
     view = ok(c.get(url))
     assert view['relay']['from'] == 'gold' and view['relay']['waiting'] == 4 and not view['relay']['started']
-    # Silver не может открыться раньше срока Gold
     with app.state.db.transaction() as conn:
         conn.execute('''UPDATE assignment_variants SET release_rules=%s WHERE code='silver' AND assignment_id=%s''',
                      (Jsonb({'opens_at': h(hours=12).isoformat(), 'deadline': h(days=3).isoformat()}), g['tasks'][0]))
@@ -104,13 +139,13 @@ def test_org_relay_settings_and_judge_sees_source(app, seed, clock):
         conn.execute('''UPDATE assignment_variants SET release_rules=%s WHERE code='silver' AND assignment_id=%s''',
                      (Jsonb({'opens_at': h(days=1, hours=1).isoformat(), 'deadline': h(days=3).isoformat()}), g['tasks'][0]))
     clock.set(h(days=1, hours=2))
+    ok(c.post(url + '/relay/release', headers=ORIGIN))
     for n in ('s1', 's2', 's3'):
         ok(people[n].get(task_url(g, 0)))
         send_work(people[n], g, 0, color=(5 * len(n), 7, 9))
     v = ok(c.get(url))['relay']
-    assert v['started'] and v['given'] == 3 and v['sources'] == 2
+    assert v['started'] and v['released'] and v['given'] == 4 and v['sources'] == 2
     assert c.put(url + '/relay', headers=ORIGIN, json={'source': None, 'target': None}).json()['detail'] == 'relay_started'
-    # судейство Silver после срока: судья видит исходник рядом с работой
     clock.set(h(days=3, hours=1))
     js = judges(app, seed, 1)
     jurl = url + '/judging'
@@ -123,26 +158,31 @@ def test_org_relay_settings_and_judge_sees_source(app, seed, clock):
     assert s['next']['a']['source'] and s['next']['b']['source']
     assert jc.get(s['next']['a']['source'][0]['view_url'].replace(app.state.settings.root_path, '')).status_code == 200
     g_stream = ok(jc.get(f"/api/judging/streams/{streams['gold']['id']}"))
-    assert g_stream['next']['a']['source'] is None                       # у первой лиги исходника нет
+    assert g_stream['next']['a']['source'] is None
     org_view = ok(c.get(jurl))
     silver_rows = next(st for st in org_view['streams'] if st['league'] == 'silver')['rows']
     assert all(r['source'] for r in silver_rows)
 
 
-def test_sync_skips_busy_participant_no_deadlock(app, seed, clock):
-    """Сверка раздаёт исходники, пока участница держит свою запись (открывает задание) — без взаимной блокировки:
-    занятую сверка пропускает, исходник ей выдаёт её же запрос."""
+def test_after_release_newcomer_gets_sent_work_no_deadlock(app, seed, clock):
+    """После отправки: пришедшей позже (перевели в Silver) — одна из уже отправленных работ, не своя; сверка не ждёт
+    участницу, которая держит свою запись (открывает задание)."""
     import threading
     import psycopg
     from psycopg.rows import dict_row
-    g, people = relay_game(app, seed, clock)
-    s2 = ep_of(app, 's2@example.com')['id']
+    g, people = relay_game(app, seed, clock, gold=('g1', 'g2', 'g3'), silver=('s1', 's2'), submit=('g1', 'g2'))
+    c = org(app, seed)
+    clock.set(h(days=1, hours=2))
+    ok(c.post(f"/api/org/rounds/{g['rounds'][0]}/relay/release", headers=ORIGIN))
+    g1, g3 = ep_of(app, 'g1@example.com')['id'], ep_of(app, 'g3@example.com')['id']
+    ok(c.post(f'/api/org/participants/{g1}/league', headers=ORIGIN, json={'league': 'silver'}))
+    ok(c.post(f'/api/org/participants/{g3}/league', headers=ORIGIN, json={'league': 'silver'}))
     dsn = app.state.settings.database_dsn.get_secret_value()
     a = psycopg.connect(dsn, row_factory=dict_row)
     b = psycopg.connect(dsn, row_factory=dict_row)
-    now = h(days=1, hours=2)
+    now = h(days=1, hours=3)
     rnd = a.execute('SELECT * FROM rounds WHERE id=%s', (g['rounds'][0],)).fetchone()
-    a.execute('SELECT id FROM event_participants WHERE id=%s FOR UPDATE', (s2,))
+    a.execute('SELECT id FROM event_participants WHERE id=%s FOR UPDATE', (g3,))
     out = {}
 
     def sync():
@@ -154,27 +194,10 @@ def test_sync_skips_busy_participant_no_deadlock(app, seed, clock):
     t = threading.Thread(target=sync)
     t.start()
     t.join(10)
-    assert not t.is_alive() and 'err' not in out and out['n'] == 3         # s2 занята — пропущена
-    assert relay.distribute(a, rnd, now, only_ep=s2) == 1
+    assert not t.is_alive() and 'err' not in out and out['n'] == 1          # g1 получила; g3 занята — пропущена
+    assert relay.distribute(a, rnd, now, only_ep=g3) == 1
     a.commit()
     a.close()
     b.close()
-
-
-def test_league_change_and_own_work(app, seed, clock):
-    g, people = relay_game(app, seed, clock, gold=('g1', 'g2'), silver=('s1', 's2'), submit=('g1', 'g2'))
-    c = org(app, seed)
-    clock.set(h(days=1, hours=2))
-    ok(people['s1'].get(task_url(g, 0)))
-    s1 = ep_of(app, 's1@example.com')['id']
-    g1 = ep_of(app, 'g1@example.com')['id']
-    ok(c.post(f'/api/org/participants/{s1}/league', headers=ORIGIN, json={'league': 'gold'}))     # s1 → Gold: выдача снята
-    ok(c.post(f'/api/org/participants/{g1}/league', headers=ORIGIN, json={'league': 'silver'}))   # g1 → Silver: свою работу не получит
-    with app.state.db.transaction() as conn:
-        assert not relay.has_source(conn, g['rounds'][0], s1)
-        rnd = conn.execute('SELECT * FROM rounds WHERE id=%s', (g['rounds'][0],)).fetchone()
-        for _ in range(5):
-            relay.distribute(conn, rnd, h(days=1, hours=2))
-        got = conn.execute('''SELECT ei.event_participant_id AS author FROM exchange_assignments ea JOIN exchange_items ei ON ei.id=ea.exchange_item_id
-WHERE ea.recipient_event_participant_id=%s AND ea.active''', (g1,)).fetchone()
-    assert got and got['author'] != g1
+    rows = {r['ep']: r for r in given(app, g)}
+    assert rows[g1]['author'] != g1 and rows[g3]['author'] in {ep_of(app, 'g2@example.com')['id'], g1}

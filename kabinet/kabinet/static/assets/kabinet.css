@@ -158,3 +158,8 @@ audio.wide{width:100%;margin-block:8px}
 .doc-inline summary{cursor:pointer;color:var(--accent,inherit);font-size:13px}
 .doc-inline>div{max-height:240px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:10px;margin-top:6px;white-space:pre-wrap}
 .jt-src{opacity:.75}
+
+/* проверка исходников эстафеты */
+.rl-row{display:flex;gap:14px;align-items:flex-start}
+.rl-ph{width:96px;height:120px;object-fit:cover;border-radius:8px;flex:0 0 auto}
+.rl-off{opacity:.6}

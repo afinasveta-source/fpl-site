@@ -291,8 +291,8 @@ def render_task(conn, request, game, assignment, user_id, now):
             if photos and R.round_opened(rnd, now) else None
         out['source_expected'] = True
         w = G.window(conn, game, assignment, now, user_id)
-        if not w.open and w.reason == 'no_source':
-            out['window'] = {'open': False, 'reason': 'no_source', 'deadline': V.iso(w.deadline), 'source': w.deadline_source}
+        if not w.open and w.reason in ('no_source', 'source_pending'):
+            out['window'] = {'open': False, 'reason': w.reason, 'deadline': V.iso(w.deadline), 'source': w.deadline_source}
     return out
 
 

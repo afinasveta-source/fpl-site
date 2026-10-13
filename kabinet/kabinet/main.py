@@ -26,7 +26,7 @@ from kabinet import reviews, claims
 from kabinet.org import bot_import as org_bot_import
 
 # Версия схемы базы (server/db/schema), под которую написан кабинет. Новее — можно, старее — нельзя.
-SCHEMA_REQUIRED = 10  # 010 — эстафета (исходники), заявки участниц из бота (13.10)
+SCHEMA_REQUIRED = 11  # 011 — эстафета с проверкой организатора (13.10)
 CSP = ("default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; "
        "connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'")
 

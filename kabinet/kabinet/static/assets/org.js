@@ -481,10 +481,15 @@
       '<div class="grid2">' + O.sel('rl-from', 'Делает первой (исходники)', O.LEAGUES, rl ? rl.from : 'gold', locked ? ' disabled' : '') +
       O.sel('rl-to', 'Получает исходники', O.LEAGUES, rl ? rl.to : 'silver', locked ? ' disabled' : '') + '</div>';
     if (rl) {
+      var st = rl.released ? 'Отправлены участницам ' + O.when(rl.released_at) : rl.ready ? (rl.started ? 'Черновик готов — проверьте и отправьте' : 'Можно готовить раздачу') :
+        'Раздача подготовится после срока первой лиги';
       h += '<dl class="kv"><dt>Срок первой лиги</dt><dd>' + esc(O.when(rl.source_deadline)) + '</dd><dt>Открытие для ' + esc(name(rl.to)) + '</dt><dd>' + esc(O.when(rl.second_opens_at)) + '</dd>' +
-        '<dt>Исходников</dt><dd>' + (rl.started ? rl.sources : 'раздача начнётся после открытия для ' + esc(name(rl.to))) + '</dd>' +
-        (rl.started ? '<dt>Выдано</dt><dd>' + rl.given + (rl.waiting ? ' · ждут ' + rl.waiting + ' (получат при открытии задания)' : '') + '</dd>' : '') + '</dl>';
-      if (rl.started) h += '<p class="small muted">Исходники розданы — эстафету уже не поменять.</p>';
+        '<dt>Исходники</dt><dd>' + esc(st) + '</dd>' +
+        (rl.started ? '<dt>Работ-исходников</dt><dd>' + rl.sources + (rl.excluded ? ' · убрано ' + rl.excluded : '') + '</dd><dt>' + (rl.released ? 'Выдано' : 'В черновике') + '</dt><dd>' + rl.given +
+          (rl.waiting ? ' · без исходника ' + rl.waiting + (rl.released ? ' (получат при открытии задания)' : '') : '') + '</dd>' : '') + '</dl>';
+      if (rl.ready || rl.started) h += '<div class="row"><button class="btn' + (rl.released ? ' sec' : '') + '" type="button" data-href="/org/rounds/' + r.id + '/relay">' +
+        (rl.released ? 'Посмотреть раздачу' : 'Проверить и отправить исходники') + '</button></div>';
+      if (rl.started) h += '<p class="small muted">Раздача уже готовилась — настройку эстафеты не поменять.</p>';
     }
     return h + O.errBox + (locked ? '' : '<button class="btn sec" type="submit">Сохранить эстафету</button>') + '</form>';
   }

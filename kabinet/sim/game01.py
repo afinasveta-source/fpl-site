@@ -248,6 +248,16 @@ def main():
         t = hs[sil[0]['cid']].get(f"/api/games/{eid}/tasks/{r3['aid']}")
         P.check(t and t['window']['reason'] == 'not_open' and not t.get('source'), 'critical', AREA, f"Silver видит задание раньше: {t and t['window']}")
         w.clock.set(r3['second_open'] + timedelta(minutes=10))
+        # организатор проверяет раздачу и отправляет исходники
+        d = o.get(f"/api/org/rounds/{r3['id']}/relay")
+        P.check(d and d['overview']['ready'] and not d['overview']['released'], 'critical', AREA, f"раздача не готова к проверке: {d and d['overview']}")
+        o.post(f"/api/org/rounds/{r3['id']}/relay/prepare")
+        if '--stop-check' in sys.argv:
+            print('STOP', json.dumps({'round3': r3['id'], 'org': w.org.email, 'at': w.clock().isoformat(), 'db': w.name, 'media': w.media,
+                                      'silver': next(f"p{x['cid']}@example.com" for x in sil), 'event': eid, 'aid': r3['aid']}))
+            raise Stop()
+        d = o.post(f"/api/org/rounds/{r3['id']}/relay/release")
+        P.check(d and d['overview']['released'], 'critical', AREA, 'исходники не отправлены')
         opened = 0
         for i, x in enumerate(sil):
             if i % 3 == 0:
@@ -305,6 +315,7 @@ AND ea.round_id=%s WHERE p.event_id=%s AND p.entry_league='silver' AND p.competi
         for i, x in enumerate(sil):
             send(w, hs[x['cid']], eid, r4['aid'], seed=3000 + i)
         w.clock.set(r4['second_open'] + timedelta(minutes=5))
+        o.post(f"/api/org/rounds/{r4['id']}/relay/release")
         for i, x in enumerate(gold_in):
             t = hs[x['cid']].get(f"/api/games/{eid}/tasks/{r4['aid']}")
             if t and t['me']['mode'] in ('in', 'outside'):

@@ -239,7 +239,10 @@ def window(conn, game, assignment, now, user_id):
     w = R.submission_window(game.event, rnd, assignment, game.pas.get(assignment['id']), game.mode, now,
                             rules_ok(conn, user_id, now))
     if w.open and needs_source(game, rnd) and not relay.has_source(conn, rnd['id'], game.ep['id']):
-        return R.Window(False, 'no_source', w.deadline, w.deadline_source)
+        # до «Отправить исходники» организатор проверяет работы — исходник ещё готовится
+        reason = 'no_source' if relay.released(conn.execute('SELECT settings FROM rounds WHERE id=%s', (rnd['id'],)).fetchone()) \
+            else 'source_pending'
+        return R.Window(False, reason, w.deadline, w.deadline_source)
     return w
 
 

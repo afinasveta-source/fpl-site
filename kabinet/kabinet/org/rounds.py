@@ -617,3 +617,76 @@ def put_relay(round_id: UUID, body: RelayIn, request: Request, user=Depends(org_
                 raise problem(found[0])
         audit(conn, user['id'], 'round', round_id, 'relay_set', settings.get('relay') or {})
         return round_detail(conn, r, now)
+
+
+@router.get('/rounds/{round_id}/relay')
+def relay_page(round_id: UUID, request: Request, user=Depends(org_user)):
+    """Раздача исходников для проверки: работы, их получательницы, убранные."""
+    now = now_of(request)
+    with db(request).transaction() as conn:
+        r = load_round(conn, round_id)
+        if not relay.relay_of(r):
+            raise problem('not_relay', 404)
+        return {'overview': relay.overview(conn, r, now), 'items': relay.detail(conn, r, request.app.state.settings.root_path)}
+
+
+def relay_round(conn, user, round_id, now):
+    locked_admin(conn, user)
+    r = load_round(conn, round_id, lock=True)
+    e = load_event(conn, r['event_id'])
+    if e['status'] in ('finished', 'archived'):
+        raise problem('game_finished', 409)
+    if not relay.relay_of(r):
+        raise problem('not_relay', 404)
+    if relay.released(r):
+        raise problem('relay_released', 409)
+    if not relay.ready(conn, r, now):
+        raise problem('relay_not_ready', 409)
+    return r
+
+
+@router.post('/rounds/{round_id}/relay/prepare', dependencies=WRITE)
+def relay_prepare(round_id: UUID, request: Request, user=Depends(org_user)):
+    """Подготовить (или перераздать заново) черновик раздачи — до отправки участницам."""
+    now = now_of(request)
+    with db(request).transaction() as conn:
+        r = relay_round(conn, user, round_id, now)
+        n = relay.reshuffle(conn, r, now)
+        audit(conn, user['id'], 'round', round_id, 'relay_reshuffled', {'given': n})
+    return relay_page(round_id, request, user)
+
+
+class RelayExclude(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    excluded: bool
+    reason: str | None = Field(default=None, max_length=500)
+
+
+@router.post('/rounds/{round_id}/relay/items/{item_id}', dependencies=WRITE)
+def relay_exclude(round_id: UUID, item_id: UUID, body: RelayExclude, request: Request, user=Depends(org_user)):
+    """Убрать работу из исходников (или вернуть) — раздача пересобирается."""
+    now = now_of(request)
+    if body.excluded and not (body.reason or '').strip():
+        raise problem('reason_required')
+    with db(request).transaction() as conn:
+        r = relay_round(conn, user, round_id, now)
+        if not conn.execute("SELECT 1 FROM exchange_items WHERE id=%s AND round_id=%s AND exchange_group_key='relay'", (item_id, round_id)).fetchone():
+            raise problem('not_found', 404)
+        relay.exclude(conn, r, item_id, body.excluded, (body.reason or '').strip() or None, user['id'], now)
+        audit(conn, user['id'], 'round', round_id, 'relay_item_excluded' if body.excluded else 'relay_item_returned',
+              {'item': str(item_id), 'reason': body.reason})
+    return relay_page(round_id, request, user)
+
+
+@router.post('/rounds/{round_id}/relay/release', dependencies=WRITE)
+def relay_release(round_id: UUID, request: Request, user=Depends(org_user)):
+    """«Отправить исходники»: участницы второй лиги получают их и уведомление. После этого раздача не меняется."""
+    now = now_of(request)
+    with db(request).transaction() as conn:
+        r = relay_round(conn, user, round_id, now)
+        relay.prepare(conn, r, now)
+        if not conn.execute("""SELECT 1 FROM exchange_items WHERE round_id=%s AND exchange_group_key='relay' AND excluded_at IS NULL""",
+                            (round_id,)).fetchone():
+            raise problem('relay_no_sources', 409)
+        relay.release(conn, r, user['id'], now)
+    return relay_page(round_id, request, user)
