@@ -212,7 +212,7 @@ def register_all(w):
         c = p['client']
         cat = c.get('/api/events')
         ev = c.get(f'/api/events/{eid}')
-        body = {'accept_rules': True, 'accept_publication': True, 'accept_personal_data': True}
+        body = {'accept_rules': True, 'confirm_adult': True, 'accept_publication': True, 'accept_personal_data': True}
         if 'self_signup' in p['scen']:
             body |= {'country_code': 'RU', 'city': rng.choice(['Москва', 'Самара', 'Пермь'])}
         # двойное нажатие «Записаться» — второй ответ без новой записи
@@ -265,7 +265,7 @@ def start_game(w):
         w.clock.set(S + timedelta(hours=12))
         for p in late:
             r = p['client'].post(f'/api/events/{w.event}/registration',
-                                 {'accept_rules': True, 'accept_publication': True, 'accept_personal_data': True,
+                                 {'accept_rules': True, 'confirm_adult': True, 'accept_publication': True, 'accept_personal_data': True,
                                   'country_code': 'RU', 'city': 'Тула'}, expect=201)
             p['registered'] = r is not None
             me = game_me(w, p)

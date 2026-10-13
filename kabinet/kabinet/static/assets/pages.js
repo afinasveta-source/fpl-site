@@ -127,7 +127,7 @@
       }
       if (home.important) {
         var n = home.important;
-        h += '<section class="card"><div class="between"><h3>Важное уведомление</h3><span class="small muted">' + esc(K.date(n.created_at)) + '</span></div>' +
+        h += '<section class="card"><div class="between"><h3>Важное уведомление</h3><span class="small muted">' + esc(K.date(n.created_at)) + ' МСК</span></div>' +
           '<p><b>' + esc(n.title) + '</b>' + (n.text ? '<br><span class="muted small">' + esc(n.text) + '</span>' : '') + '</p>' +
           '<div class="row"><button class="btn sec" type="button" data-act="openNotice" data-n="' + K.attr(n) + '">Открыть</button>' +
           '<button class="btn ghost" type="button" data-href="/notifications">Все уведомления</button></div></section>';
@@ -228,7 +228,7 @@
         (e.description ? '<p>' + esc(e.description) + '</p>' : '') + '</section>' + prizesCard(e.prizes);
       if (e.rounds.length) {
         h += '<details class="more card"><summary>Этапы и сроки</summary><div class="list">' + e.rounds.map(function (r) {
-          return li('Тур ' + r.round_no + ' · ' + esc(r.title), r.opens_at ? esc(K.day(r.opens_at)) + (r.deadline ? ' — ' + esc(K.date(r.deadline)) : '') : '', '', null);
+          return li('Тур ' + r.round_no + ' · ' + esc(r.title), r.opens_at ? esc(K.day(r.opens_at)) + (r.deadline ? ' — ' + esc(K.msk(r.deadline)) : '') : '', '', null);
         }).join('') + '</div><p class="small muted">Все сроки — ' + K.TZ + '.</p></details>';
       }
       if (e.my_mode) {
@@ -244,6 +244,7 @@
           '<label class="chk"><input type="checkbox" id="c-rules" data-reg> <span>Принимаю <a href="' + K.ROOT + '/documents/' + docs.rules.id + '" data-href="/documents/' + docs.rules.id + '">Правила Игры</a> (редакция ' + esc(docs.rules.version) + ')</span></label>' +
           '<label class="chk"><input type="checkbox" id="c-pub" data-reg> <span>Даю согласие на <a href="' + K.ROOT + '/documents/' + docs.publication.id + '" data-href="/documents/' + docs.publication.id + '">публикацию моих работ</a> на сайте и в соцсетях лиги</span></label>' +
           (docs.personal_data && !docs.personal_data.accepted ? '<label class="chk"><input type="checkbox" id="c-pd" data-reg> <span>Даю согласие на <a href="' + K.ROOT + '/documents/' + docs.personal_data.id + '" data-href="/documents/' + docs.personal_data.id + '">обработку персональных данных</a></span></label>' : '') +
+          '<label class="chk"><input type="checkbox" id="c-adult" data-reg> <span>Мне есть 18 лет</span></label>' +
           (e.payment_required ? '<p class="small muted">Участие платное. Оплата подключается отдельно — после записи организатор пришлёт условия.</p>' : '') +
           '<p class="small muted" id="reg-hint">Чтобы записаться, ' + (e.needs_place ? 'укажите страну и город и ' : '') + 'отметьте все пункты.</p>' +
           '<p class="form-err" role="alert" tabindex="-1" hidden></p></section>' +
@@ -265,14 +266,15 @@
   K.actions.register = function (b) {
     var form = document.getElementById('reg'), id = b.getAttribute('data-id');
     var c = document.getElementById('reg-country'), t = document.getElementById('reg-city'), pd = document.getElementById('c-pd');
-    var body = { accept_rules: document.getElementById('c-rules').checked, accept_publication: document.getElementById('c-pub').checked, accept_personal_data: !!(pd && pd.checked) };
+    var body = { accept_rules: document.getElementById('c-rules').checked, accept_publication: document.getElementById('c-pub').checked, accept_personal_data: !!(pd && pd.checked),
+      confirm_adult: document.getElementById('c-adult').checked };
     if (c) { body.country_code = c.value; body.city = t.value.trim(); }
     b.disabled = true; b.textContent = 'Записываем…';
     K.api('POST', '/api/events/' + id + '/registration', body).then(function (r) {
       if (!r.ok) { b.disabled = false; b.textContent = 'Записаться'; K.formError(form, K.errorText(r)); return; }
       if (c) { K.state.me.country_code = body.country_code; K.state.me.city = body.city; }
       K.refreshUnread();
-      showModal('<span class="eyebrow">Готово</span><h2 id="mT">Вы записаны</h2><p>' + (r.data.mode === 'pending' ? 'Заявка принята. Организатор пришлёт условия оплаты.' : 'Задания и сроки появятся на странице вашей Игры.') + '</p>' +
+      showModal('<span class="eyebrow">Готово</span><h2 id="mT">Вы записаны</h2><p>' + (r.data.mode === 'pending' ? 'Заявка принята. Организатор пришлёт условия оплаты.' : 'Задания и сроки — на странице вашей Игры.') + '</p>' +
         '<div class="row"><button class="btn" type="button" data-act="closeModal" data-to="/games/' + id + '">К моей Игре</button><button class="btn ghost" type="button" data-act="closeModal" data-to="/events">Все Игры</button></div>');
     });
   };
@@ -297,12 +299,12 @@
     if (me.mode === 'withdrawn') return 'Вы вышли из Игры';
     if (isFinished(g)) return 'Игра завершена';
     if (me.mode === 'pending') return 'Заявка принята · ожидает подтверждения или оплаты';
-    if (act.kind === 'submit') return 'Тур ' + r.round_no + ' · ' + (me.mode === 'outside' ? 'вне конкурса · все работы до ' + K.date(r.submit_deadline) : 'сдать до ' + K.date(r.submit_deadline) + ' МСК');
-    if (act.kind === 'replace') return 'Тур ' + r.round_no + ' · работа сдана · замена до ' + K.date(r.submit_deadline);
-    if (act.kind === 'wait') return 'Тур ' + r.round_no + ' · работа у жюри' + (r.judging_deadline ? ' · итог ' + K.date(r.judging_deadline) : '');
+    if (act.kind === 'submit') return 'Тур ' + r.round_no + ' · ' + (me.mode === 'outside' ? 'вне конкурса · все работы до ' + K.msk(r.submit_deadline) : 'сдать до ' + K.msk(r.submit_deadline));
+    if (act.kind === 'replace') return 'Тур ' + r.round_no + ' · работа сдана · замена до ' + K.msk(r.submit_deadline);
+    if (act.kind === 'wait') return 'Тур ' + r.round_no + ' · работа у жюри' + (r.judging_deadline ? ' · итог ' + K.msk(r.judging_deadline) : '');
     if (act.kind === 'choose') return 'В отбор не прошли · можно продолжить вне конкурса';
     if (act.kind === 'missed') return 'Тур ' + r.round_no + ' · срок прошёл, работа не сдана';
-    if (act.kind === 'upcoming') return 'Тур ' + r.round_no + ' откроется ' + K.date(r.opens_at);
+    if (act.kind === 'upcoming') return 'Тур ' + r.round_no + ' откроется ' + K.msk(r.opens_at);
     return '';
   }
   function myGameCard(g) {
@@ -337,10 +339,10 @@
     else if (r.result) sub = 'Оценка ' + K.score(r.result.score) + (r.result.top_work ? ' · ' + K.topWork(r.result.league) : '');
     else if (r.work === 'missed') sub = outside && r.can_submit ? 'Не сдана в срок · можно сдать до конца Игры' : 'Работа не сдана в срок';
     else if (r.work === 'sent_late') sub = 'Сдана после срока · идёт в диплом' + (r.can_submit ? ' · заменить до конца Игры' : '');
-    else if (r.work === 'sent') sub = outside ? 'Сдана' + (r.can_submit ? ' · заменить до конца Игры' : '') : 'Работа сдана' + (r.can_submit ? ' · замена до ' + K.date(r.deadline) : '');
+    else if (r.work === 'sent') sub = outside ? 'Сдана' + (r.can_submit ? ' · заменить до конца Игры' : '') : 'Работа сдана' + (r.can_submit ? ' · замена до ' + K.msk(r.deadline) : '');
     else if (r.work === 'draft') sub = 'Фото сохранено, работа ещё не сдана';
-    else if (r.state === 'open') sub = outside ? 'Вне конкурса · до конца Игры' : 'Сдача до ' + K.date(r.deadline);
-    else sub = r.deadline ? 'Срок был ' + K.date(r.deadline) : '';
+    else if (r.state === 'open') sub = outside ? 'Вне конкурса · до конца Игры' : 'Сдача до ' + K.msk(r.deadline);
+    else sub = r.deadline ? 'Срок был ' + K.msk(r.deadline) : '';
     right = r.work === 'missed' && r.state !== 'pub' ? pill('Не сдана', 'bad') : stateP;
     if (r.state !== 'plan' && r.assignment_id) href = r.result ? '/games/' + g.event.id + '/rounds/' + r.round_no : taskHref(g, r);
     return li('Тур ' + r.round_no + ' · ' + esc(r.title), esc(sub), right, href, r.state === 'open' || r.state === 'judging' ? 'now' : '');
@@ -420,7 +422,7 @@
   });
 
   /* ---------- Задание и сдача ---------- */
-  var T = { data: null, pending: null, uploading: false, sheet: false, ids: null };
+  var T = { data: null, pending: null, uploading: false, progress: 0, sheet: false, ids: null };
 
   function currentWork(t) { return t.draft || t.submitted || { photos: [], link: null }; }
   // Адреса фото приходят с сервера уже полными (с /kabinet).
@@ -484,12 +486,13 @@
       var max = form.photo_max || 1;
       h += '<section class="card"><h2>' + (max > 1 ? 'Ваши фото' : 'Ваше фото') + '</h2>' + (photos.length ? photos.map(function (p, i) {
         return photoImg(p, 'Фото работы' + (photos.length > 1 ? ' ' + (i + 1) : ''), 'big') +
-          '<div class="row">' + (max === 1 ? '<label class="btn sec" for="file">Заменить фото</label>' : '') +
-          '<button class="btn ghost" type="button" data-act="removePhoto" data-i="' + i + '">Убрать</button></div>';
+          (T.uploading ? '' : '<div class="row">' + (max === 1 ? '<label class="btn sec" for="file">Заменить фото</label>' : '') +
+          '<button class="btn ghost" type="button" data-act="removePhoto" data-i="' + i + '">Убрать</button></div>');
       }).join('') + (t.draft ? '<p class="small muted">Сохранено ' + esc(K.date(t.draft.saved_at)) + ' МСК. ' + (replacing ? 'Замена ещё не сохранена.' : 'Ещё не сдано — до сдачи его можно заменить.') + '</p>' : '') : '') +
-        (photos.length < max ? '<label class="drop" for="file"><b>' + (T.uploading ? 'Загружаем фото…' : 'Добавить фото') + '</b><span class="small muted">С камеры или из галереи. JPG, PNG или WebP, до 20 МБ.' +
+        (T.uploading ? '<div class="note info" role="status"><b>' + uploadText() + '</b><br><span class="small">Не закрывайте страницу, пока фото не загрузится.</span></div>' :
+          photos.length < max ? '<label class="drop" for="file"><b>Добавить фото</b><span class="small muted">С камеры или из галереи. JPG, PNG или WebP, до 20 МБ.' +
           (form.photo === 'optional' ? ' Необязательно.' : '') + '</span></label>' : '') +
-        '<input class="sr" id="file" type="file" accept="image/jpeg,image/png,image/webp"></section>';
+        '<input class="sr" id="file" type="file" accept="image/jpeg,image/png,image/webp"' + (T.uploading ? ' disabled' : '') + '></section>';
     }
     if (form.link !== 'none') {
       h += '<section class="card"><h2>Ссылка на публикацию</h2><label for="work-link">Ссылка на публикацию · ' + (form.link === 'required' ? 'обязательно' : 'необязательно') + '</label>' +
@@ -500,7 +503,8 @@
     h += '<button class="btn ghost" type="button" data-href="/support/new?event=' + t.event.id + '&round=' + r.round_no + '">Вопрос по заданию</button>';
     var noPhotoYet = needPhoto && form.photo === 'required' && !photos.length;
     var label = replacing ? 'Заменить работу ' + r.round_no : 'Сдать работу ' + r.round_no + (outside ? ' — вне конкурса' : '');
-    h += '<div class="actbar">' + (noPhotoYet ? '<label class="btn wide" for="file">Добавить фото</label>' :
+    h += '<div class="actbar">' + (T.uploading ? '<button class="btn wide" type="button" disabled>' + uploadText() + '</button>' :
+      noPhotoYet ? '<label class="btn wide" for="file">Добавить фото</label>' :
       '<button class="btn wide" type="button" data-act="askSubmit"' + (replacing && !t.draft ? ' disabled' : '') + '>' + esc(replacing && !t.draft ? 'Изменений нет' : label) + '</button>') + '</div>';
     if (T.sheet) h += submitSheet(t, label);
     return h;
@@ -549,7 +553,7 @@
 
   function loadTask(id, aid) {
     var stamp = K.route.stamp;
-    T.sheet = false; T.uploading = false;
+    T.sheet = false; T.uploading = false; T.progress = 0; T.upSeq = (T.upSeq || 0) + 1;
     K.loading();
     K.api('GET', '/api/games/' + id + '/tasks/' + aid).then(function (r) {
       if (stamp !== K.route.stamp) return;
@@ -578,19 +582,109 @@
   function linkValue() { var l = document.getElementById('work-link'); return l ? l.value.trim() : currentWork(T.data).link; }
   function linkOk(v) { return !v || /^https?:\/\/\S{3,}$/i.test(v); }
 
+  function uploadText() { return 'Загружаем фото…' + (T.progress > 0 && T.progress < 100 ? ' ' + T.progress + '%' : ''); }
+  // Фото с телефона — уменьшить до 3000 px по длинной стороне (JPEG 0,9): на мобильном интернете в разы быстрее.
+  // Поворот по EXIF браузер применяет сам; метаданные (в т.ч. геопозиция) не уходят. Любая ошибка — отправляем как есть.
+  var MAX_SIDE = 3000;
+  // Размер в пикселях из заголовка (JPEG — маркер SOF, PNG — IHDR), не декодируя фото.
+  function headDims(file) {
+    return file.slice(0, 256 * 1024).arrayBuffer().then(function (buf) {
+      var d = new DataView(buf), n = d.byteLength;
+      if (n > 24 && d.getUint32(0) === 0x89504E47) return { w: d.getUint32(16), h: d.getUint32(20) };
+      if (n < 4 || d.getUint16(0) !== 0xFFD8) return null;
+      var i = 2;
+      while (i + 9 < n) {
+        if (d.getUint8(i) !== 0xFF) { i++; continue; }
+        var m = d.getUint8(i + 1);
+        if (m >= 0xC0 && m <= 0xCF && m !== 0xC4 && m !== 0xC8 && m !== 0xCC) return { h: d.getUint16(i + 5), w: d.getUint16(i + 7) };
+        if (m === 0xD8 || m === 0x01 || (m >= 0xD0 && m <= 0xD7)) { i += 2; continue; }
+        i += 2 + d.getUint16(i + 2);
+      }
+      return null;
+    }).catch(function () { return null; });
+  }
+  function withTimeout(p, ms, fallback) {
+    return Promise.race([p, new Promise(function (ok) { setTimeout(function () { ok(fallback); }, ms); })]);
+  }
+  function shrink(file) {
+    if (file.size < 1.5 * 1024 * 1024 || !window.HTMLCanvasElement || !file.slice || !window.Promise) return Promise.resolve(file);
+    // Огромные снимки (50–200 Мп) не декодируем на телефоне — вкладка может упасть; сервер уменьшит сам.
+    return headDims(file).then(function (dim) {
+      if (dim && dim.w * dim.h > 30000000) return file;
+      return withTimeout(shrinkNow(file), 20000, file);   // зависло (мало памяти) — отправляем как есть
+    });
+  }
+  function shrinkNow(file) {
+    var load = typeof createImageBitmap === 'function'
+      ? createImageBitmap(file, { imageOrientation: 'from-image' }).catch(function () { return createImageBitmap(file); })
+      : new Promise(function (ok, bad) {
+        var img = new Image(), url = URL.createObjectURL(file);
+        img.onload = function () { URL.revokeObjectURL(url); ok(img); };
+        img.onerror = function () { URL.revokeObjectURL(url); bad(new Error('decode')); };
+        img.src = url;
+      });
+    return load.then(function (img) {
+      var w = img.width, h = img.height, k = Math.min(1, MAX_SIDE / Math.max(w, h));
+      var c = document.createElement('canvas');
+      c.width = Math.round(w * k); c.height = Math.round(h * k);
+      var ctx = c.getContext('2d');
+      ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);   // прозрачный PNG — на белом
+      ctx.drawImage(img, 0, 0, c.width, c.height);
+      if (img.close) img.close();
+      return new Promise(function (ok) {
+        c.toBlob(function (b) { c.width = c.height = 0; ok(b && b.size > 0 && b.size < file.size ? b : file); }, 'image/jpeg', 0.9);
+      });
+    }).catch(function () { return file; });
+  }
+  // Загрузка с процентами (fetch их не даёт); ответ — в том же виде, что у K.api.
+  function sendPhoto(blob, onProgress) {
+    return new Promise(function (done) {
+      var x = new XMLHttpRequest();
+      x.open('POST', K.ROOT + '/api/uploads');
+      x.withCredentials = true;
+      x.timeout = 300000;
+      x.setRequestHeader('Content-Type', blob.type || 'image/jpeg');
+      x.upload.onprogress = function (e) { if (e.lengthComputable) onProgress(Math.floor(e.loaded * 100 / e.total)); };
+      x.onload = function () {
+        var data = null;
+        try { data = x.responseText ? JSON.parse(x.responseText) : null; } catch (e) { data = null; }
+        if (x.status === 401) K.state.me = null;
+        done({ status: x.status, ok: x.status >= 200 && x.status < 300, data: data, detail: data && typeof data.detail === 'string' ? data.detail : null });
+      };
+      x.onerror = x.ontimeout = x.onabort = function () { done({ status: 0, ok: false, data: null, detail: null }); };
+      x.send(blob);
+    });
+  }
   function onFile(e) {
     var file = e.target.files && e.target.files[0];
-    if (!file) return;
-    if (['image/jpeg', 'image/png', 'image/webp'].indexOf(file.type) < 0) { K.toast('Выберите фото JPG, PNG или WebP.'); return; }
-    if (file.size > 20 * 1024 * 1024) { K.toast('Файл больше 20 МБ. Выберите другой.'); return; }
+    e.target.value = '';
+    if (!file || T.uploading) return;
+    var type = (file.type || '').toLowerCase(), name = (file.name || '').toLowerCase();
+    if (/heic|heif/.test(type) || /\.(heic|heif)$/.test(name)) {
+      K.toast('Это фото в формате HEIC — его кабинет не принимает. Сохраните фото как JPG (например, перешлите себе в Telegram и сохраните оттуда) или сделайте скриншот.');
+      return;
+    }
+    if (['image/jpeg', 'image/png', 'image/webp'].indexOf(type) < 0) { K.toast('Выберите фото JPG, PNG или WebP.'); return; }
+    if (file.size === 0) { K.toast('Файл пустой — фото ещё не скачалось на телефон. Откройте его в галерее и попробуйте снова.'); return; }
+    if (file.size > 40 * 1024 * 1024) { K.toast('Файл больше 40 МБ. Выберите другой.'); return; }
     var link = linkValue();
     var stamp = K.route.stamp;
-    T.uploading = true; drawTask();
-    K.api('POST', '/api/uploads', undefined, { body: file, type: file.type }).then(function (r) {
-      T.uploading = false;
-      if (!stillHere(stamp)) { if (r.ok) K.toast('Фото загружено, но страница задания уже закрыта — добавьте его ещё раз.'); return; }
+    var my = T.upSeq = (T.upSeq || 0) + 1;   // загрузка «этой» страницы; старая, завершившись позже, ничего не трогает
+    T.uploading = true; T.progress = 0; T.sheet = false; drawTask();
+    shrink(file).then(function (blob) {
+      if (blob.size > 20 * 1024 * 1024) return { status: 413, ok: false, data: null, detail: null };
+      var last = 0;
+      return sendPhoto(blob, function (pct) {
+        if (my !== T.upSeq) return;
+        T.progress = pct;
+        if (pct - last >= 5 && stillHere(stamp)) { last = pct; var b = document.querySelector('.actbar .btn'); if (b) b.textContent = uploadText(); }
+      });
+    }).then(function (r) {
+      if (my === T.upSeq) { T.uploading = false; T.progress = 0; }
+      if (!stillHere(stamp)) { if (r.ok) K.toast('Фото загружено. Откройте задание снова и добавьте его в работу.'); return; }
       if (!r.ok) { drawTask(); K.toast(K.errorText(r)); return; }
       var ids = photoIds(), max = (T.data.form && T.data.form.photo_max) || 1;
+      if (max > 1 && ids.indexOf(r.data.id) >= 0) { drawTask(); K.toast(K.errorText({ status: 422, detail: 'duplicate_photo' })); return; }
       ids = max === 1 ? [r.data.id] : ids.concat([r.data.id]).slice(0, max);
       saveDraft(ids, linkOk(link) ? link : currentWork(T.data).link).then(function (s) { if (s.ok) K.toast('Фото загружено'); });
     });
@@ -603,6 +697,7 @@
     saveDraft(photoIds(), v);
   }
   K.actions.removePhoto = function (b) {
+    if (T.uploading) return;
     var ids = photoIds(); ids.splice(+b.getAttribute('data-i'), 1);
     saveDraft(ids, linkValue());
   };
@@ -614,6 +709,7 @@
     });
   };
   K.actions.askSubmit = function () {
+    if (T.uploading) { K.toast('Дождитесь, пока загрузится фото.'); return; }
     var v = linkValue(), form = T.data.form;
     if (!linkOk(v)) { K.toast('Проверьте ссылку: нужен адрес, начинающийся с https://'); return; }
     if (form.link === 'required' && !v) { K.toast('Добавьте ссылку на свою публикацию.'); return; }
@@ -634,7 +730,12 @@
     var replaced = !!T.data.submitted;
     K.api('POST', taskUrl() + '/submit', { draft_id: T.data.draft && T.data.draft.id }).then(function (r) {
       T.sheet = false;
-      if (!r.ok) { K.toast(K.errorText(r)); if (r.status === 409) { loadTask(T.ids[0], T.ids[1]); } else drawTask(); return; }
+      if (!r.ok) {
+        // обрыв связи: работа могла уже сдаться — показать, что на сервере сейчас
+        if (r.status === 0) { K.toast('Связь прервалась — проверяем, сдана ли работа…'); loadTask(T.ids[0], T.ids[1]); return; }
+        if (r.detail === 'draft_changed') { K.toast('Эта версия уже сдана или изменена в другом окне — показываем, что сейчас сдано.'); loadTask(T.ids[0], T.ids[1]); return; }
+        K.toast(K.errorText(r)); if (r.status === 409) { loadTask(T.ids[0], T.ids[1]); } else drawTask(); return;
+      }
       T.data = r.data;
       K.refreshUnread();
       K.toast(replaced ? 'Замена сохранена' : 'Работа сдана. До срока её можно заменить.');

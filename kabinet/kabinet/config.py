@@ -12,6 +12,7 @@ LOCAL_HOSTS = {'127.0.0.1', 'localhost', '::1'}
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix='FPL_', env_file='.env', extra='ignore')
     environment: Literal['TEST', 'PROD']
+    api_docs: bool = True          # /docs и /openapi.json в TEST; публичный тестовый кабинет их выключает
     database_dsn: SecretStr
     # disabled — письма не отправляются (сброс пароля — через организатора); memory — только для тестов.
     mail_mode: Literal['disabled', 'memory', 'smtp'] = 'memory'

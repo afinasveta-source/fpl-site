@@ -45,7 +45,7 @@ def create_app(settings=None, mailer=None, clock=None):
     if mailer is None:
         mailer = {'memory': MemoryMailer, 'disabled': DisabledMailer}.get(settings.mail_mode)
         mailer = mailer() if mailer else SMTPMailer(settings)
-    test = settings.environment == 'TEST'
+    test = settings.environment == 'TEST' and settings.api_docs
     # Адрес /kabinet снимает nginx (proxy_pass .../), поэтому маршруты приложения — от корня;
     # settings.root_path нужен только страницам — для ссылок на файлы и запросов.
     app = FastAPI(title='Кабинет FPL', version='0.1.0',

@@ -113,6 +113,7 @@ class Registration(BaseModel):
     accept_rules: bool
     accept_publication: bool
     accept_personal_data: bool = False
+    confirm_adult: bool = False      # «Мне есть 18 лет» (решение 13.10); фиксируется в журнале записи
     country_code: str | None = Field(default=None, min_length=2, max_length=2)
     city: str | None = Field(default=None, max_length=120)
 
@@ -153,6 +154,8 @@ def register(event_id: UUID, body: Registration, request: Request, user=Depends(
             raise HTTPException(409, 'documents_missing')
         if not body.accept_rules or not body.accept_publication:
             raise HTTPException(422, 'consents_required')
+        if not body.confirm_adult:
+            raise HTTPException(422, 'adult_required')
         if 'personal_data' in docs and not docs['personal_data']['accepted'] and not body.accept_personal_data:
             raise HTTPException(422, 'personal_data_required')
         country = body.country_code or person['country_code']
@@ -196,7 +199,7 @@ AND idempotency_key <> %s LIMIT 1""", (user['id'], f"reg:{ep['id']}:publication"
             # Участница сезона: по этой записи сайт показывает рейтинг сезона (как у перенесённых из бота).
             conn.execute('''INSERT INTO season_participants(season_id,user_id) VALUES (%s,%s) ON CONFLICT (season_id,user_id) DO NOTHING''',
                          (event['season_id'], user['id']))
-        G.audit(conn, user['id'], 'event_participant', ep['id'], 'registered', {'event_id': str(event_id)})
+        G.audit(conn, user['id'], 'event_participant', ep['id'], 'registered', {'event_id': str(event_id), 'adult_confirmed': True})
         G.notify(conn, user['id'], 'reg', f"reg:{ep['id']}",
                  {'title': f"Вы записаны на {event['title']}",
                   'text': 'Правила и задания — в кабинете.' + (' Оплата — по условиям Игры.' if paid else ''),

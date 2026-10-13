@@ -97,7 +97,7 @@ def test_game_lifecycle(app, seed, clock):
     ok(c.patch(f'/api/org/events/{eid}', headers=ORIGIN, json={'description': 'Пять туров'}))
     r = c.patch(f'/api/org/events/{eid}', headers=ORIGIN, json={'ends_at': h(days=3).isoformat()})
     assert r.status_code == 422 and r.json()['detail'] == 'rounds_after_end'   # тур 2 сдаётся позже
-    fin = ok(c.post(f'/api/org/events/{eid}/status', headers=ORIGIN, json={'action': 'finish'}))
+    fin = ok(c.post(f'/api/org/events/{eid}/status', headers=ORIGIN, json={'action': 'finish', 'early': True}))
     assert fin['status'] == 'finished'
     game = ok(p.get(f'/api/games/{eid}'))
     assert game['rounds'][0]['closed_reason'] == 'game_over'
@@ -774,7 +774,7 @@ def test_league_after_finish_until_results(app, seed, clock):
     ok(register(p, eid), 201)
     ep = ok(c.get(f'/api/org/events/{eid}/participants'))['participants'][0]
     ok(c.post(f'/api/org/events/{eid}/status', headers=ORIGIN, json={'action': 'start'}))
-    ok(c.post(f'/api/org/events/{eid}/status', headers=ORIGIN, json={'action': 'finish'}))
+    ok(c.post(f'/api/org/events/{eid}/status', headers=ORIGIN, json={'action': 'finish', 'early': True}))
     ok(c.post(f"/api/org/participants/{ep['id']}/league", headers=ORIGIN, json={'league': 'bronze'}))
     r = c.post(f"/api/org/participants/{ep['id']}/action", headers=ORIGIN, json={'action': 'outside', 'reason': 'тест'})
     assert r.status_code == 409 and r.json()['detail'] == 'game_finished'     # остальные действия — как раньше
@@ -855,3 +855,18 @@ def test_busy_login_does_not_count(app, seed, monkeypatch):
     assert codes == [503] * 5 and calls['n'] == 5
     monkeypatch.undo()
     assert c.post('/auth/login', json={'email': 'busy@example.com', 'password': PASSWORD}).status_code == 200
+
+
+def test_home_reminds_org_steps(app, seed, clock):
+    """Обзор подсказывает шаги, которые кабинет сам не делает: начать Игру, начать судейство, завершить Игру."""
+    c = org(app, seed)
+    publish_docs(c)
+    eid, rounds = game_ready(c)
+    ok(c.post(f'/api/org/events/{eid}/status', headers=ORIGIN, json={'action': 'publish'}))
+    alerts = ok(c.get('/api/org/home'))['alerts']
+    assert any('Пора начать' in a['title'] for a in alerts)          # старт был вчера, Игра не начата
+    ok(c.post(f'/api/org/events/{eid}/status', headers=ORIGIN, json={'action': 'start'}))
+    clock.set(h(days=1, minutes=5))
+    alerts = ok(c.get('/api/org/home'))['alerts']
+    assert any('тур 1: приём закрыт' in a['title'] and a['href'] == f'/org/rounds/{rounds[0]}/judging' for a in alerts)
+    assert not any('Пора начать' in a['title'] for a in alerts)

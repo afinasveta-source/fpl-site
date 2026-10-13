@@ -1,23 +1,36 @@
 #!/bin/bash
-# fpl-db-backup: копия базы (pg_dump, сжатый формат). На сервере хранятся 14 последних.
+# fpl-db-backup: копия базы (pg_dump, сжатый формат), каждый час. На сервере хранятся 72 последние (3 дня).
 # Если настроен закрытый бакет (/var/lib/fpl/private/backup-s3.json, вводится на /admin/backup.html),
 # копия отправляется туда же: db/<имя файла>. В бакете копии не удаляются.
-#   --offsite-if-missing : запуститься, только если копии в бакете ещё не было (cron раз в час)
+# Пустая база (новый сервер до восстановления) в бакет НЕ отправляется: иначе самой свежей копией в бакете
+# стала бы пустая (учения 13.10). Восстановление — fpl-db-restore.
+#   --offsite-if-missing : только догнать бакет, если последняя копия туда не ушла (cron раз в час)
 set -euo pipefail
 D=/var/backups/fpl
 CFG=/var/lib/fpl/private/backup-s3.json
-if [ "${1:-}" = "--offsite-if-missing" ]; then
-  [ -s "$CFG" ] && [ ! -f "$D/last-offsite-ok" ] || exit 0
-fi
 . /etc/fpl-db.env
 export PGPASSWORD="$FPL_DB_PASSWORD"
 mkdir -p "$D" && chmod 700 "$D"
-rm -f "$D"/*.tmp
-f="$D/fpl-$(date +%Y%m%d-%H%M).dump"
-pg_dump -h 127.0.0.1 -U "$FPL_DB_USER" -d "$FPL_DB_NAME" -Fc -f "$f.tmp"
-mv "$f.tmp" "$f" && chmod 600 "$f"
-ls -1t "$D"/fpl-*.dump | tail -n +15 | xargs -r rm -f
-date -u +%Y-%m-%dT%H:%M:%SZ > "$D/last-ok"
+if [ "${1:-}" = "--offsite-if-missing" ]; then
+  # догнать: последняя копия на сервере новее последней отправки в бакет
+  [ -s "$CFG" ] || exit 0
+  f=$(ls -1t "$D"/fpl-2*.dump 2>/dev/null | head -1 || true)
+  [ -n "$f" ] || exit 0
+  [ -f "$D/last-offsite-ok" ] && [ ! "$f" -nt "$D/last-offsite-ok" ] && exit 0
+else
+  rm -f "$D"/*.tmp
+  people=$(psql -h 127.0.0.1 -U "$FPL_DB_USER" -d "$FPL_DB_NAME" -tAc "SELECT count(*) FROM users" 2>/dev/null || echo "?")
+  if [ "$people" = "0" ]; then
+    f="$D/fpl-EMPTY-$(date +%Y%m%d-%H%M).dump"     # пустая база — только на сервере, не в бакет
+  else
+    f="$D/fpl-$(date +%Y%m%d-%H%M).dump"
+  fi
+  pg_dump -h 127.0.0.1 -U "$FPL_DB_USER" -d "$FPL_DB_NAME" -Fc -f "$f.tmp"
+  mv "$f.tmp" "$f" && chmod 600 "$f"
+  ls -1t "$D"/fpl-*.dump | tail -n +73 | xargs -r rm -f
+  date -u +%Y-%m-%dT%H:%M:%SZ > "$D/last-ok"
+  case "$f" in *EMPTY*) echo "fpl-db-backup: база пустая — копия только на сервере"; exit 0 ;; esac
+fi
 if [ -s "$CFG" ]; then
   if res=$(python3 /opt/fpl/fpl_s3.py put "$f" "db/$(basename "$f")" 2>&1); then
     date -u +%Y-%m-%dT%H:%M:%SZ > "$D/last-offsite-ok"; rm -f "$D/last-offsite-error"

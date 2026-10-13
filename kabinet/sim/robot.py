@@ -34,7 +34,7 @@ from PIL import Image
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import oracle as O  # noqa: E402
 
-PASSWORD = 'Robot-rehearsal-password-1!'
+PASSWORD = 'Rb-' + __import__('secrets').token_urlsafe(24)   # свой на каждый прогон, нигде не хранится (ревью 13.10)
 OUT = os.environ.get('ROBOT_REPORT', '/var/lib/fpl/data/robot-report.json')
 rng = random.Random(int(os.environ.get('ROBOT_SEED', '7')))
 REPORT = {'started_at': None, 'stage': 'start', 'problems': [], 'timings': {}, 'memory_mb': {}, 'counts': {}}
@@ -211,14 +211,32 @@ def main():
         REPORT['timings_summary'] = {k: stats(v) for k, v in REPORT['timings'].items()}
         REPORT['timings'] = {}
         REPORT['finished_at'] = now().isoformat()
+        try:
+            lock_robot_accounts(db)
+            REPORT['accounts'] = 'заблокированы'
+        except Exception as exc:
+            P.add('major', 'робот', f'учётки робота не заблокированы: {exc}')
         REPORT['verdict'] = 'ok' if not any(p[0] in ('critical', 'major') for p in REPORT['problems']) else 'problems'
         save('готово')
 
 
+def lock_robot_accounts(db):
+    """После прогона: у учёток робота нет ролей, они заблокированы, входы отозваны."""
+    with db.transaction():
+        ids = "SELECT id FROM users WHERE email LIKE 'robot-%%@example.com'"
+        db.execute(f"DELETE FROM user_roles WHERE role IN ('admin','moderator','judge') AND user_id IN ({ids})")
+        db.execute(f"UPDATE users SET account_status='suspended' WHERE id IN ({ids}) AND account_status<>'suspended'")
+        db.execute(f"UPDATE auth_sessions SET revoked_at=now() WHERE revoked_at IS NULL AND user_id IN ({ids})")
+
+
 def run(w, db, base, n, minutes):
-    from pwdlib import PasswordHash
+    try:   # те же параметры Argon2, что у кабинета (вход замеряется честно)
+        from kabinet.auth.security import password_hasher
+        h = password_hasher.inner.hash(PASSWORD)
+    except Exception:
+        from pwdlib import PasswordHash
+        h = PasswordHash.recommended().hash(PASSWORD)
     tag = now().strftime('%m%d%H%M')
-    h = PasswordHash.recommended().hash(PASSWORD)
     # 1. люди — сразу в тестовую базу (как перенос из бота); роли
     with db.transaction():
         def user(email, name, role):
@@ -288,7 +306,7 @@ VALUES (%s,%s,now(),'active',%s,'Казань','RU') RETURNING id''', (email, h,
                 break
             time.sleep(2)
         p['client'] = c
-        r = c.call('POST', f'/api/events/{eid}/registration', {'accept_rules': True, 'accept_publication': True,
+        r = c.call('POST', f'/api/events/{eid}/registration', {'accept_rules': True, 'confirm_adult': True, 'accept_publication': True,
                                                               'accept_personal_data': True}, timing='запись')
         if r is None:   # документы приняты раньше или нужна новая редакция — принять и повторить
             return False
@@ -370,7 +388,7 @@ VALUES (%s,%s,now(),'active',%s,'Казань','RU') RETURNING id''', (email, h,
 
     # 5. итоги Игры
     save('итоги Игры')
-    org.call('POST', f'/api/org/events/{eid}/status', {'action': 'finish'}, level='critical')
+    org.call('POST', f'/api/org/events/{eid}/status', {'action': 'finish', 'early': True}, level='critical')
     t = time.perf_counter()
     v = org.call('GET', f'/api/org/events/{eid}/results', timing='итоги: черновик')
     for lg in ('gold', 'silver', 'bronze'):

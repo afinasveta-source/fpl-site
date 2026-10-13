@@ -2,6 +2,8 @@
 
 bootstrap-admin --email … — первый администратор (запасной путь к /web-auth/setup). Публичной регистрации администраторов нет.
 sync-late — сверка идущих Игр: опоздавших в конкурсе — вне конкурса (таймер fpl-kabinet-sync, каждые 10 минут).
+rebuild-media — после восстановления из копии: пересоздать копии для показа (view/, thumb/) из оригиналов (orig/),
+  убрать недописанные временные файлы. В бакете хранятся только оригиналы.
 """
 import argparse
 from getpass import getpass
@@ -38,14 +40,49 @@ def sync_late(settings):
         raise SystemExit(1)
 
 
+def rebuild_media(settings):
+    import time
+    from pathlib import Path
+    from kabinet.participation.media import MediaError, MediaStore
+    store = MediaStore(settings.media_dir, 0)
+    root = Path(settings.media_dir)
+    stale = 0
+    for tmp in root.glob('*/*/tmp*'):
+        if tmp.is_file() and time.time() - tmp.stat().st_mtime > 3600:
+            tmp.unlink()
+            stale += 1
+    with Database(settings).transaction() as conn:
+        rows = conn.execute('''SELECT DISTINCT storage_key, optimized_storage_key, thumbnail_storage_key FROM media_files
+WHERE storage_key IS NOT NULL''').fetchall()
+    made = missing = failed = 0
+    for r in rows:
+        orig = store.path(r['storage_key'])
+        need = [k for k in (r['optimized_storage_key'], r['thumbnail_storage_key']) if k and not store.path(k).exists()]
+        if not need:
+            continue
+        if not orig.exists():
+            missing += 1
+            continue
+        try:
+            store.save_image(orig.read_bytes())
+            made += 1
+        except MediaError as exc:
+            failed += 1
+            print(f'rebuild-media: {r["storage_key"]}: {exc.code}')
+    print(f'rebuild-media: photos {len(rows)}, rebuilt {made}, original missing {missing}, failed {failed}, stale tmp removed {stale}')
+
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('command', choices=['bootstrap-admin', 'sync-late'])
+    parser.add_argument('command', choices=['bootstrap-admin', 'sync-late', 'rebuild-media'])
     parser.add_argument('--email')
     args = parser.parse_args()
     settings = Settings()
     if args.command == 'sync-late':
         sync_late(settings)
+        return
+    if args.command == 'rebuild-media':
+        rebuild_media(settings)
         return
     if not args.email:
         parser.error('--email is required for bootstrap-admin')

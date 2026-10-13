@@ -47,7 +47,7 @@ class SessionView(BaseModel):
 
 
 class ImportUser(BaseModel):
-    telegram_id: int = Field(gt=0, lt=10**15)     # bigint в базе; больше — понятная ошибка 422, а не сбой (Codex, 13.10)
+    telegram_id: int = Field(gt=0, lt=2**63)     # bigint в базе; больше — понятная ошибка 422, а не сбой (Codex, 13.10)
     full_name: str | None = Field(default=None, max_length=200)
     display_name: str | None = Field(default=None, max_length=200)
 

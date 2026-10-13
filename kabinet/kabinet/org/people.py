@@ -129,7 +129,7 @@ class PersonIn(BaseModel):
     email: EmailStr | None = None
     city: str | None = Field(default=None, max_length=120)
     country_code: str | None = Field(default=None, max_length=2)
-    telegram_id: int | None = Field(default=None, gt=0, lt=10**15)
+    telegram_id: int | None = Field(default=None, gt=0, lt=2**63)
 
     @field_validator('full_name', 'display_name', 'city')
     @classmethod

@@ -567,7 +567,7 @@ def finish(w):
     org, eid = w.org, w.event
     w.clock.set(w.rounds[-1]['jdl'] + timedelta(days=1))
     pre = org.get(f'/api/org/events/{eid}/results')
-    org.post(f'/api/org/events/{eid}/status', {'action': 'finish'})
+    org.post(f'/api/org/events/{eid}/status', {'action': 'finish', 'early': True})
     v = org.get(f'/api/org/events/{eid}/results')
     w.results_view = v
     # равные на призовых — решение организатора

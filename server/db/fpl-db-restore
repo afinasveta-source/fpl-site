@@ -1,0 +1,90 @@
+#!/bin/bash
+# fpl-db-restore: восстановить базу FPL (сайт + кабинет) из копии fpl-db-backup. Запускать от root на сервере.
+#
+#   fpl-db-restore --list                 какие копии есть на сервере (/var/backups/fpl), новые сверху
+#   fpl-db-restore /путь/fpl-ГГГГММДД-ЧЧММ.dump
+#   fpl-db-restore --media                после того как оригиналы фото (media/orig/ из бакета) положены
+#                                         в /var/lib/fpl/kabinet-media/orig/ — пересоздать копии для показа
+#
+# Копию из бакета сначала скачать на сервер (ключу сервера нужно правило на чтение — см. проектный документ 11.10).
+# Выбирайте копию ДО аварии, а не просто самую новую: после аварии самые новые копии могут быть уже испорченными.
+#
+# Что делает (учения 13.10: «pg_restore поверх существующей базы» молча даёт полупустую базу — поэтому только так):
+#  1) проверяет, что файл читается; 2) останавливает кабинет, его таймер и cron (никто не пишет в базу и не делает копий);
+#  3) откладывает текущую базу в fpl_before_restore_<время> (не удаляет); 4) создаёт пустую базу и восстанавливает
+#     в одной транзакции — любая ошибка = отмена, текущая база возвращается на место; 5) права кабинету, схема и
+#     публичный слой (fpl-db-setup, fpl-kabinet-setup); 6) копии фото для показа из оригиналов (rebuild-media);
+#  7) выгрузка для сайта, запуск, проверка /kabinet/ready.
+set -euo pipefail
+. /etc/fpl-db.env
+DB=$FPL_DB_NAME
+if [ "${1:-}" = "--list" ] || [ -z "${1:-}" ]; then
+  ls -1t /var/backups/fpl/fpl-*.dump 2>/dev/null | head -30 | while read -r f; do echo "$(du -h "$f" | cut -f1)  $f"; done
+  [ -n "${1:-}" ] || echo "Укажите файл: fpl-db-restore /var/backups/fpl/fpl-ГГГГММДД-ЧЧММ.dump"
+  exit 0
+fi
+rebuild_media() {
+  [ -f /etc/fpl-kabinet.env ] && [ -x /opt/fpl/kabinet/venv/bin/python ] || return 0
+  runuser -u fplkab -- /bin/bash -c 'set -a; . /etc/fpl-kabinet.env; set +a; cd /opt/fpl/kabinet/code && /opt/fpl/kabinet/venv/bin/python -m kabinet.cli rebuild-media'
+}
+if [ "$1" = "--media" ]; then   # после того как оригиналы фото скачаны из бакета
+  chown -R fplkab:fplkab /var/lib/fpl/kabinet-media
+  rebuild_media; exit 0
+fi
+FILE=$1
+[ -s "$FILE" ] || { echo "нет файла $FILE"; exit 1; }
+case "$FILE" in *EMPTY*) echo "это копия пустой базы — выберите другую"; exit 1 ;; esac
+pg_restore -l "$FILE" >/dev/null || { echo "файл не читается как копия pg_dump"; exit 1; }
+STAMP=$(date +%Y%m%d%H%M)
+OLD="fpl_before_restore_$STAMP"
+
+echo "1/6 останавливаю кабинет, таймер и cron"
+restart_all() { systemctl start cron 2>/dev/null || true; systemctl start fpl-kabinet fpl-kabinet-sync.timer 2>/dev/null || true; }
+trap restart_all EXIT          # что бы ни случилось — службы и cron (канал обновлений!) снова запустятся
+systemctl stop fpl-kabinet fpl-kabinet-sync.timer cron 2>/dev/null || true
+psqlq() { su postgres -c "psql -v ON_ERROR_STOP=1 -tAq -c \"$1\""; }
+exists() { [ "$(psqlq "SELECT 1 FROM pg_database WHERE datname='$1'")" = "1" ]; }
+
+echo "2/6 откладываю текущую базу в $OLD (не удаляется)"
+psqlq "ALTER DATABASE $DB WITH ALLOW_CONNECTIONS false" >/dev/null
+psqlq "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='$DB' AND pid<>pg_backend_pid()" >/dev/null
+sleep 1
+if ! psqlq "ALTER DATABASE $DB RENAME TO $OLD"; then
+  psqlq "ALTER DATABASE $DB WITH ALLOW_CONNECTIONS true" >/dev/null || true
+  echo "не удалось отложить базу (к ней подключены) — ничего не изменено, повторите через минуту"; exit 1
+fi
+psqlq "ALTER DATABASE $OLD WITH ALLOW_CONNECTIONS true" >/dev/null
+# откат — только если прежняя база действительно отложена
+rollback() {
+  echo "ОШИБКА — возвращаю прежнюю базу"
+  if exists "$OLD"; then
+    psqlq "DROP DATABASE IF EXISTS $DB WITH (FORCE)" || true
+    psqlq "ALTER DATABASE $OLD RENAME TO $DB" || true
+  fi
+}
+trap 'rollback; restart_all' ERR
+
+echo "3/6 восстанавливаю из $FILE (одной транзакцией)"
+su postgres -c "createdb -O $FPL_DB_USER -E UTF8 -T template0 $DB"
+# от имени владельца базы (как делалась копия): все таблицы — его; права кабинету выдаёт fpl-kabinet-setup
+PGPASSWORD="$FPL_DB_PASSWORD" pg_restore -h 127.0.0.1 -U "$FPL_DB_USER" -d "$DB" --no-owner --no-acl -1 --exit-on-error "$FILE"
+trap - ERR
+set +e   # дальше — по шагам, каждый сообщает о своей ошибке; службы в любом случае запустятся (trap EXIT)
+
+echo "4/6 права и схема"
+/usr/local/bin/fpl-db-setup /opt/fpl/db >/dev/null || echo "схема: fpl-db-setup не прошёл"
+[ -x /usr/local/bin/fpl-kabinet-setup ] && /usr/local/bin/fpl-kabinet-setup /opt/fpl/kabinet-src >/dev/null || echo "кабинет: fpl-kabinet-setup не прошёл — проверьте /var/lib/fpl/kabinet-status"
+
+echo "5/6 фото: копии для показа из оригиналов"
+rebuild_media || echo "фото: rebuild-media не прошёл"
+
+echo "6/6 запуск и проверка"
+restart_all
+/usr/local/bin/fpl-db-export >/dev/null 2>&1 || true
+ok=""
+for i in $(seq 1 20); do r=$(curl -s --max-time 3 http://127.0.0.1:8100/ready || true); case "$r" in *'"ready"'*) ok=$r; break ;; esac; sleep 1; done
+echo "кабинет: ${ok:-НЕ ОТВЕЧАЕТ}"
+echo "участниц в базе: $(su postgres -c "psql -d $DB -tAc 'SELECT count(*) FROM users'")"
+echo "Готово. Прежняя база сохранена как $OLD — удалить, когда всё проверено: su postgres -c \"dropdb $OLD\""
+echo "Фото: если оригиналов на сервере нет — скачайте media/orig/ из бакета в /var/lib/fpl/kabinet-media/orig/, затем:"
+echo "  fpl-db-restore --media"

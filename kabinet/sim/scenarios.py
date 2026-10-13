@@ -93,7 +93,7 @@ def game(w, title, game_no, rounds, fmt=None, start=True):
 
 def join(w, eid, ps, leagues=None):
     for p in ps:
-        p.post(f'/api/events/{eid}/registration', {'accept_rules': True, 'accept_publication': True, 'accept_personal_data': True},
+        p.post(f'/api/events/{eid}/registration', {'accept_rules': True, 'confirm_adult': True, 'accept_publication': True, 'accept_personal_data': True},
                expect=(200, 201))
     lst = {x['user_id']: x['id'] for x in w.org.get(f'/api/org/events/{eid}/participants')['participants']}
     for i, p in enumerate(ps):
@@ -144,7 +144,7 @@ def publish_round(w, rnd, expect=200):
 
 
 def finish(w, eid):
-    w.org.post(f'/api/org/events/{eid}/status', {'action': 'finish'})
+    w.org.post(f'/api/org/events/{eid}/status', {'action': 'finish', 'early': True})
     v = w.org.get(f'/api/org/events/{eid}/results')
     return v
 

@@ -197,7 +197,7 @@ VALUES (%s,%s,now(),'active',%s) RETURNING id''', (f'lj{j:02d}@example.com', h, 
         # заявки
         mem.reset()
         OUT['register_200_w20'] = run_parallel(lambda p: clients[p[0]].post(
-            f'/api/events/{eid}/registration', json={'accept_rules': True, 'accept_publication': True, 'accept_personal_data': True}).status_code,
+            f'/api/events/{eid}/registration', json={'accept_rules': True, 'confirm_adult': True, 'accept_publication': True, 'accept_personal_data': True}).status_code,
             people, 20)
         OUT['register_200_w20']['rss_peak_mb'] = round(mem.reset())
         adm.post(f'/api/org/events/{eid}/status', json={'action': 'start'})
@@ -323,7 +323,7 @@ WHERE a.user_id=%s LIMIT 1''', (u,)).fetchone()['id']
         OUT['open_game_200_w20']['rss_peak_mb'] = round(mem.reset())
         OUT['open_home_200_w20'] = run_parallel(lambda p: clients[p[0]].get('/api/home').status_code, people, 20)
         # 7. итоги Игры: завершить, черновик, две публикации сразу
-        adm.post(f'/api/org/events/{eid}/status', json={'action': 'finish'})
+        adm.post(f'/api/org/events/{eid}/status', json={'action': 'finish', 'early': True})
         t = time.perf_counter()
         r = adm.get(f'/api/org/events/{eid}/results')
         OUT['results_view'] = {'ms': round((time.perf_counter() - t) * 1000), 'kb': len(r.content) // 1024, 'code': r.status_code}

@@ -17,9 +17,17 @@
   K.attr = function (obj) { return esc(JSON.stringify(obj)); };
 
   K.api = function (method, path, body, raw) {
+    // Любой исход — ответ { status, ok, data, detail }: обрыв связи и таймаут дают status 0, кнопки не «зависают».
     var opts = { method: method, credentials: 'same-origin', headers: {} };
     if (raw) { opts.body = raw.body; opts.headers['Content-Type'] = raw.type; }
     else if (body !== undefined) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+    var ctl = typeof AbortController === 'function' ? new AbortController() : null;
+    var timer = null;
+    if (ctl) {
+      opts.signal = ctl.signal;
+      timer = setTimeout(function () { ctl.abort(); }, raw ? 300000 : 30000);   // фото на мобильном — до 5 минут
+    }
+    var fail = { status: 0, ok: false, data: null, detail: null };
     return fetch(ROOT + path, opts).then(function (r) {
       return r.text().then(function (t) {
         var data = null;
@@ -27,12 +35,12 @@
         if (r.status === 401 && path.indexOf('/web-auth/') !== 0) { K.state.me = null; }
         return { status: r.status, ok: r.ok, data: data, detail: data && typeof data.detail === 'string' ? data.detail : null };
       });
-    }, function () { return { status: 0, ok: false, data: null, detail: null }; });
+    }).catch(function () { return fail; }).then(function (res) { if (timer) clearTimeout(timer); return res; });
   };
 
   var REASONS = {
     registration_closed: 'Запись на эту Игру закрыта.', documents_missing: 'Организатор ещё не опубликовал Правила — запись откроется позже.',
-    consents_required: 'Отметьте оба пункта: Правила и согласие на публикацию.', personal_data_required: 'Нужно согласие на обработку персональных данных.',
+    consents_required: 'Отметьте оба пункта: Правила и согласие на публикацию.', adult_required: 'Участвовать в Играх можно с 18 лет — отметьте пункт «Мне есть 18 лет».', personal_data_required: 'Нужно согласие на обработку персональных данных.',
     place_required: 'Укажите страну и город.', judge_of_game: 'Вы судья этой Игры — участвовать в ней нельзя.', contact_organizer: 'Запись отменена. Напишите организатору.',
     deadline_passed: 'Срок сдачи прошёл.', game_over: 'Приём работ закрыт.', not_open: 'Тур ещё не открыт.', rules: 'Сначала примите новые Правила.',
     choose_first: 'Сначала выберите, как продолжить.', withdrawn: 'Вы вышли из Игры.', eliminated: 'Сдача работ закрыта.', not_participating: 'Вы не участвуете в этой Игре.',
@@ -41,7 +49,8 @@
     link_not_accepted: 'Ссылка в этом задании не принимается.', photo_not_accepted: 'Фото в этом задании не принимаются.', empty: 'Добавьте фото или ссылку.',
     bad_link: 'Проверьте ссылку: нужен адрес, начинающийся с https://', unknown_photo: 'Фото не найдено. Загрузите его ещё раз.',
     not_an_image: 'Файл не похож на фото. Выберите JPG, PNG или WebP.', too_many_pixels: 'Фото слишком большое по размеру в пикселях. Сохраните его поменьше и загрузите снова.', unsupported_format: 'Выберите фото JPG, PNG или WebP.', too_large: 'Файл слишком большой. До 20 МБ.',
-    storage_full: 'На сервере закончилось место. Мы уже знаем — попробуйте позже.', consent_required: 'Чтобы снова показывать работы, нужно согласие на публикацию.',
+    storage_full: 'Фото не сохранилось: на сервере закончилось место. Напишите организатору и попробуйте позже.',
+    duplicate_photo: 'Это фото уже добавлено. Выберите другое.', organizer_only: 'Этот раздел только для организатора.', consent_required: 'Чтобы снова показывать работы, нужно согласие на публикацию.',
     closed: 'Обращение закрыто. Создайте новое.', email_taken: 'Этот email уже занят. Войдите с ним или напишите организатору.',
     email_invited: 'Этот email уже есть у участницы из бота. Попросите у организатора ссылку для входа — так сохранится история Игр.',
     email_preset: 'Для этой ссылки организатор уже указал email. Введите его.', full_name_locked: 'ФИО меняется через организатора.', not_current: 'Эта редакция уже не действует.', not_allowed: 'Это действие сейчас недоступно.'
@@ -49,7 +58,8 @@
   K.errorText = function (res) {
     if (res.status === 0) return 'Нет связи с сервером. Проверьте интернет и повторите.';
     if (res.status === 429) return 'Слишком много попыток подряд. Попробуйте через 15 минут.';
-    if (res.status === 401) return 'Войдите заново.';
+    if (res.status === 401) return 'Вход в кабинет закончился — войдите снова.';
+    if (res.status === 502 || res.status === 504 || (res.status === 503 && res.detail !== 'busy')) return 'Кабинет на минуту перезагружается. Подождите немного и повторите.';
     if (res.detail && REASONS[res.detail]) return REASONS[res.detail];
     if (res.status === 403) return 'Действие недоступно. Обновите страницу.';
     if (res.status === 404) return 'Не найдено.';
@@ -62,7 +72,7 @@
     var t = document.getElementById('toast');
     t.textContent = text; t.hidden = false;
     clearTimeout(K.toast.timer);
-    K.toast.timer = setTimeout(function () { t.hidden = true; }, 3500);
+    K.toast.timer = setTimeout(function () { t.hidden = true; }, Math.max(3500, String(text).length * 70));   // длинное — дольше
   };
 
   /* ---------- даты: все сроки лиги — по Москве ---------- */
@@ -77,6 +87,16 @@
   K.TZ = 'МСК (UTC+3)';
   K.day = function (iso) { if (!iso) return ''; var p = parts(iso); return p.d + ' ' + MONTHS[p.m - 1]; };
   K.date = function (iso) { if (!iso) return ''; var p = parts(iso); return p.d + ' ' + MONTHS[p.m - 1] + ', ' + p.hm; };
+  // Человек не в Москве — подсказать его время: «21:00 МСК (у вас — 20:00)». В Москве — ничего лишнего.
+  var LOCAL_TZ = (function () { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) { return ''; } })();
+  K.localHint = function (iso) {
+    if (!iso || !LOCAL_TZ || LOCAL_TZ === 'Europe/Moscow') return '';
+    var d = new Date(iso), msk = parts(iso);
+    var hm = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+    if (hm === msk.hm && d.getDate() === msk.d) return '';
+    return ' (у вас — ' + (d.getDate() !== msk.d ? d.getDate() + ' ' + MONTHS[d.getMonth()] + ', ' : '') + hm + ')';
+  };
+  K.msk = function (iso) { return iso ? K.date(iso) + ' МСК' + K.localHint(iso) : ''; };
   K.dateY = function (iso) { if (!iso) return ''; var p = parts(iso); return p.d + ' ' + MONTHS[p.m - 1] + ' ' + p.y; };
   K.range = function (a, b) {
     if (!a && !b) return '';
@@ -97,7 +117,7 @@
     return 'осталось ' + plural(Math.max(1, Math.floor(ms / 60000)), 'минута', 'минуты', 'минут');
   };
   K.deadline = function (iso, rel) {
-    return '<div class="deadline"><span class="d num">' + esc(K.date(iso)) + '</span><span class="tz">' + K.TZ +
+    return '<div class="deadline"><span class="d num">' + esc(K.date(iso)) + '</span><span class="tz">' + K.TZ + esc(K.localHint(iso)) +
       (rel === false ? '' : ' · ' + esc(rel || K.left(iso))) + '</span></div>';
   };
   /* Поля даты и времени — по Москве (UTC+3, без перехода на летнее время). */
@@ -304,10 +324,10 @@
     if (res.status === 403 && res.detail === 'Invalid setup key') return 'Ключ сервера не подходит.';
     if (res.status === 409 && res.detail === 'An administrator already exists') return 'Администратор уже создан — войдите со своим email и паролем.';
     if (res.status === 409) return 'Этот email уже занят.';
-    if (res.status === 400) return 'Ссылка устарела или уже использована. Запросите новую.';
-    if (res.status === 422) return 'Проверьте поля: email и пароль не короче ' + minLen() + ' символов.';
+    if (res.status === 400) return 'Ссылка уже использована или устарела. Если вы только что задали пароль — войдите с ним. Если нет — попросите у организатора новую ссылку.';
+    if (res.status === 422) return 'Проверьте email (нужен вид name@mail.ru) и пароль — от ' + minLen() + ' до 128 символов.';
     if (res.status === 503 && res.detail === 'busy') return 'Сейчас в кабинет входит много людей. Подождите полминуты и нажмите ещё раз.';
-    if (res.status === 503) return 'Отправка писем пока не настроена. Напишите организатору.';
+    if (res.status === 503 && res.detail === 'Email delivery unavailable') return 'Отправка писем пока не настроена. Напишите организатору.';
     return K.errorText(res);
   }
 
@@ -320,7 +340,7 @@
       '<button type="button" data-act="showpw">Показать</button></div></div>' +
       '<p class="form-err" role="alert" tabindex="-1" hidden></p><button class="btn wide" type="submit">Войти</button>' +
       (mail ? '<button class="btn ghost" type="button" id="to-reset">Не помню пароль</button>'
-        : '<p class="small muted">Забыли пароль? Напишите организатору — он пришлёт ссылку для нового пароля.</p>') + '</form>' +
+        : '<p class="small muted">Забыли пароль? <a href="/ru/feedback.html">Напишите организатору</a> (укажите email кабинета) — он пришлёт ссылку для нового пароля.</p>') + '</form>' +
       (K.state.config && K.state.config.signup ? '<div class="card"><b>Впервые в лиге?</b><p class="small muted">Заведите кабинет: имя, email и пароль. Участвовали в Играх через бота — попросите у организатора ссылку, чтобы сохранилась история.</p>' +
         '<button class="btn sec" type="button" id="to-signup">Зарегистрироваться</button></div>' : '') +
       (K.state.config && K.state.config.setup_needed ? '<div class="note info">Администратор ещё не создан. <a href="' + ROOT + '/setup" id="to-setup">Создать первого администратора</a></div>' : ''));
@@ -332,7 +352,7 @@
       K.busy(f, true);
       K.api('POST', '/web-auth/login', { email: email, password: pw }).then(function (res) {
         K.busy(f, false);
-        if (!res.ok) { K.formError(f, authError(res)); return; }
+        if (!res.ok) { K.formError(f, res.status === 422 ? 'Проверьте email — похоже, в нём опечатка (нужен вид name@mail.ru).' : authError(res)); return; }
         K.state.me = res.data; K.go(K.path() === '/' ? '/' : K.path() + location.search, true);
       });
     });
@@ -380,7 +400,12 @@
     K.authPage('<div class="card" aria-busy="true"><p class="muted">Проверяем ссылку…</p></div>');
     K.api('POST', '/web-auth/invite/check', { token: token }).then(function (res) {
       if (!res.ok) {
-        K.authPage('<div class="card"><h1>Ссылка не работает</h1><p>' + (res.status === 0 ? 'Нет связи с сервером. Обновите страницу.' : 'Ссылка устарела или уже использована. Попросите у организатора новую.') +
+        var why = res.status === 0 ? 'Нет связи с сервером. Проверьте интернет и обновите страницу.'
+          : res.status === 429 ? 'Сейчас по ссылкам входит много людей. Подождите 15 минут и откройте ссылку снова — она действует.'
+          : res.status >= 500 ? 'Кабинет на минуту перезагружается. Обновите страницу чуть позже — ссылка действует.'
+          : res.status === 422 ? 'Ссылка открылась не целиком. Скопируйте её из сообщения полностью.'
+          : 'Ссылка устарела или уже использована. Если вы уже задали пароль — войдите с ним. Если нет — попросите у организатора новую.';
+        K.authPage('<div class="card"><h1>Ссылка не работает</h1><p>' + why +
           '</p><a class="btn sec" href="' + ROOT + '/">Ко входу</a></div>');
         return;
       }
@@ -418,7 +443,9 @@
     var f = document.getElementById('f-reset');
     document.getElementById('back').addEventListener('click', loginView);
     f.addEventListener('submit', function (e) {
-      e.preventDefault(); K.formError(f, ''); K.busy(f, true);
+      e.preventDefault(); K.formError(f, '');
+      if (!f.email.value.trim()) { K.formError(f, 'Введите email, с которым вы входите в кабинет.'); return; }
+      K.busy(f, true);
       K.api('POST', '/auth/password/reset-request', { email: f.email.value.trim() }).then(function (res) {
         K.busy(f, false);
         if (!res.ok) { K.formError(f, authError(res)); return; }
@@ -484,6 +511,13 @@
     f.key.focus();
   }
 
+  // Сервер не ответил или перезапускается — не показывать форму входа вошедшей участнице
+  function unavailableView() {
+    K.authPage('<div class="card"><h1>Кабинет временно недоступен</h1><p>Сервер не ответил — обычно это минута. Проверьте интернет и нажмите «Повторить».</p>' +
+      '<button class="btn" type="button" id="retry">Повторить</button></div>');
+    document.getElementById('retry').addEventListener('click', function () { K.start(); });
+  }
+
   /* ---------- маршрутизатор ---------- */
   K.route = function () {
     K.route.stamp = (K.route.stamp || 0) + 1;
@@ -496,7 +530,7 @@
     if (!K.state.me) {
       // Проверить сессию заново (например, после 401) и показать вход.
       return K.api('GET', '/web-auth/me').then(function (r) {
-        if (r.ok) { K.state.me = r.data; K.route(); } else { loginView(); }
+        if (r.ok) { K.state.me = r.data; K.route(); } else if (r.status === 401) { loginView(); } else { unavailableView(); }
       });
     }
     for (var i = 0; i < K.routes.length; i++) {
@@ -517,6 +551,7 @@
         document.body.insertAdjacentHTML('afterbegin', '<div class="test-band" role="note">Тестовый кабинет — репетиция. Данные здесь не настоящие и будут удалены.</div>');
       }
       K.state.me = r[1].ok ? r[1].data : null;
+      if (!r[1].ok && r[1].status !== 401) { unavailableView(); return; }
       if (K.state.me) K.refreshUnread().then(K.route); else K.route();
     });
   };

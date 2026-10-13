@@ -4,9 +4,12 @@
   var K = window.K, esc = K.esc, pill = K.pill, li = K.li;
   var J = {};
   var LEAGUE = { bronze: 'Bronze', silver: 'Silver', gold: 'Gold' };
-  var TEXT = { judging_closed: 'Итоги тура уже опубликованы — оценки не меняются.', regular_locked: 'Идёт переголосование — основные голоса уже не меняются.',
+  var TEXT = { judging_closed: 'Итоги тура уже опубликованы — оценки не меняются.', regular_locked: 'Основное голосование закрыто — эти оценки уже не меняются.',
     all_criteria_required: 'Поставьте оценку по каждому критерию.', score_out_of_range: 'Оценка — целое число от 1 до 100.' };
-  var err = function (r) { return TEXT[r.detail] || K.errorText(r); };
+  var err = function (r) {
+    if (r.status === 404) return 'Эта пара или работа больше не в вашем пуле — организатор изменил судейство. Обновляем список.';
+    return TEXT[r.detail] || K.errorText(r);
+  };
   function poolName(s) { return s.league ? 'Лига ' + LEAGUE[s.league] : 'Общий пул'; }
   function bar(done, total) {
     var pct = total ? Math.round(done * 100 / total) : 0;

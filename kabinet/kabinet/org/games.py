@@ -403,6 +403,7 @@ def put_prizes(event_id: UUID, body: PrizesIn, request: Request, user=Depends(or
 class StatusChange(BaseModel):
     model_config = ConfigDict(extra='forbid')
     action: Literal['publish', 'unpublish', 'start', 'finish', 'reopen']
+    early: bool = False   # «завершить раньше конца Игры» — организатор подтвердил, что сдача вне конкурса закроется
 
 
 TRANSITIONS = {'publish': ('draft', 'registration'), 'unpublish': ('registration', 'draft'),
@@ -422,6 +423,10 @@ def change_status(event_id: UUID, body: StatusChange, request: Request, user=Dep
             checks = event_checks(conn, e, now)
             if checks['problems']:
                 raise problem(checks['problems'][0], 409)
+        if body.action == 'finish' and not body.early:
+            end = R.game_deadline(e)
+            if end is not None and now < end:
+                raise problem('game_not_over', 409)   # до конца Игры работы вне конкурса ещё принимаются (дипломы)
         if body.action == 'reopen' and ((e['settings'] or {}).get('results') or {}).get('published_at'):
             raise problem('results_published', 409)   # итоги, очки и дипломы выданы — Игру не вернуть в работу
         if body.action == 'unpublish' and conn.execute('SELECT 1 FROM event_participants WHERE event_id=%s LIMIT 1',

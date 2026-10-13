@@ -34,7 +34,7 @@
     league_deadline_before_open: 'Срок сдачи лиги должен быть позже открытия задания для неё.', league_deadline_after_game_end: 'Срок сдачи лиги позже конца Игры.',
     league_open_after_deadline: 'Открытие задания для лиги должно быть раньше срока сдачи (у лиги без своего срока — раньше общего срока тура).',
     league_open_after_game_end: 'Открытие задания для лиги позже конца Игры.', league_opens_locked: 'Этой лиге задание уже открылось — дату открытия не поменять.',
-    no_task: 'Заполните задание.', no_general_text: 'Нужен общий текст задания.', empty_instructions: 'Заполните текст задания (и для каждой лиги, если она отдельно).',
+    no_task: 'Заполните задание.', no_general_text: 'Нужен общий текст задания.', empty_instructions: 'Заполните общий текст задания «для всех» — он нужен, даже если у каждой лиги свой текст (его видят участницы без лиги). И тексты лиг, которые вы включили.',
     opens_before_game: 'Тур открывается раньше начала Игры.', opens_before_previous: 'Тур открывается раньше предыдущего.', opens_in_past: 'Дата открытия уже прошла — тур откроется сразу после публикации.',
     opens_locked: 'Тур уже открыт — дату открытия не поменять.', round_opened: 'Тур уже открыт.', task_issued: 'Задание уже выдано участницам.',
     not_last_round: 'Удалить можно только последний тур.', form_locked: 'Тур открыт — форма сдачи не меняется.', leagues_locked: 'Тур уже открыт — набор лиг не меняется (тексты и сроки — можно).',
@@ -49,6 +49,7 @@
     publish_in_past: 'Дата выхода уже прошла.', not_scheduled: 'Отменить можно только ещё не вышедшую редакцию.', title_required: 'Название не может быть пустым.',
     has_links: 'На это уже ссылаются другие записи (например, обращения в поддержку) — удалить нельзя. Оставьте черновиком.',
     league_dates_after_end: 'У какой-то лиги срок сдачи или открытие задания позже нового конца Игры. Сначала поменяйте даты лиги в задании тура.',
+    game_not_over: 'Конец Игры ещё не наступил — работы вне конкурса ещё принимаются. Завершите Игру после её конца.',
     personal_deadlines_after_end: 'У кого-то из участниц личный срок позже нового конца Игры. Сначала поменяйте этот срок.'
   };
   O.text = function (code) { return TEXT[code] || code; };
@@ -60,8 +61,13 @@
       if (/one_general_text/.test(m)) return 'Нужен ровно один общий текст задания.';
       if (/nothing_to_submit/.test(m)) return 'Включите хотя бы фото или ссылку.';
       if (/timezone/.test(m)) return 'Укажите дату и время полностью.';
+      if (/duplicate_league/.test(m)) return 'Для одной лиги два варианта задания — оставьте один.';
+      if (/judges_list/.test(m)) return 'В пуле — не больше 15 судей, без повторов.';
+      if (/quota_range/.test(m)) return 'Сколько проходят — число от 1 до 10 000.';
+      if (/three values/.test(m)) return 'Нужны три значения от 0 до 1000.';
       return 'Проверьте заполненные поля.';
     }
+    if (res.status === 409 && res.detail === 'Data conflicts with existing records') return 'Такая запись уже есть (номер, email или повтор). Обновите страницу и проверьте данные.';
     return K.errorText(res);
   };
   O.st = function (map, key) { var x = map[key] || [key, 'plain']; return pill(x[0], x[1]); };
@@ -167,7 +173,7 @@
         h += '<div class="note warn"><b>Не опубликованы документы:</b> ' + esc(missing.map(function (k) { return { rules: 'Правила', publication: 'согласие на публикацию', personal_data: 'обработка персональных данных' }[k]; }).join(', ')) +
           '. Без Правил и согласия на публикацию Игру не опубликовать. <button class="lnk" type="button" data-href="/org/documents">Открыть документы</button></div>';
       }
-      var todo = [];
+      var todo = (d.alerts || []).map(function (x) { return li(esc(x.title), esc(x.text), pill('Шаг', 'warn'), x.href); });
       if (c.support) todo.push(li('Обращения ждут ответа', c.support + ' в поддержке', pill(String(c.support), 'acc'), '/org/support'));
       if (c.feedback) todo.push(li('Новые пожелания с сайта', 'Анонимные сообщения', pill(String(c.feedback), 'acc'), '/org/feedback'));
       if (c.not_activated) todo.push(li('Не вошли в кабинет', 'Участницы Игр без входа — отправьте им ссылку', pill(String(c.not_activated), 'warn'), '/org/people?kind=not_activated'));
@@ -349,8 +355,11 @@
   K.actions.gameStatus = function (b) {
     var e = O.game, a = b.getAttribute('data-a'), n = (NEXT[e.status] || []).filter(function (x) { return x[0] === a; })[0];
     if (!n) return;
-    O.confirm({ title: n[2], html: '<p>' + esc(n[3]) + '</p>' + (e.checks.warnings.length && a !== 'unpublish' ? O.issues({ problems: [], warnings: e.checks.warnings }) : ''),
-      ok: n[1], danger: a === 'finish', path: '/api/org/events/' + e.id + '/status', body: function () { return { action: a }; },
+    var end = e.completion_deadline || e.ends_at, early = a === 'finish' && end && new Date(end) > new Date();
+    var warnEarly = early ? '<div class="note warn"><b>Конец Игры ещё не наступил (' + esc(O.when(end)) + ').</b> До него участницы вне конкурса могут сдавать работы для диплома. ' +
+      'Если завершить сейчас, приём закроется у всех и кто не успел — останется без диплома. Обычно Игру завершают после её конца.</div>' : '';
+    O.confirm({ title: n[2], html: warnEarly + '<p>' + esc(n[3]) + '</p>' + (e.checks.warnings.length && a !== 'unpublish' ? O.issues({ problems: [], warnings: e.checks.warnings }) : ''),
+      ok: early ? 'Всё равно завершить' : n[1], danger: a === 'finish', path: '/api/org/events/' + e.id + '/status', body: function () { return early ? { action: a, early: true } : { action: a }; },
       done: function () { K.toast('Готово'); K.route(); } });
   };
   K.actions.gameDelete = function () {
@@ -375,7 +384,7 @@
   var FIELD = [['required', 'Обязательно'], ['optional', 'Можно добавить'], ['none', 'Не нужно']];
   function drawRound(r) {
     O.round = r;
-    var ro = r.readonly, t = r.task || { title: '', form: { photo: 'required', link: 'optional', photo_max: 1 }, variants: [{ league: null, instructions: '' }] };
+    var ro = r.readonly, t = r.task || { title: '', form: { photo: 'required', link: 'required', photo_max: 1 }, variants: [{ league: null, instructions: '' }] };
     var byLeague = {};
     t.variants.forEach(function (v) { byLeague[v.league || 'all'] = v; });
     var crumbs = [['Игры и туры', '/org/games'], [r.event.title, '/org/games/' + r.event.id], ['Тур ' + r.round_no]];

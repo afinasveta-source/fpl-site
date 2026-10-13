@@ -81,7 +81,7 @@ def main():
         T.check(st.get('status') == 'completed', 'импорт снимка из приёмника: %s %s' % (st.get('status'), p.stderr[-300:]))
         T.check(T.q1('SELECT count(*) FROM users') == 12 and T.q1('SELECT count(*) FROM round_results') == 20,
                 'люди 12, итоги 20')
-        T.check(len(T.q1('SELECT site_export_rating()')['seasons'][0]['players']) == 10, 'рейтинг на сайт: 10 (без публичного имени — имя из ФИО)')
+        T.check(len(T.rating_after_game()[1]['seasons'][0]['players']) == 10, 'рейтинг на сайт: 10 (без публичного имени — имя из ФИО)')
         photos = B.photos_block()
         T.check(photos.count('requests_post') == len(B.PHOTOS) and 'private-photos' in photos, 'блок архива фото собран')
     finally:

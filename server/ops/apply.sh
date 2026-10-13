@@ -64,6 +64,9 @@ for f in fpl-db-setup fpl-db-export fpl-db-backup fpl-db-import fpl-status; do i
 /usr/local/bin/fpl-db-setup /opt/fpl/db
 grep -q fpl-db-export /etc/cron.d/fpl || \
   printf '*/10 * * * * root /usr/local/bin/fpl-db-export >> /var/log/fpl-db.log 2>&1\n17 3 * * * root /usr/local/bin/fpl-db-backup >> /var/log/fpl-db.log 2>&1\n' >> /etc/cron.d/fpl
+# копия базы — каждый час (было раз в сутки: во время Игры потеря до суток работ и голосов; учения 13.10)
+sed -i 's#^17 3 \* \* \* root /usr/local/bin/fpl-db-backup#17 * * * * root /usr/local/bin/fpl-db-backup#' /etc/cron.d/fpl
+for f in fpl-db-restore; do [ -f "db/$f" ] && install -m 0755 "db/$f" "/usr/local/bin/$f"; done
 grep -q offsite-if-missing /etc/cron.d/fpl || \
   printf '47 * * * * root /usr/local/bin/fpl-db-backup --offsite-if-missing >> /var/log/fpl-db.log 2>&1\n' >> /etc/cron.d/fpl
 grep -q fpl-status /etc/cron.d/fpl || \
@@ -105,12 +108,20 @@ elif systemctl is-enabled --quiet fpl-kabinet-test 2>/dev/null; then
 fi
 
 # 11. Робот-репетиция (пакет с robot.on): Игра роботов в ТЕСТОВОМ кабинете, в фоне ~1 час; итог — /data/robot-report.json
-if [ -f robot.on ] && [ -d robot ] && systemctl is-active --quiet fpl-kabinet-test; then
-  rm -rf /opt/fpl/robot && cp -r robot /opt/fpl/robot
-  if ! systemctl list-units --type=service --state=running | grep -q 'fpl-robot'; then
+# Один запуск на пакет: метка прогона — содержимое robot.on (пакет пишет туда время сборки).
+RUN_ID=$( [ -f robot.on ] && tr -dc '0-9' < robot.on | head -c 20 || true)
+if [ -f robot.on ] && [ -d robot ] && [ -n "$RUN_ID" ] && [ ! -f "/var/lib/fpl/robot-run-$RUN_ID" ] \
+   && systemctl is-active --quiet fpl-kabinet-test; then
+  FREE_MB=$(df -Pm /var/lib/fpl | awk 'NR==2{print $4}')
+  if [ "${FREE_MB:-0}" -lt 3000 ]; then
+    echo "робот-репетиция: не запущен — на диске меньше 3 ГБ (${FREE_MB} МБ)"
+  elif ! systemctl list-units --type=service --state=running | grep -q 'fpl-robot'; then
+    rm -rf /opt/fpl/robot && cp -r robot /opt/fpl/robot
+    touch "/var/lib/fpl/robot-run-$RUN_ID"
     BASE="https://${DOMAIN:-facepaintingleague.com}/kabinet-test"
     curl -sf --max-time 10 "$BASE/health" >/dev/null || BASE="http://127.0.0.1:8101"
-    systemd-run --unit="fpl-robot-$(date +%s)" --collect -p MemoryMax=300M -p EnvironmentFile=/etc/fpl-kabinet-test.env \
+    systemd-run --unit="fpl-robot-$(date +%s)" --collect -p MemoryMax=250M -p OOMScoreAdjust=900 -p CPUWeight=20 -p Nice=10 \
+      -p EnvironmentFile=/etc/fpl-kabinet-test.env -p Environment=PYTHONPATH=/opt/fpl/kabinet/code \
       -p WorkingDirectory=/opt/fpl/robot /opt/fpl/kabinet/venv/bin/python /opt/fpl/robot/robot.py --base "$BASE" --n 200 --minutes 12 \
       && echo "робот-репетиция: запущен ($BASE)" || echo "робот-репетиция: не запустился"
   fi
@@ -119,5 +130,5 @@ fi
 /usr/local/bin/fpl-sync || true
 /usr/local/bin/fpl-photo-archive || true
 echo "ok $(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$STATUS"
-/usr/local/bin/fpl-status
+/usr/local/bin/fpl-status || true
 echo "fpl-ops: готово, сайт $(cat /var/www/fpl/current/version.txt 2>/dev/null || echo '?')"

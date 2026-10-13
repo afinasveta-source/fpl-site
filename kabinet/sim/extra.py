@@ -126,7 +126,7 @@ def mini_game(w, title, game_no, rounds, fmt, people, scores, tie_league=None, s
     org.post(f'/api/org/events/{eid}/status', {'action': 'publish'})
     eps = {}
     for p in people:
-        p['client'].post(f'/api/events/{eid}/registration', {'accept_rules': True, 'accept_publication': True,
+        p['client'].post(f'/api/events/{eid}/registration', {'accept_rules': True, 'confirm_adult': True, 'accept_publication': True,
                                                             'accept_personal_data': True}, expect=(200, 201))
     lst = org.get(f'/api/org/events/{eid}/participants')['participants']
     by_user = {x['user_id']: x['id'] for x in lst}
@@ -161,7 +161,7 @@ JOIN evaluation_target_members m ON m.evaluation_target_id=t.id WHERE t.evaluati
                     jd['client'].post(f"/api/judging/streams/{st['id']}/works/{wk['id']}", {'scores': {s['criteria'][0]['code']: val}})
         org.post(f'/api/org/rounds/{rid}/judging/publish')
     w.clock.set(rids[-1][1] + timedelta(days=6))
-    org.post(f'/api/org/events/{eid}/status', {'action': 'finish'})
+    org.post(f'/api/org/events/{eid}/status', {'action': 'finish', 'early': True})
     v = org.get(f'/api/org/events/{eid}/results')
     return eid, eps, v
 

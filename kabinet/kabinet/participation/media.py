@@ -54,6 +54,8 @@ class MediaStore:
         fd, tmp = tempfile.mkstemp(dir=target.parent)
         with os.fdopen(fd, 'wb') as f:
             f.write(data)
+            f.flush()
+            os.fsync(f.fileno())    # при сбое питания не остаётся пустого файла под настоящим именем
         os.chmod(tmp, 0o640)
         os.replace(tmp, target)
 

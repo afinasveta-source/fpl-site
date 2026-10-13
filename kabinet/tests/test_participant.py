@@ -17,6 +17,7 @@ def test_registration_rules(app, seed, clock):
     page = c.get(f"/api/events/{game['event']}").json()
     assert page['registration'] == 'open' and page['needs_place'] and set(page['documents']) == {'rules', 'publication', 'personal_data'}
     assert register(c, game['event'], accept_publication=False).json()['detail'] == 'consents_required'
+    assert register(c, game['event'], confirm_adult=False).json()['detail'] == 'adult_required'   # «Мне есть 18 лет» (13.10)
     assert register(c, game['event'], accept_personal_data=False).json()['detail'] == 'personal_data_required'
     assert register(c, game['event'], country_code=None, city=None).json()['detail'] == 'place_required'
     r = register(c, game['event'])
@@ -399,3 +400,22 @@ def test_same_photo_uploaded_at_once_is_one_record(app, seed, clock):
     [t.start() for t in ts]
     [t.join() for t in ts]
     assert len(set(ids)) == 1
+
+
+def test_rebuild_media_after_restore(app, seed, clock):
+    """После восстановления из бакета (там только оригиналы) копии для показа пересоздаются командой rebuild-media."""
+    from pathlib import Path
+    from kabinet.cli import rebuild_media
+    p = login(app, seed, 'rebuild@example.com')
+    r = upload(p)
+    assert r.status_code == 201
+    root = Path(app.state.settings.media_dir)
+    with app.state.db.transaction() as conn:
+        row = conn.execute("SELECT optimized_storage_key AS v, thumbnail_storage_key AS t FROM media_files WHERE id=%s", (r.json()['id'],)).fetchone()
+    shown = [root / row['v'], root / row['t']]
+    assert all(f.exists() for f in shown)
+    for f in shown:
+        f.unlink()
+    rebuild_media(app.state.settings)
+    assert all(f.exists() for f in shown)
+    assert p.get(r.json()['view_url'].replace(app.state.settings.root_path, '')).status_code == 200

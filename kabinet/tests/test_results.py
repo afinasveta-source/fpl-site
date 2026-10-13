@@ -96,7 +96,7 @@ JOIN users u ON u.id=p.user_id WHERE t.evaluation_stream_id=%s''', (st2['id'],))
     url = f'/api/org/events/{eid}/results'
     v = ok(c.get(url))
     assert 'game_not_finished' in v['checks']['problems'] and not v['config_editable']
-    ok(c.post(f'/api/org/events/{eid}/status', headers=ORIGIN, json={'action': 'finish'}))
+    ok(c.post(f'/api/org/events/{eid}/status', headers=ORIGIN, json={'action': 'finish', 'early': True}))
     # Игра, перенесённая из бота, — итоги не пересчитываются
     with app.state.db.transaction() as conn:
         rid = conn.execute('SELECT id FROM round_results WHERE event_id=%s LIMIT 1', (eid,)).fetchone()['id']
@@ -229,8 +229,9 @@ def test_empty_round_does_not_block_results(app, seed, clock):
         ok(js[0][1].post(f"/api/judging/streams/{st['id']}/works/{t}", headers=ORIGIN, json={'scores': {'c1': 90 - k}}))
     ok(c.post(url1 + '/publish', headers=ORIGIN))
     url = f'/api/org/events/{eid}/results'
-    # приём во 2 тур ещё идёт — Игру завершили раньше времени: итоги ждут
-    ok(c.post(f'/api/org/events/{eid}/status', headers=ORIGIN, json={'action': 'finish'}))
+    # приём во 2 тур ещё идёт — завершить раньше конца Игры можно только явно (сдача вне конкурса закроется)
+    assert c.post(f'/api/org/events/{eid}/status', headers=ORIGIN, json={'action': 'finish'}).json()['detail'] == 'game_not_over'
+    ok(c.post(f'/api/org/events/{eid}/status', headers=ORIGIN, json={'action': 'finish', 'early': True}))
     assert 'rounds_not_published' in ok(c.get(url))['checks']['problems']
     ok(c.post(f'/api/org/events/{eid}/status', headers=ORIGIN, json={'action': 'reopen'}))
     # во 2 тур никто не сдал: судейство не начать — и итоги он больше не держит
@@ -239,7 +240,7 @@ def test_empty_round_does_not_block_results(app, seed, clock):
     ok(c.put(url2, headers=ORIGIN, json={'method': 'criteria', 'pools': 'common', 'criteria': [{'label': 'Идея', 'weight': 1}],
                                          'judges': {'all': [js[0][0]]}}))
     assert c.post(url2 + '/start', headers=ORIGIN).json()['detail'] == 'no_works'
-    ok(c.post(f'/api/org/events/{eid}/status', headers=ORIGIN, json={'action': 'finish'}))
+    ok(c.post(f'/api/org/events/{eid}/status', headers=ORIGIN, json={'action': 'finish', 'early': True}))
     v = ok(c.get(url))
     assert 'rounds_not_published' not in v['checks']['problems'] and 'empty_rounds' in v['checks']['warnings']
     ok(c.post(url + '/publish', headers=ORIGIN))

@@ -23,6 +23,8 @@ DOMAIN=${DOMAIN:-facepaintingleague.com}
 . /etc/fpl-db.env
 
 if [ "$MODE" = off ]; then
+  systemctl stop 'fpl-robot-*' >/dev/null 2>&1 || true
+  rm -rf /opt/fpl/robot /var/lib/fpl/robot-report.json /var/lib/fpl/data/robot-report.json
   systemctl disable --now fpl-kabinet-test fpl-kabinet-test-sync.timer >/dev/null 2>&1 || true
   rm -f /etc/systemd/system/fpl-kabinet-test.service /etc/systemd/system/fpl-kabinet-test-sync.service \
         /etc/systemd/system/fpl-kabinet-test-sync.timer /etc/fpl-kabinet-test.env
@@ -34,6 +36,8 @@ if [ "$MODE" = off ]; then
   fi
   rm -f "$SN"
   su postgres -c "psql -v ON_ERROR_STOP=1 -tAq -c 'DROP DATABASE IF EXISTS $DB WITH (FORCE)'"
+  su postgres -c "psql -tAq -c 'DROP ROLE IF EXISTS fpl_kabinet_test'" >/dev/null 2>&1 || true
+  rm -f /etc/fpl-kabinet-test-db.pw
   rm -rf "$MEDIA"
   echo "off $(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$STATUS"
   echo "репетиция: тестовый кабинет удалён"
@@ -44,8 +48,32 @@ fi
 
 # 1. База: своя, схема та же (fpl-db-setup с другим именем базы); роль кабинета — только данные
 FPL_DB_NAME_OVERRIDE=$DB /usr/local/bin/fpl-db-setup /opt/fpl/db >/dev/null
-KPW=$(cat /etc/fpl-kabinet-db.pw)
-su postgres -c "psql -v ON_ERROR_STOP=1 -d $DB -tAq -c \"GRANT CONNECT ON DATABASE $DB TO fpl_kabinet; GRANT USAGE ON SCHEMA public TO fpl_kabinet; GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO fpl_kabinet; GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO fpl_kabinet; ALTER DEFAULT PRIVILEGES FOR ROLE $FPL_DB_USER IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO fpl_kabinet; ALTER DEFAULT PRIVILEGES FOR ROLE $FPL_DB_USER IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO fpl_kabinet\""
+# Своя роль базы у тестового кабинета: к рабочей базе у неё нет прав (изоляция, ревью 13.10)
+TPW_FILE=/etc/fpl-kabinet-test-db.pw
+[ -s "$TPW_FILE" ] || ( umask 077; head -c 24 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' > "$TPW_FILE" )
+KPW=$(cat "$TPW_FILE")
+TROLE=fpl_kabinet_test
+SQLF=$(mktemp); chmod 644 "$SQLF"
+cat > "$SQLF" <<SQL
+DO \$\$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='$TROLE') THEN CREATE ROLE $TROLE LOGIN PASSWORD '$KPW';
+  ELSE ALTER ROLE $TROLE LOGIN PASSWORD '$KPW'; END IF;
+END \$\$;
+GRANT CONNECT ON DATABASE $DB TO $TROLE;
+GRANT USAGE ON SCHEMA public TO $TROLE;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO $TROLE;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO $TROLE;
+ALTER DEFAULT PRIVILEGES FOR ROLE $FPL_DB_USER IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO $TROLE;
+ALTER DEFAULT PRIVILEGES FOR ROLE $FPL_DB_USER IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO $TROLE;
+REVOKE CONNECT ON DATABASE $DB FROM PUBLIC;
+REVOKE ALL ON DATABASE $DB FROM fpl_kabinet;
+REVOKE ALL ON ALL TABLES IN SCHEMA public FROM fpl_kabinet;
+REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM fpl_kabinet;
+ALTER DEFAULT PRIVILEGES FOR ROLE $FPL_DB_USER IN SCHEMA public REVOKE ALL ON TABLES FROM fpl_kabinet;
+ALTER DEFAULT PRIVILEGES FOR ROLE $FPL_DB_USER IN SCHEMA public REVOKE ALL ON SEQUENCES FROM fpl_kabinet;
+SQL
+su postgres -c "psql -v ON_ERROR_STOP=1 -d $DB -tAq -f $SQLF" >/dev/null
+rm -f "$SQLF"
 
 # 2. Фото и настройки
 mkdir -p "$MEDIA" && chown fplkab:fplkab "$MEDIA" && chmod 750 "$MEDIA"
@@ -53,11 +81,12 @@ KEY_SHA=$(sed -n 's/^FPL_SETUP_KEY_SHA256=//p' /etc/fpl-kabinet.env | tail -1)
 TMP=$(mktemp)
 {
   echo "FPL_ENVIRONMENT=TEST"
-  echo "FPL_DATABASE_DSN=postgresql://fpl_kabinet:$KPW@127.0.0.1:5432/$DB"
+  echo "FPL_DATABASE_DSN=postgresql://$TROLE:$KPW@127.0.0.1:5432/$DB"
   echo "FPL_MAIL_MODE=disabled"
   echo "FPL_FRONTEND_URL=https://$DOMAIN/kabinet-test"
   echo "FPL_ROOT_PATH=/kabinet-test"
   echo "FPL_MEDIA_DIR=$MEDIA"
+  echo "FPL_API_DOCS=false"
   [ -n "$KEY_SHA" ] && echo "FPL_SETUP_KEY_SHA256=$KEY_SHA"
 } > "$TMP"
 install -m 0640 -o root -g fplkab "$TMP" /etc/fpl-kabinet-test.env
@@ -77,7 +106,10 @@ WorkingDirectory=$APP/code
 ExecStart=$APP/venv/bin/uvicorn kabinet.main:create_app --factory --host 127.0.0.1 --port $PORT --proxy-headers --forwarded-allow-ips 127.0.0.1 --no-access-log --workers 1
 Restart=always
 RestartSec=3
-MemoryMax=350M
+MemoryMax=300M
+OOMScoreAdjust=800
+CPUWeight=20
+Nice=5
 Environment=MALLOC_ARENA_MAX=2
 NoNewPrivileges=true
 ProtectSystem=strict
@@ -154,6 +186,19 @@ if [ -f "$NG" ]; then
   fi
 else
   rm -f "$SN.tmp"
+fi
+
+# 4а. Учётки робота, оставшиеся от прошлых прогонов (пароль робота был в открытом коде): без ролей, заблокированы,
+#     входы отозваны — и /kabinet-test/setup снова открыт, если настоящего администратора ещё нет
+if ! systemctl list-units --type=service --state=running | grep -q 'fpl-robot'; then
+  SQLF=$(mktemp); chmod 644 "$SQLF"
+  cat > "$SQLF" <<'SQL'
+DELETE FROM user_roles WHERE role IN ('admin','moderator','judge') AND user_id IN (SELECT id FROM users WHERE email LIKE 'robot-%@example.com');
+UPDATE users SET account_status='suspended' WHERE email LIKE 'robot-%@example.com' AND account_status<>'suspended';
+UPDATE auth_sessions SET revoked_at=now() WHERE revoked_at IS NULL AND user_id IN (SELECT id FROM users WHERE email LIKE 'robot-%@example.com');
+SQL
+  su postgres -c "psql -v ON_ERROR_STOP=1 -d $DB -tAq -f $SQLF" >/dev/null || echo "репетиция: учётки робота не заблокированы"
+  rm -f "$SQLF"
 fi
 
 # 5. Проверка

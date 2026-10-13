@@ -23,7 +23,7 @@ from .common import LEAGUES, WRITE, Jsonb, audit, db, iso, locked_admin, notify,
 from .games import clean_text, event_detail, load_event
 
 router = APIRouter(prefix='/api/org', tags=['organizer'])
-DEFAULT_FORM = {'photo': 'required', 'link': 'optional', 'photo_max': 1}
+DEFAULT_FORM = {'photo': 'required', 'link': 'required', 'photo_max': 1}   # ссылка на пост обязательна по умолчанию (Правила: работа сдана, когда есть фото и ссылка; решение 13.10)
 FIELD = Literal['required', 'optional', 'none']
 
 

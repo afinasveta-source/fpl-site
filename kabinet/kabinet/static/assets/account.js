@@ -154,7 +154,7 @@
     K.busy(f, true);
     K.api('PATCH', '/web-auth/profile', body).then(function (r) {
       K.busy(f, false);
-      if (!r.ok) { K.formError(f, r.status === 422 ? 'Проверьте поля.' : K.errorText(r)); return; }
+      if (!r.ok) { K.formError(f, r.status === 422 ? 'Проверьте поля: публичное имя — от 2 до 40 символов, страна — две буквы.' : K.errorText(r)); return; }
       K.state.me = r.data; K.toast('Сохранено'); done();
     });
   }
@@ -172,7 +172,7 @@
     f.addEventListener('submit', function (e) {
       e.preventDefault(); K.formError(f, '');
       var v = f.pn.value.trim();
-      if (v && (v.length < 2 || v.length > 40)) { K.formError(f, 'Публичное имя — от 2 до 40 символов.'); return; }
+      if (v && (Array.from(v).length < 2 || Array.from(v).length > 40)) { K.formError(f, 'Публичное имя — от 2 до 40 символов.'); return; }
       var body = { display_name: v };
       if (f.fn && f.fn.value.trim()) body.full_name = f.fn.value.trim();
       saveProfile(f, body, function () { K.go('/profile'); });
@@ -207,7 +207,10 @@
   });
   K.actions.resetLink = function (b) {
     b.disabled = true;
-    K.api('POST', '/auth/password/reset-request', { email: K.state.me.email }).then(function () { K.toast('Если почта работает, письмо придёт в течение нескольких минут.'); });
+    K.api('POST', '/auth/password/reset-request', { email: K.state.me.email }).then(function (r) {
+      if (!r.ok) { b.disabled = false; K.toast(K.errorText(r)); return; }
+      K.toast('Если почта работает, письмо придёт в течение нескольких минут.');
+    });
   };
 
   function sw(id, title, sub, on, extra) {
@@ -279,7 +282,9 @@
   };
 
   /* ---------- Согласия и документы ---------- */
-  var DOC = { rules: 'Правила лиги', personal_data: 'Обработка персональных данных', publication: 'Публикация работ на сайте и в соцсетях лиги' };
+  var DOC = { rules: 'Правила лиги', personal_data: 'Обработка персональных данных', publication: 'Публикация работ на сайте и в соцсетях лиги',
+    model_confirmation: 'Подтверждение модели', privacy_policy: 'Политика конфиденциальности', guardian_consent: 'Согласие родителя (законного представителя)',
+    offer: 'Оферта', marketing: 'Анонсы и рассылки', public_profile: 'Публичный профиль', public_contacts: 'Публичные контакты' };
   K.on(/^\/profile\/consents$/, function () {
     K.load(['/api/consents', '/api/publicity'], function (c, p) {
       var rows = c.current.filter(function (x) { return x.document || x.status; }).map(function (x) {
@@ -295,7 +300,7 @@
         '<section class="card"><h2>Публичность профиля и работ</h2><dl class="kv"><dt>Галерея на сайте</dt><dd>' + (p.gallery ? 'Видны' : 'Скрыты') + '</dd><dt>Соцсети лиги</dt><dd>' +
         (p.social ? 'Разрешено' : 'Нет') + '</dd><dt>Страница мастера</dt><dd>' + (p.master_page ? 'Показывается' : 'Скрыта') + '</dd></dl><button class="btn sec" type="button" data-href="/profile/publicity">Настроить</button></section>' +
         (c.history.length ? '<details class="more card"><summary>История согласий</summary><div class="list">' + c.history.map(function (h) {
-          return li(esc((DOC[h.type] || h.type) + (h.version ? ' · ' + h.version : '')), esc(K.date(h.at) + (h.event ? ' · ' + h.event : '')),
+          return li(esc((DOC[h.type] || h.type) + (h.version ? ' · ' + h.version : '')), esc(K.date(h.at) + ' МСК' + (h.event ? ' · ' + h.event : '')),
             pill({ accepted: 'Принято', revoked: 'Отозвано', declined: 'Отказ' }[h.status] || h.status, h.status === 'accepted' ? 'ok' : 'plain'), null);
         }).join('') + '</div></details>' : '') +
         '<section class="card"><p class="small muted">Отозвать согласие на публикацию можно в разделе «Публичность профиля и работ». Остальные вопросы по документам — организатору.</p>' +

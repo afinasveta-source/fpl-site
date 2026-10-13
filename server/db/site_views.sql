@@ -39,22 +39,40 @@ WHERE u.deleted_at IS NULL AND u.anonymized_at IS NULL
 
 -- Рейтинг текущего сезона. Место считается среди ВСЕХ с рейтингом (скрытые не сдвигают места),
 -- в выгрузку попадают только показываемые.
-CREATE OR REPLACE VIEW site_rating_all AS
+-- Во время Игры сайт показывает рейтинг НА НАЧАЛО Игры (решение 13.10, Правила 7.3: общий рейтинговый список
+-- в ходе Игры не публикуется): для того, у кого есть изменения в идущей Игре, берётся значение до первого из них.
+-- Новый рейтинг появляется на сайте, когда Игра завершена.
+CREATE OR REPLACE VIEW site_rating_frozen AS
+SELECT DISTINCT ON (rt.user_id) rt.user_id, rt.rating_before, rt.calibration_rounds_completed_before AS calibration_before
+FROM rating_transactions rt
+JOIN events e ON e.id = rt.event_id AND e.status IN ('registration','active')
+WHERE rt.status = 'active'
+ORDER BY rt.user_id, rt.ledger_seq;
+
+DROP VIEW IF EXISTS site_rating_all;   -- состав колонок менялся 13.10 — пересоздать
+CREATE VIEW site_rating_all AS
 SELECT s.id AS season_id, s.season_no, s.name AS season_name,
        ps.user_id,
-       round(ps.current_rating)::int AS rating,
-       ps.rating_status, ps.calibration_rounds_completed AS calibration,
+       round(x.rating)::int AS rating,
+       x.rating_status, x.calibration,
        sp.current_league AS league,
-       rank() OVER (PARTITION BY s.id ORDER BY round(ps.current_rating) DESC) AS place,
+       rank() OVER (PARTITION BY s.id ORDER BY round(x.rating) DESC) AS place,
        (SELECT count(*) FROM round_results rr
           JOIN event_participants ep ON ep.id = rr.event_participant_id
           JOIN events e ON e.id = rr.event_id
         WHERE ep.user_id = ps.user_id AND e.season_id = s.id
           AND rr.top_work AND rr.is_current AND rr.status = 'published')::int AS top_work
 FROM participant_stats ps
+LEFT JOIN site_rating_frozen f ON f.user_id = ps.user_id
+CROSS JOIN LATERAL (SELECT
+    CASE WHEN f.user_id IS NULL THEN ps.current_rating ELSE f.rating_before END AS rating,
+    CASE WHEN f.user_id IS NULL THEN ps.calibration_rounds_completed ELSE coalesce(f.calibration_before, 0)::smallint END AS calibration,
+    CASE WHEN f.user_id IS NULL THEN ps.rating_status
+         WHEN f.rating_before IS NULL THEN 'unrated'
+         WHEN coalesce(f.calibration_before, 0) >= 3 THEN 'established' ELSE 'calibrating' END AS rating_status) x
 JOIN season_participants sp ON sp.user_id = ps.user_id
 JOIN seasons s ON s.id = sp.season_id AND s.status IN ('active','finished')
-WHERE ps.current_rating IS NOT NULL AND ps.rating_status <> 'unrated';
+WHERE x.rating IS NOT NULL AND x.rating_status <> 'unrated';
 
 CREATE OR REPLACE FUNCTION site_export_rating() RETURNS json LANGUAGE sql STABLE AS $$
   SELECT json_build_object(
@@ -152,7 +170,7 @@ CREATE OR REPLACE FUNCTION site_export_masters() RETURNS json LANGUAGE sql STABL
         'name', p.display_name,
         'city', CASE WHEN p.show_city THEN u.city END,
         'country', CASE WHEN p.show_city THEN u.country_code END,
-        'rating', CASE WHEN p.show_rating THEN round(ps.current_rating)::int END,
+        'rating', CASE WHEN p.show_rating THEN round(CASE WHEN f.user_id IS NULL THEN ps.current_rating ELSE f.rating_before END)::int END,
         'league', CASE WHEN p.show_rating THEN sp.current_league END,
         'contacts', CASE WHEN p.show_contacts THEN (
             SELECT coalesce(json_agg(json_build_object('type', uc.contact_type, 'value', uc.contact_value)
@@ -162,6 +180,7 @@ CREATE OR REPLACE FUNCTION site_export_masters() RETURNS json LANGUAGE sql STABL
       FROM site_public_people p
       JOIN users u ON u.id = p.user_id
       LEFT JOIN participant_stats ps ON ps.user_id = u.id
+      LEFT JOIN site_rating_frozen f ON f.user_id = u.id
       LEFT JOIN LATERAL (SELECT sp.current_league FROM season_participants sp
                          JOIN seasons s ON s.id = sp.season_id
                          WHERE sp.user_id = u.id ORDER BY s.season_no DESC NULLS LAST LIMIT 1) sp ON true

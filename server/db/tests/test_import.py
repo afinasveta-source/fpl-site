@@ -138,6 +138,16 @@ def run(priv, data, *args):
     return p, status
 
 
+def rating_after_game():
+    """Рейтинг на сайте после конца Игры (во время Игры — рейтинг на начало, решение 13.10)."""
+    live = q1("SELECT site_export_rating()")
+    q1("UPDATE events SET status='finished' WHERE status='active' RETURNING 1")
+    try:
+        return live, q1('SELECT site_export_rating()')
+    finally:
+        q1("UPDATE events SET status='active' WHERE status='finished' RETURNING 1")
+
+
 def main():
     fresh_db()
     priv, data = tempfile.mkdtemp(), tempfile.mkdtemp()
@@ -182,7 +192,8 @@ def main():
         check(q1("SELECT count(*) FROM import_issues WHERE severity='error'") == 0, 'ошибок импорта нет')
         check(q1("SELECT count(*) FROM import_row_map") > 0, 'карта строк заполнена')
 
-        rating = q1('SELECT site_export_rating()')
+        live, rating = rating_after_game()
+        check(all(not x['players'] for x in live['seasons']), 'во время Игры 01 рейтинга на сайте нет (на начало Игры его ни у кого не было)')
         players = rating['seasons'][0]['players']
         names = [p['name'] for p in players]
         check(len(players) == 10, 'в рейтинге на сайте 10 (без публичного имени — имя из ФИО, решение 13.10): %d' % len(players))
@@ -224,7 +235,7 @@ def main():
         p, st = run(priv, data)
         check(st.get('status') == 'completed', 'пакет completed (%s)' % p.stderr.strip()[-300:])
         check(q1('SELECT count(*) FROM consents') == 46, 'отзыв добавлен новой записью')
-        names = [x['name'] for x in q1('SELECT site_export_rating()')['seasons'][0]['players']]
+        names = [x['name'] for x in rating_after_game()[1]['seasons'][0]['players']]
         check('Мастер C4' not in names and len(names) == 9, 'отозвавшая скрыта с сайта: %d' % len(names))
         check(q1("SELECT public_rating FROM users u JOIN external_identities e ON e.user_id=u.id AND e.external_id='c4'") is False,
               'флаг публичности снят')

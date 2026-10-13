@@ -66,7 +66,7 @@ def login(app, seed, email, roles=('participant',)):
 
 
 def register(c, event_id, **extra):
-    body = {'accept_rules': True, 'accept_publication': True, 'accept_personal_data': True,
+    body = {'accept_rules': True, 'confirm_adult': True, 'accept_publication': True, 'accept_personal_data': True,
             'country_code': 'RU', 'city': 'Москва'} | extra
     return c.post(f'/api/events/{event_id}/registration', headers=ORIGIN, json=body)
 
