@@ -836,3 +836,22 @@ def test_leagues_in_bulk(app, seed, clock):
     assert n == 4
     p = login(app, seed, 'x@example.com')
     assert p.post(f'/api/org/events/{eid}/leagues', headers=ORIGIN, json={'items': items[:1]}).status_code == 403
+
+
+def test_busy_login_does_not_count(app, seed, monkeypatch):
+    """«Занято» при входе — попытка не тратит лимит (повторы после рассылки не упираются в 429)."""
+    from kabinet.auth import service as AS
+    from kabinet.auth.security import Busy
+    seed('busy@example.com')
+    app.state.auth.settings.login_limit = 2
+    calls = {'n': 0}
+
+    def busy(password, encoded):
+        calls['n'] += 1
+        raise Busy()
+    monkeypatch.setattr(AS, 'verify_password', busy)
+    c = TestClient(app)
+    codes = [c.post('/auth/login', json={'email': 'busy@example.com', 'password': PASSWORD}).status_code for _ in range(5)]
+    assert codes == [503] * 5 and calls['n'] == 5
+    monkeypatch.undo()
+    assert c.post('/auth/login', json={'email': 'busy@example.com', 'password': PASSWORD}).status_code == 200

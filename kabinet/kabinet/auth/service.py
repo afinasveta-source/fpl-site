@@ -1,5 +1,5 @@
 from fastapi import HTTPException
-from .security import new_token, token_hash, password_hasher, verify_password
+from .security import Busy, new_token, token_hash, password_hasher, verify_password
 from .mail import make_mail
 
 
@@ -47,6 +47,13 @@ RETURNING attempts''', (key, window, window)).fetchone()
         if exceeded:
             raise HTTPException(429, 'Too many requests', headers={'Retry-After': str(window)})
 
+    def unthrottle(self, action, ip, email=None):
+        keys = [token_hash(f'{action}:ip:{ip}')] + ([token_hash(f'{action}:email:{email}')] if email else [])
+        with self.db.transaction() as conn:
+            for key in sorted(keys):
+                conn.execute('DELETE FROM auth_rate_limits WHERE key_hash=%s AND attempts<=1', (key,))   # счётчик не бывает 0
+                conn.execute('UPDATE auth_rate_limits SET attempts=attempts-1 WHERE key_hash=%s AND attempts>1', (key,))
+
     def current_user(self, raw):
         with self.db.transaction() as conn:
             user = conn.execute('''SELECT u.* FROM auth_sessions a JOIN users u ON u.id=a.user_id
@@ -62,7 +69,12 @@ AND u.account_status='active' AND u.deleted_at IS NULL AND u.email_verified_at I
         # в это время не занято. Потом — под блокировкой: аккаунт ещё активен и пароль тот же, что проверяли.
         with self.db.transaction() as conn:
             user = conn.execute('SELECT * FROM users WHERE lower(email)=%s', (email,)).fetchone()
-        valid = verify_password(password, user['password_hash'] if user else None)
+        try:
+            valid = verify_password(password, user['password_hash'] if user else None)
+        except Busy:
+            # «занято» — пароль не проверялся: попытка не в счёт (иначе повторы после рассылки упирались бы в лимит)
+            self.unthrottle('login', ip, email)
+            raise
         with self.db.transaction() as conn:
             if user:
                 fresh = conn.execute('SELECT * FROM users WHERE id=%s FOR UPDATE', (user['id'],)).fetchone()

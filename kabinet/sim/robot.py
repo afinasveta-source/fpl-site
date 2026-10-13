@@ -239,7 +239,7 @@ VALUES (%s,%s,now(),'active',%s,'Казань','RU') RETURNING id''', (email, h,
     r2_open = r1_dl + D            # время на судейство тура 1
     r2_dl = r2_open + D
     org.call('PATCH', f'/api/org/events/{eid}', {'game_no': 1, 'registration_opens_at': (t0 - timedelta(hours=1)).isoformat(),
-                                                  'registration_closes_at': (t0 + timedelta(minutes=1)).isoformat(),
+                                                  'registration_closes_at': (r1_dl - timedelta(minutes=1)).isoformat(),
                                                   'starts_at': (t0 + timedelta(minutes=1)).isoformat(),
                                                   'ends_at': (r2_dl + 4 * D).isoformat()})
     w.rounds = []
