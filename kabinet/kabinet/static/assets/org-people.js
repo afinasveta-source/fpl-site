@@ -209,7 +209,9 @@
     var q = K.query(), term = q.get('q') || '', mode = q.get('mode') || '', league = q.get('league') || '';
     K.load(['/api/org/events/' + id + '/participants' + qs({ q: term, mode: mode, league: league })], function (d) {
       var base = '/org/games/' + id + '/people', crumbs = [['Игры и туры', '/org/games'], [d.event.title, '/org/games/' + id], ['Участницы']];
-      var h = '<div class="stack" data-s="g6"><span class="eyebrow">' + esc(d.event.title) + '</span><h1>Участницы · ' + d.total + '</h1></div>' +
+      var canLeagues = d.total && ['registration', 'active', 'finished'].indexOf(d.event.status) >= 0;
+      var h = '<div class="stack" data-s="g6"><span class="eyebrow">' + esc(d.event.title) + '</span><div class="between"><h1>Участницы · ' + d.total + '</h1>' +
+        (canLeagues ? '<button class="btn sec small" type="button" data-href="/org/games/' + id + '/leagues">Расставить лиги</button>' : '') + '</div></div>' +
         searchForm('f-parts', term, 'ФИО, имя, email или город') +
         tabs([['', 'Все', { mode: '' }, d.total]].concat(Object.keys(O.MODE).filter(function (k) { return d.counts[k]; }).map(function (k) {
           return [k, O.MODE[k][0], { mode: k }, d.counts[k]];
@@ -239,6 +241,66 @@
       bindSearch('f-parts', function (v) { K.go(base + qs({ q: v, mode: mode, league: league })); });
     }, [['Игры и туры', '/org/games'], ['Участницы']]);
   });
+
+  /* ---------- Лиги списком ---------- */
+  var LG_OPTS = [['', 'Без лиги']].concat(O.LEAGUES);
+  O.on(/^\/org\/games\/([0-9a-f-]{36})\/leagues$/, function (id) {
+    K.load(['/api/org/events/' + id + '/participants'], function (d) {
+      var crumbs = [['Игры и туры', '/org/games'], [d.event.title, '/org/games/' + id], ['Участницы', '/org/games/' + id + '/people'], ['Лиги']];
+      var list = d.participants.filter(function (p) { return p.mode !== 'withdrawn'; });
+      O.lg = { id: id, rows: list };
+      var h = '<div class="stack" data-s="g6"><span class="eyebrow">' + esc(d.event.title) + '</span><h1>Лиги участниц · ' + list.length + '</h1>' +
+        '<p class="muted">Выберите лигу каждой участнице или заполните по рейтингу, проверьте и нажмите «Сохранить лиги». Участницы получат уведомление о своей лиге.</p></div>' +
+        '<section class="card"><h2>Заполнить по рейтингу</h2><form id="f-lgfill" class="stack" novalidate><div class="grid3">' +
+        O.txt('lg-gold', 'Gold — рейтинг от', '', ' type="number" inputmode="numeric" min="0" max="5000"') +
+        O.txt('lg-silver', 'Silver — рейтинг от', '', ' type="number" inputmode="numeric" min="0" max="5000"') +
+        O.sel('lg-none', 'У кого рейтинга нет', [['keep', 'Не менять'], ['bronze', 'Bronze'], ['silver', 'Silver'], ['gold', 'Gold']], 'keep') + '</div>' +
+        '<p class="small muted">Остальные с рейтингом — Bronze. Пока не нажата «Сохранить лиги», ничего не меняется.</p>' + O.errBox +
+        '<div class="row"><button class="btn sec" type="submit">Заполнить</button></div></form></section>' +
+        '<section class="card"><div class="between"><h2>Участницы</h2><span class="small muted" id="lg-count"></span></div>' +
+        '<div class="table-wrap"><table class="otable"><thead><tr><th scope="col">Участница</th><th scope="col" class="c">Рейтинг</th><th scope="col">Статус</th><th scope="col">Лига</th></tr></thead><tbody>' +
+        list.map(function (p) {
+          return '<tr><th scope="row" data-label="Участница">' + esc(p.name || 'Без имени') + '<span class="small muted">' + esc(p.city || '') + '</span></th>' +
+            '<td class="c" data-label="Рейтинг">' + (p.rating == null ? '—' : p.rating) + '</td><td data-label="Статус">' + O.st(O.MODE, p.mode) + '</td>' +
+            '<td data-label="Лига"><label class="sr" for="lg-' + p.id + '">Лига: ' + esc(p.name || '') + '</label><select class="input lg-sel" id="lg-' + p.id + '" data-id="' + p.id + '" data-was="' + (p.league || '') + '">' +
+            LG_OPTS.map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === (p.league || '') ? ' selected' : '') + '>' + esc(o[1]) + '</option>'; }).join('') + '</select></td></tr>';
+        }).join('') + '</tbody></table></div>' +
+        '<form id="f-lgsave" class="stack" novalidate>' + O.errBox + '<div class="row"><button class="btn" type="submit">Сохранить лиги</button>' +
+        '<button class="btn sec" type="button" data-href="/org/games/' + id + '/people">Отмена</button></div></form></section>';
+      K.page(h, crumbs);
+      lgCount();
+      document.getElementById('main').addEventListener('change', function (e) { if (e.target.classList.contains('lg-sel')) lgCount(); });
+      document.getElementById('f-lgfill').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var f = e.target, gold = f.querySelector('#lg-gold').value.trim(), silver = f.querySelector('#lg-silver').value.trim(), none = f.querySelector('#lg-none').value;
+        if (gold === '' || silver === '' || Number(gold) < Number(silver)) { K.formError(f, 'Укажите оба порога: порог Gold не ниже порога Silver.'); return; }
+        K.formError(f, '');
+        O.lg.rows.forEach(function (p) {
+          var el = document.getElementById('lg-' + p.id), v;
+          if (p.rating == null) { if (none === 'keep') return; v = none; }
+          else v = p.rating >= Number(gold) ? 'gold' : p.rating >= Number(silver) ? 'silver' : 'bronze';
+          el.value = v;
+        });
+        lgCount();
+        K.toast('Лиги заполнены — проверьте и сохраните');
+      });
+      document.getElementById('f-lgsave').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var items = Array.prototype.filter.call(document.querySelectorAll('.lg-sel'), function (el) { return el.value !== el.getAttribute('data-was'); })
+          .map(function (el) { return { id: el.getAttribute('data-id'), league: el.value || null }; });
+        if (!items.length) { K.formError(e.target, 'Ничего не изменилось.'); return; }
+        O.send('POST', '/api/org/events/' + id + '/leagues', { items: items }, e.target, function (r) {
+          K.toast('Лиги сохранены: ' + r.changed); K.go('/org/games/' + id + '/people');
+        });
+      });
+    }, [['Игры и туры', '/org/games'], ['Лиги']]);
+  });
+  function lgCount() {
+    var n = { gold: 0, silver: 0, bronze: 0, '': 0 }, changed = 0;
+    Array.prototype.forEach.call(document.querySelectorAll('.lg-sel'), function (el) { n[el.value]++; if (el.value !== el.getAttribute('data-was')) changed++; });
+    var c = document.getElementById('lg-count');
+    if (c) c.textContent = 'Gold ' + n.gold + ' · Silver ' + n.silver + ' · Bronze ' + n.bronze + ' · без лиги ' + n[''] + (changed ? ' · изменено ' + changed : '');
+  }
 
   /* ---------- Участница в Игре ---------- */
   var ACTIONS = {

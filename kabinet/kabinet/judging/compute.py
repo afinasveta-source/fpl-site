@@ -110,17 +110,23 @@ def bradley_terry(games):
             opp[b].append(a)
             wins[b] += 1.0 if winner == b else 0.0
     items = sorted(opp, key=str)
-    p = {t: 1.0 for t in set(items) | {o for t in items for o in opp[t]}}
+    everyone = sorted(set(items) | {o for t in items for o in opp[t]}, key=str)
+    index = {t: i for i, t in enumerate(everyone)}
+    # Соперники сортируются один раз (раньше — на каждой итерации): тот же порядок сложения — те же числа до бита,
+    # но пул из 200 работ считается в разы быстрее (нагрузочный тест 13.10: 3,7 с на один расчёт).
+    rows = [(index[t], [index[o] for o in sorted(opp[t], key=str)], wins[t] + BT_PRIOR) for t in items]
+    p = [1.0] * len(everyone)
     for _ in range(BT_MAX_ITER):
-        new = dict(p)
-        for t in items:
-            denom = sum(1.0 / (p[t] + p[o]) for o in sorted(opp[t], key=str)) + 2 * BT_PRIOR / (p[t] + 1.0)
-            new[t] = (wins[t] + BT_PRIOR) / denom
-        delta = max(abs(math.log(new[t]) - math.log(p[t])) for t in items) if items else 0
+        new = list(p)
+        for i, opps, w in rows:
+            pi = p[i]
+            denom = sum(1.0 / (pi + p[o]) for o in opps) + 2 * BT_PRIOR / (pi + 1.0)
+            new[i] = w / denom
+        delta = max(abs(math.log(new[i]) - math.log(p[i])) for i, _, _ in rows) if rows else 0
         p = new
         if delta < BT_TOL:
             break
-    return {t: p[t] for t in items}
+    return {t: p[index[t]] for t in items}
 
 
 def bt_shares(strength):

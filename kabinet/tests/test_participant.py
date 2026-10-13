@@ -308,3 +308,49 @@ def test_big_phone_photo_is_processed(app, seed, clock):
     assert r.status_code == 201, r.text
     view = Image.open(io.BytesIO(c.get(r.json()['view_url']).content))
     assert max(view.size) == 1600
+
+
+def test_phone_photo_decoded_small_and_fast(app, seed, clock):
+    """12 Мп 4:3 декодируется сразу в уменьшенном виде (нагрузочный тест 13.10: квадратный запрос размера не уменьшал)."""
+    from kabinet.participation.media import MediaStore
+    import tempfile
+    import time
+    img = Image.effect_noise((1000, 750), 60).resize((4000, 3000)).convert('RGB')
+    data = io.BytesIO()
+    img.save(data, 'JPEG', quality=90)
+    store = MediaStore(tempfile.mkdtemp(), 1)
+    opened = []
+    real_load = Image.Image.load
+
+    def spy(self):
+        out = real_load(self)
+        opened.append(self.size)
+        return out
+    Image.Image.load = spy
+    try:
+        info = store.save_image(data.getvalue())
+    finally:
+        Image.Image.load = real_load
+    assert (info['width'], info['height']) == (4000, 3000)
+    assert max(max(s) for s in opened if s != (4000, 3000)) <= 2000          # декодировано не больше 2000 px по стороне
+    view = Image.open(store.path(info['optimized_storage_key']))
+    thumb = Image.open(store.path(info['thumbnail_storage_key']))
+    assert view.size == (1600, 1200) and thumb.size == (480, 360)
+
+
+def test_registration_joins_season_and_shows_rating(app, seed, clock):
+    """Сайт: участница сезона и согласие на публикацию — рейтинг виден; лига Игры — лига в сезоне; отзыв — скрывает."""
+    c = login(app, seed, 'anna@example.com')
+    with app.state.db.transaction() as conn:
+        add_docs(conn)
+        game = build_game(conn, status='registration')
+        season = conn.execute("INSERT INTO seasons(name,season_no) VALUES ('Сезон 2',2) RETURNING id").fetchone()['id']
+        conn.execute('UPDATE events SET season_id=%s WHERE id=%s', (season, game['event']))
+    assert register(c, game['event']).status_code == 201
+    with app.state.db.transaction() as conn:
+        sp = conn.execute('SELECT * FROM season_participants WHERE season_id=%s', (season,)).fetchall()
+        u = conn.execute("SELECT public_rating FROM users WHERE email='anna@example.com'").fetchone()
+    assert len(sp) == 1 and sp[0]['current_league'] is None and u['public_rating'] is True
+    assert c.post('/api/publicity/revoke', headers=ORIGIN).status_code == 200
+    with app.state.db.transaction() as conn:
+        assert conn.execute("SELECT public_rating FROM users WHERE email='anna@example.com'").fetchone()['public_rating'] is False

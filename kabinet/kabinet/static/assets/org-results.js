@@ -9,7 +9,7 @@
     already_published: 'Итоги уже опубликованы.', game_not_finished: 'Игра ещё не завершена — сначала «Завершить Игру» на странице Игры.',
     rounds_not_published: 'Не у всех туров опубликованы итоги судейства.', place_tie: 'На местах 1–3 есть равные итоги — решите порядок (кнопка «Решить порядок»).',
     no_rounds: 'В итог не входит ни один тур.', no_season_number: 'У сезона не указан номер — он нужен для номеров дипломов (раздел «Сезоны»).',
-    no_game_number: 'Не указан номер Игры в сезоне — он нужен для номеров дипломов.', diploma_without_league: 'У кого-то из получающих диплом не указана лига.',
+    no_game_number: 'Не указан номер Игры в сезоне — он нужен для номеров дипломов.', diploma_without_league: 'У кого-то из получающих диплом не указана лига — откройте участницу и укажите лигу (до публикации итогов это можно и после завершения Игры).',
     final_unjudged: 'У кого-то из дошедших до финала нет оценки финала — в места и общий список они не войдут.',
     locked_after_start: 'Игра началась — формат итогов больше не меняется (по Правилам он объявляется до Игры).',
     unknown_round: 'Такого тура нет.', imported_game: 'Игра перенесена из бота — её итоги переносятся готовыми, кабинет их не пересчитывает.',
@@ -99,6 +99,10 @@
       (pub ? '<span class="small muted">' + esc(O.when(d.published_at)) + '</span>' : '') + '</div>';
     if (!pub) h += list(d.checks.problems.filter(function (c) { return c !== 'already_published'; }), 'bad', 'Чтобы опубликовать:') + list(d.checks.warnings, 'warn', 'Обратите внимание:');
     var rows = d.rows || [];
+    var noLeague = pub ? [] : rows.filter(function (r) { return r.diploma && !r.league; });
+    if (noLeague.length) h += '<div class="note bad small"><b>Без лиги (диплом без лиги не выдать):</b> ' + noLeague.map(function (r) {
+      return '<button class="lnk" type="button" data-href="/org/participants/' + r.id + '">' + esc(r.name) + '</button>';
+    }).join(', ') + '</div>';
     var ties = {};
     rows.forEach(function (r) { if (r.tie && r.tie.length) ties[r.league + ':' + r.tie.slice().sort().join(',')] = { league: r.league, ids: r.tie }; });
     Object.keys(ties).forEach(function (k) {

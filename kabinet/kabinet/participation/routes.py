@@ -1,6 +1,8 @@
 """API кабинета участника: Игры лиги, запись, мои Игры, задание, фото, сдача и замена работы."""
+import asyncio
 import re
 import threading
+import weakref
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -185,7 +187,12 @@ AND idempotency_key <> %s LIMIT 1""", (user['id'], f"reg:{ep['id']}:publication"
         if first_publication:
             # Первое согласие на публикацию: работы видны в галерее сайта и могут выходить в соцсетях лиги.
             # Позже человек сам скрывает их в «Публичности»; новая запись это не перезаписывает.
-            conn.execute('UPDATE users SET public_works=true, public_social=true WHERE id=%s', (user['id'],))
+            # Рейтинг на сайте — по тому же согласию (Политика 1.1: имя, рейтинг и TOP WORK).
+            conn.execute('UPDATE users SET public_works=true, public_social=true, public_rating=true WHERE id=%s', (user['id'],))
+        if event['season_id']:
+            # Участница сезона: по этой записи сайт показывает рейтинг сезона (как у перенесённых из бота).
+            conn.execute('''INSERT INTO season_participants(season_id,user_id) VALUES (%s,%s) ON CONFLICT (season_id,user_id) DO NOTHING''',
+                         (event['season_id'], user['id']))
         G.audit(conn, user['id'], 'event_participant', ep['id'], 'registered', {'event_id': str(event_id)})
         G.notify(conn, user['id'], 'reg', f"reg:{ep['id']}",
                  {'title': f"Вы записаны на {event['title']}",
@@ -359,16 +366,33 @@ async def upload(request: Request, user=Depends(browser_user), auth=Depends(serv
     if declared and declared.isdigit() and int(declared) > limit:
         raise HTTPException(413, 'too_large')
     await run_in_threadpool(auth.throttle, 'upload', client_ip(request), str(user['id']), limit=settings.upload_limit, by_ip=False)
-    chunks, size = [], 0
-    async for chunk in request.stream():
-        size += len(chunk)
-        if size > limit:
-            raise HTTPException(413, 'too_large')
-        chunks.append(chunk)
-    data = b''.join(chunks)
-    if not data:
-        raise HTTPException(422, 'empty')
-    return await run_in_threadpool(store_photo, request, user, data)
+    # В памяти службы — не больше UPLOADS_AT_ONCE фото сразу (у срока сдачи их приходят десятки; нагрузочный тест 13.10:
+    # 40 одновременных загрузок — 320 МБ при пределе службы 350 МБ). Остальные ждут: тело запроса держит nginx.
+    async with upload_gate():
+        chunks, size = [], 0
+        async for chunk in request.stream():
+            size += len(chunk)
+            if size > limit:
+                raise HTTPException(413, 'too_large')
+            chunks.append(chunk)
+        data = b''.join(chunks)
+        chunks.clear()    # куски больше не нужны: фото ждёт обработки в одном экземпляре, а не в двух
+        if not data:
+            raise HTTPException(422, 'empty')
+        return await run_in_threadpool(store_photo, request, user, data)
+
+
+UPLOADS_AT_ONCE = 8
+_GATES = weakref.WeakKeyDictionary()
+
+
+def upload_gate():
+    """Семафор загрузок своего цикла событий (у сервера цикл один; у тестов их несколько)."""
+    loop = asyncio.get_running_loop()
+    gate = _GATES.get(loop)
+    if gate is None:
+        gate = _GATES[loop] = asyncio.Semaphore(UPLOADS_AT_ONCE)
+    return gate
 
 
 @router.get('/media/{media_id}')

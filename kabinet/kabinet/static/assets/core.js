@@ -306,6 +306,7 @@
     if (res.status === 409) return 'Этот email уже занят.';
     if (res.status === 400) return 'Ссылка устарела или уже использована. Запросите новую.';
     if (res.status === 422) return 'Проверьте поля: email и пароль не короче ' + minLen() + ' символов.';
+    if (res.status === 503 && res.detail === 'busy') return 'Сейчас в кабинет входит много людей. Подождите полминуты и нажмите ещё раз.';
     if (res.status === 503) return 'Отправка писем пока не настроена. Напишите организатору.';
     return K.errorText(res);
   }

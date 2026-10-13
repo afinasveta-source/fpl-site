@@ -115,7 +115,8 @@ CREATE OR REPLACE FUNCTION site_export_certificates() RETURNS json LANGUAGE sql 
     'certificates', coalesce((
       SELECT json_object_agg(c.certificate_number, json_build_object(
         'type', c.certificate_type,
-        'name', c.issue_snapshot->>'public_name',
+        -- имя — только пока действует согласие на публикацию (отозвала — проверка диплома показывает его без имени)
+        'name', CASE WHEN pub.status = 'accepted' THEN c.issue_snapshot->>'public_name' END,
         'game', c.issue_snapshot->>'game',
         'season', c.issue_snapshot->>'season',
         'season_en', c.issue_snapshot->>'season_en',
@@ -124,6 +125,8 @@ CREATE OR REPLACE FUNCTION site_export_certificates() RETURNS json LANGUAGE sql 
         'result_en', c.issue_snapshot->>'result_en',
         'issued_at', c.issued_at))
       FROM certificates c
+      JOIN event_participants ep ON ep.id = c.event_participant_id
+      LEFT JOIN site_consent_latest pub ON pub.user_id = ep.user_id AND pub.consent_type = 'publication'
       WHERE c.status = 'issued' AND c.revoked_at IS NULL AND c.certificate_number IS NOT NULL), '{}'::json));
 $$;
 

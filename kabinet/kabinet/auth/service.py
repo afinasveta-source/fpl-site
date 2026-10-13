@@ -25,13 +25,16 @@ class AuthService:
         window = window or s.rate_window_seconds
         if limit is None:
             limit = s.login_limit if action == 'login' else s.reset_limit
-        keys = [token_hash(f'{action}:ip:{ip}')] if by_ip else []
+        # Вход: на один email — login_limit попыток, на один адрес — login_ip_limit. Участницы с мобильного интернета часто
+        # выходят в сеть с одного общего адреса оператора, и общий лимит 20 на адрес отказал бы им во входе после рассылки.
+        ip_limit = max(limit, s.login_ip_limit) if action == 'login' else limit
+        keys = [(token_hash(f'{action}:ip:{ip}'), ip_limit)] if by_ip else []
         if email:
-            keys.append(token_hash(f'{action}:email:{email}'))
+            keys.append((token_hash(f'{action}:email:{email}'), limit))
         # Independent transaction: failed authentication must still consume its quota.
         exceeded = False
         with self.db.transaction() as conn:
-            for key in sorted(keys):
+            for key, key_limit in sorted(keys):
                 row = conn.execute('''
 INSERT INTO auth_rate_limits(key_hash, window_start, attempts) VALUES (%s, now(), 1)
 ON CONFLICT (key_hash) DO UPDATE SET
@@ -40,7 +43,7 @@ ON CONFLICT (key_hash) DO UPDATE SET
     window_start = CASE WHEN auth_rate_limits.window_start <= now() - make_interval(secs => %s)
                        THEN now() ELSE auth_rate_limits.window_start END
 RETURNING attempts''', (key, window, window)).fetchone()
-                exceeded = exceeded or row['attempts'] > limit
+                exceeded = exceeded or row['attempts'] > key_limit
         if exceeded:
             raise HTTPException(429, 'Too many requests', headers={'Retry-After': str(window)})
 
@@ -55,9 +58,17 @@ AND u.account_status='active' AND u.deleted_at IS NULL AND u.email_verified_at I
 
     def login(self, email, password, ip):
         self.throttle('login', ip, email)
+        # Пароль проверяется вне транзакции: проверка может подождать очереди (см. BoundedHasher), соединение с базой
+        # в это время не занято. Потом — под блокировкой: аккаунт ещё активен и пароль тот же, что проверяли.
         with self.db.transaction() as conn:
-            user = conn.execute('SELECT * FROM users WHERE lower(email)=%s FOR UPDATE', (email,)).fetchone()
-            valid = verify_password(password, user['password_hash'] if user else None)
+            user = conn.execute('SELECT * FROM users WHERE lower(email)=%s', (email,)).fetchone()
+        valid = verify_password(password, user['password_hash'] if user else None)
+        with self.db.transaction() as conn:
+            if user:
+                fresh = conn.execute('SELECT * FROM users WHERE id=%s FOR UPDATE', (user['id'],)).fetchone()
+                if fresh['password_hash'] != user['password_hash']:
+                    valid = False
+                user = fresh
             if not user or not valid or user['account_status'] != 'active' or user['deleted_at'] or not user['email_verified_at']:
                 raise HTTPException(401, 'Invalid credentials', headers={'WWW-Authenticate': 'Bearer'})
             raw = new_token()

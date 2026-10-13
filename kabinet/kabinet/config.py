@@ -30,7 +30,8 @@ class Settings(BaseSettings):
     signup_limit: int = Field(default=5, ge=1, le=100)
     invite_days: int = Field(default=7, ge=1, le=30)
     reset_link_hours: int = Field(default=24, ge=1, le=168)
-    login_limit: int = 20
+    login_limit: int = 20          # попыток входа на один email за окно
+    login_ip_limit: int = 200      # попыток входа с одного адреса за окно (общий адрес мобильного оператора)
     reset_limit: int = 5
     rate_window_seconds: int = 900
     # sha256 ключа сервера (ключ приёмника данных); нужен один раз — создать первого администратора.

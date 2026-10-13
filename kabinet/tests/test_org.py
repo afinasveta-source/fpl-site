@@ -707,3 +707,132 @@ def test_scheduled_rules_notice(app, seed, clock):
         notify_due_rules(conn, h(days=1, minutes=15))         # повтор ничего не дублирует
     titles = [n['title'] for n in ok(p.get('/api/notifications'))['notifications']]
     assert titles.count('Новая редакция Правил — 2.0') == 1
+
+
+def test_season_for_site_rating(app, seed, clock):
+    """Игра стартовала — сезон идёт; лига участницы — её лига в сезоне (сайт показывает рейтинг идущих сезонов)."""
+    c = org(app, seed)
+    publish_docs(c)
+    season = ok(c.post('/api/org/seasons', headers=ORIGIN, json={'name': 'Сезон 2', 'season_no': 2}), 201)
+    eid, rounds = game_ready(c)
+    ok(c.patch(f'/api/org/events/{eid}', headers=ORIGIN, json={'season_id': season['id']}))
+    ok(c.post(f'/api/org/events/{eid}/status', headers=ORIGIN, json={'action': 'publish'}))
+    p = login(app, seed, 'p@example.com')
+    ok(register(p, eid), 201)
+    ep = ok(c.get(f'/api/org/events/{eid}/participants'))['participants'][0]
+    ok(c.post(f"/api/org/participants/{ep['id']}/league", headers=ORIGIN, json={'league': 'silver'}))
+    ok(c.post(f'/api/org/events/{eid}/status', headers=ORIGIN, json={'action': 'start'}))
+    ok(c.post(f"/api/org/participants/{ep['id']}/league", headers=ORIGIN, json={'league': 'gold'}))
+    with app.state.db.transaction() as conn:
+        assert conn.execute('SELECT status FROM seasons WHERE id=%s', (season['id'],)).fetchone()['status'] == 'active'
+        sp = conn.execute('SELECT * FROM season_participants WHERE season_id=%s', (season['id'],)).fetchone()
+    assert (sp['league_at_start'], sp['current_league']) == ('silver', 'gold')
+
+
+def test_login_limit_per_address_is_wider(app, seed):
+    """Общий адрес мобильного оператора: 30 разных участниц входят с одного адреса; на один email лимит прежний."""
+    app.state.auth.settings.login_limit = 3
+    c = TestClient(app)
+    for i in range(30):
+        seed(f'm{i}@example.com')
+        assert c.post('/auth/login', json={'email': f'm{i}@example.com', 'password': PASSWORD}).status_code == 200
+    codes = [c.post('/auth/login', json={'email': 'm0@example.com', 'password': 'wrong-password-123'}).status_code for _ in range(4)]
+    assert codes[-1] == 429
+
+
+def test_password_checks_are_bounded():
+    """Не больше двух проверок пароля одновременно (Argon2id — 64 МБ на проверку)."""
+    import threading
+    import time
+    from kabinet.auth.security import BoundedHasher
+    state = {'now': 0, 'max': 0}
+    lock = threading.Lock()
+
+    class Slow:
+        def verify(self, p, h):
+            with lock:
+                state['now'] += 1
+                state['max'] = max(state['max'], state['now'])
+            time.sleep(0.05)
+            with lock:
+                state['now'] -= 1
+            return True
+    hasher = BoundedHasher(Slow())
+    threads = [threading.Thread(target=hasher.verify, args=('a', 'b')) for _ in range(10)]
+    [t.start() for t in threads]
+    [t.join() for t in threads]
+    assert state['max'] == 2
+
+
+def test_league_after_finish_until_results(app, seed, clock):
+    """Без лиги диплом не выдать: лигу можно указать и в завершённой Игре — пока итоги не опубликованы."""
+    c = org(app, seed)
+    publish_docs(c)
+    eid, rounds = game_ready(c)
+    ok(c.post(f'/api/org/events/{eid}/status', headers=ORIGIN, json={'action': 'publish'}))
+    p = login(app, seed, 'p@example.com')
+    ok(register(p, eid), 201)
+    ep = ok(c.get(f'/api/org/events/{eid}/participants'))['participants'][0]
+    ok(c.post(f'/api/org/events/{eid}/status', headers=ORIGIN, json={'action': 'start'}))
+    ok(c.post(f'/api/org/events/{eid}/status', headers=ORIGIN, json={'action': 'finish'}))
+    ok(c.post(f"/api/org/participants/{ep['id']}/league", headers=ORIGIN, json={'league': 'bronze'}))
+    r = c.post(f"/api/org/participants/{ep['id']}/action", headers=ORIGIN, json={'action': 'outside', 'reason': 'тест'})
+    assert r.status_code == 409 and r.json()['detail'] == 'game_finished'     # остальные действия — как раньше
+    with app.state.db.transaction() as conn:
+        conn.execute('''UPDATE events SET settings=jsonb_set(coalesce(settings,'{}'),'{results}','{"published_at":"2026-11-30T00:00:00+00:00"}')
+WHERE id=%s''', (eid,))
+    r = c.post(f"/api/org/participants/{ep['id']}/league", headers=ORIGIN, json={'league': 'gold'})
+    assert r.status_code == 409 and r.json()['detail'] == 'game_finished'
+
+
+def test_too_many_waiting_logins_get_busy():
+    """Лишние ждущие проверки пароля сразу получают «занято» (поток службы не держится)."""
+    import threading
+    import time
+    from kabinet.auth.security import BoundedHasher, Busy
+
+    class Slow:
+        def verify(self, p, h):
+            time.sleep(0.1)
+            return True
+    hasher = BoundedHasher(Slow(), limit=1, max_waiting=2)
+    out = []
+
+    def one():
+        try:
+            out.append(hasher.verify('a', 'b'))
+        except Busy:
+            out.append('busy')
+    threads = [threading.Thread(target=one) for _ in range(6)]
+    [t.start() for t in threads]
+    [t.join() for t in threads]
+    assert out.count('busy') >= 1 and out.count(True) >= 3
+
+
+def test_leagues_in_bulk(app, seed, clock):
+    """Лиги списком: одним сохранением, уведомления — только тем, у кого лига поменялась; чужой участник — отказ."""
+    c = org(app, seed)
+    publish_docs(c)
+    eid, rounds = game_ready(c)
+    ok(c.post(f'/api/org/events/{eid}/status', headers=ORIGIN, json={'action': 'publish'}))
+    for i in range(5):
+        ok(register(login(app, seed, f'b{i}@example.com'), eid), 201)
+    lst = ok(c.get(f'/api/org/events/{eid}/participants'))['participants']
+    assert all('rating' in p for p in lst)
+    items = [{'id': p['id'], 'league': ('gold', 'silver', 'bronze', 'bronze', None)[k]} for k, p in enumerate(lst)]
+    r = ok(c.post(f'/api/org/events/{eid}/leagues', headers=ORIGIN, json={'items': items}))
+    assert r['changed'] == 4
+    again = ok(c.post(f'/api/org/events/{eid}/leagues', headers=ORIGIN, json={'items': items}))
+    assert again['changed'] == 0
+    got = {p['id']: p['league'] for p in ok(c.get(f'/api/org/events/{eid}/participants'))['participants']}
+    assert [got[x['id']] for x in items] == ['gold', 'silver', 'bronze', 'bronze', None]
+    dup = c.post(f'/api/org/events/{eid}/leagues', headers=ORIGIN, json={'items': items[:1] * 2})
+    assert dup.status_code == 422 and dup.json()['detail'] == 'duplicate_participant'
+    other, _ = game_ready(c, title='Игра 03')
+    bad = c.post(f'/api/org/events/{other}/leagues', headers=ORIGIN, json={'items': items[:1]})
+    assert bad.status_code in (404, 409)
+    with app.state.db.transaction() as conn:
+        n = conn.execute("SELECT count(*) AS n FROM notifications WHERE notification_type='league'").fetchone()['n']
+    assert n == 4
+    p = login(app, seed, 'x@example.com')
+    assert p.post(f'/api/org/events/{eid}/leagues', headers=ORIGIN, json={'items': items[:1]}).status_code == 403

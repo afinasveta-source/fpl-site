@@ -11,6 +11,7 @@ from kabinet.config import Settings
 from kabinet.db import Database
 from kabinet.auth.mail import DisabledMailer, MemoryMailer, SMTPMailer
 from kabinet.auth.service import AuthService
+from kabinet.auth.security import Busy
 from kabinet.auth.routes import router as auth_router
 from kabinet.users.routes import router as users_router
 from kabinet.web.routes import router as web_router, STATIC
@@ -75,6 +76,11 @@ def create_app(settings=None, mailer=None, clock=None):
         # Ответ об ошибке не повторяет введённое: пароли и токены не должны попадать в ответы.
         errors = [{k: e[k] for k in ('loc', 'msg', 'type')} for e in exc.errors()]
         return JSONResponse(status_code=422, content={'detail': errors})
+
+    @app.exception_handler(Busy)
+    async def busy(request, exc):
+        # Много входов сразу (после рассылки): просим повторить через полминуты, а не держим поток службы.
+        return JSONResponse(status_code=503, content={'detail': 'busy'}, headers={'Retry-After': '30'})
 
     @app.exception_handler(psycopg.IntegrityError)
     async def integrity_error(request, exc):

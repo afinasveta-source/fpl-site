@@ -433,6 +433,9 @@ def change_status(event_id: UUID, body: StatusChange, request: Request, user=Dep
             extra = ', rules_document_id=%(rules)s'
             args['rules'] = G.rules_document(conn, now)['id']
         e = conn.execute(f'UPDATE events SET status=%(status)s{extra} WHERE id=%(id)s RETURNING *', args).fetchone()
+        if body.action == 'start' and e['season_id']:
+            # сезон начался с первой Игрой — сайт показывает рейтинг только идущих и завершённых сезонов
+            conn.execute("UPDATE seasons SET status='active' WHERE id=%s AND status='draft'", (e['season_id'],))
         audit(conn, user['id'], 'event', event_id, 'event_' + body.action, {'from': source, 'to': target})
         return event_detail(conn, e, now)
 

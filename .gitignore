@@ -12,3 +12,5 @@ server/ops/fpl-kabinet-setup
 server/ops/kabinet-src/
 .pytest_cache/
 server/ops/fpl-media-backup
+kabinet/sim-report.json
+kabinet/load-report.json

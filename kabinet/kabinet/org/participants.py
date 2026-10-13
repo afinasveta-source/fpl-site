@@ -83,9 +83,10 @@ def participants(event_id: UUID, request: Request, q: str = Query('', max_length
         e = load_event(conn, event_id)
         if e['status'] in ('active', 'registration'):
             G.sync_event(conn, event_id, now)   # опоздавшие — вне конкурса, как увидит сама участница
-        rows = conn.execute('''SELECT p.*, u.full_name, u.display_name, u.email, u.city, u.country_code, u.account_status
-FROM event_participants p JOIN users u ON u.id=p.user_id WHERE p.event_id=%s ORDER BY p.joined_at NULLS LAST, p.created_at''',
-                            (event_id,)).fetchall()
+        rows = conn.execute('''SELECT p.*, u.full_name, u.display_name, u.email, u.city, u.country_code, u.account_status,
+ps.current_rating, ps.rating_status FROM event_participants p JOIN users u ON u.id=p.user_id
+LEFT JOIN participant_stats ps ON ps.user_id=p.user_id AND ps.rating_status<>'unrated'
+WHERE p.event_id=%s ORDER BY p.joined_at NULLS LAST, p.created_at''', (event_id,)).fetchall()
         rounds, mains = event_structure(conn, event_id)
         pas, subs, drafts = works_of(conn, [r['id'] for r in rows], [a['id'] for a in mains.values()])
         variants = variants_of(conn, [a['id'] for a in mains.values()])
@@ -118,6 +119,7 @@ WHERE legal_document_id=%s ORDER BY user_id, recorded_at DESC, id DESC''', (rule
         out.append({'id': str(p['id']), 'user_id': str(p['user_id']), 'name': person_name(p), 'email': p['email'],
                     'city': p['city'], 'country_code': p['country_code'], 'mode': m, 'league': p['entry_league'],
                     'joined_at': iso(p['joined_at']), 'account_status': p['account_status'],
+                    'rating': round(float(p['current_rating'])) if p['current_rating'] is not None else None,
                     'rules_ok': rules_doc is None or p['user_id'] in accepted, 'rounds': cells})
     return {'event': {'id': str(e['id']), 'title': e['title'], 'status': e['status']},
             'current_round': current['round_no'] if current else None,
@@ -232,23 +234,75 @@ def guard_event(e):
         raise problem('game_draft', 409)
 
 
+def league_event(conn, event_id):
+    """Игра для смены лиги. Сначала Игра, потом участницы — как у публикации итогов. FOR NO KEY UPDATE: публикацию
+    (FOR UPDATE) ждём, а записям участниц со ссылкой на Игру (они берут KEY SHARE) не мешаем — без взаимной блокировки.
+    Лигу можно указать и после завершения Игры, пока итоги не опубликованы: без лиги диплому не дать номер, а публикация
+    итогов останавливается (симуляция 13.10: выбывшая в 1 туре без лиги продолжила вне конкурса)."""
+    e = conn.execute('SELECT * FROM events WHERE id=%s FOR NO KEY UPDATE', (event_id,)).fetchone()
+    if not e:
+        raise HTTPException(404, 'Game not found')
+    results_out = bool(((e['settings'] or {}).get('results') or {}).get('published_at'))
+    if not (e['status'] == 'finished' and not results_out):
+        guard_event(e)
+    return e
+
+
+def apply_league(conn, e, ep, league, actor_id, now):
+    if ep['entry_league'] == league:
+        return ep, False
+    ep = conn.execute('UPDATE event_participants SET entry_league=%s WHERE id=%s RETURNING *', (league, ep['id'])).fetchone()
+    if e['season_id']:
+        # лига в сезоне — для рейтинга на сайте (последняя назначенная; лигу сняли — и в сезоне пусто)
+        conn.execute('''INSERT INTO season_participants(season_id,user_id,league_at_start,current_league) VALUES (%s,%s,%s,%s)
+ON CONFLICT (season_id,user_id) DO UPDATE SET current_league=EXCLUDED.current_league,
+league_at_start=coalesce(season_participants.league_at_start, EXCLUDED.league_at_start)''', (e['season_id'], ep['user_id'], league, league))
+    audit(conn, actor_id, 'event_participant', ep['id'], 'league_set', {'league': league})
+    notify(conn, ep['user_id'], 'league', f"league:{ep['id']}:{league or 'none'}:{now.timestamp():.0f}",
+           {'title': f"Ваша лига в {e['title']} — {LEAGUE_NAME[league]}" if league
+            else f"Лига в {e['title']} снята",
+            'text': 'Задания туров будут для вашей лиги.' if league else 'Задания туров будут общими для всех.',
+            'route': 'game', 'event_id': str(e['id'])}, e['id'])
+    return ep, True
+
+
 @router.post('/participants/{ep_id}/league', dependencies=WRITE)
 def set_league(ep_id: UUID, body: LeagueIn, request: Request, user=Depends(org_user)):
     now = now_of(request)
     with db(request).transaction() as conn:
         locked_admin(conn, user)
-        ep = load_ep(conn, ep_id, lock=True)
-        e = load_event(conn, ep['event_id'])
-        guard_event(e)
-        if ep['entry_league'] != body.league:
-            ep = conn.execute('UPDATE event_participants SET entry_league=%s WHERE id=%s RETURNING *', (body.league, ep_id)).fetchone()
-            audit(conn, user['id'], 'event_participant', ep_id, 'league_set', {'league': body.league})
-            notify(conn, ep['user_id'], 'league', f"league:{ep_id}:{body.league or 'none'}:{now.timestamp():.0f}",
-                   {'title': f"Ваша лига в {e['title']} — {LEAGUE_NAME[body.league]}" if body.league
-                    else f"Лига в {e['title']} снята",
-                    'text': 'Задания туров будут для вашей лиги.' if body.league else 'Задания туров будут общими для всех.',
-                    'route': 'game', 'event_id': str(e['id'])}, e['id'])
+        e = league_event(conn, load_ep(conn, ep_id)['event_id'])
+        ep, _ = apply_league(conn, e, load_ep(conn, ep_id, lock=True), body.league, user['id'], now)
         return participant_detail(conn, ep, request, now)
+
+
+class LeagueItem(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    id: UUID
+    league: Literal['bronze', 'silver', 'gold'] | None = None
+
+
+class LeaguesIn(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    items: list[LeagueItem] = Field(min_length=1, max_length=2000)
+
+
+@router.post('/events/{event_id}/leagues', dependencies=WRITE)
+def set_leagues(event_id: UUID, body: LeaguesIn, request: Request, user=Depends(org_user)):
+    """Лиги списком (200 участниц — одним сохранением, а не 200 переходами)."""
+    now = now_of(request)
+    wanted = {str(x.id): x.league for x in body.items}
+    if len(wanted) != len(body.items):
+        raise problem('duplicate_participant')
+    with db(request).transaction() as conn:
+        locked_admin(conn, user)
+        e = league_event(conn, event_id)
+        rows = conn.execute('SELECT * FROM event_participants WHERE event_id=%s AND id = ANY(%s) ORDER BY id FOR UPDATE',
+                            (event_id, list(wanted))).fetchall()     # один порядок блокировок — по id
+        if len(rows) != len(wanted):
+            raise problem('participant_not_in_game', 404)
+        changed = sum(apply_league(conn, e, ep, wanted[str(ep['id'])], user['id'], now)[1] for ep in rows)
+        return {'changed': changed}
 
 
 @router.post('/participants/{ep_id}/deadline', dependencies=WRITE)

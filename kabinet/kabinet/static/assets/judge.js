@@ -81,7 +81,7 @@
   }
   function thumb(side, won) {
     var p = side.photos[0];
-    return p ? '<img class="' + (won ? 'won' : '') + '" src="' + esc(p.thumb_url) + '" alt="Работа № ' + side.no + (won ? ' — выбрана' : '') + '">' : '';
+    return p ? '<img loading="lazy" class="' + (won ? 'won' : '') + '" src="' + esc(p.thumb_url) + '" alt="Работа № ' + side.no + (won ? ' — выбрана' : '') + '">' : '';
   }
   K.actions.jVote = function (b) {
     Array.prototype.forEach.call(document.querySelectorAll('[data-act=jVote]'), function (x) { x.disabled = true; });

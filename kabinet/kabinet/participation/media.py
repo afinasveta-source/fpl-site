@@ -7,6 +7,7 @@
 """
 import hashlib
 import io
+import math
 import os
 import shutil
 import tempfile
@@ -69,7 +70,7 @@ class MediaStore:
         try:
             with Image.open(io.BytesIO(data)) as probe:
                 kind = probe.format
-                width, height = probe.size
+                raw_w, raw_h = width, height = probe.size
                 if probe.getexif().get(0x0112) in (5, 6, 7, 8):   # снято «боком»: показываем повёрнутым
                     width, height = height, width
                 probe.verify()
@@ -79,12 +80,18 @@ class MediaStore:
                 raise MediaError('too_many_pixels')
             with Image.open(io.BytesIO(data)) as img:
                 if kind == 'JPEG':
-                    img.draft('RGB', (VIEW_PX, VIEW_PX))   # декодирование сразу в 1/2–1/8 масштаба (по меньшей стороне)
+                    # Декодирование сразу в 1/2–1/8 масштаба: просим размер, пропорциональный фото, — тогда большая
+                    # сторона остаётся не меньше 1600 px. (Квадрат 1600×1600 у фото 4:3 не давал уменьшения вовсе:
+                    # 12 Мп декодировались целиком — 0,5 с и 36 МБ на фото; нагрузочный тест 13.10.)
+                    k = VIEW_PX / max(raw_w, raw_h)
+                    if k < 1:
+                        img.draft('RGB', (math.ceil(raw_w * k), math.ceil(raw_h * k)))
                 img.load()
                 img.thumbnail((VIEW_PX * 2, VIEW_PX * 2))
                 img = ImageOps.exif_transpose(img) or img
-                view = self._jpeg(img, VIEW_PX)
-                thumb = self._jpeg(img, THUMB_PX)
+                shown = self._fit_image(img, VIEW_PX)
+                view = self._encode(shown)
+                thumb = self._encode(self._fit_image(shown, THUMB_PX))   # маленькая копия — из уменьшенной, быстрее
         except MediaError:
             raise
         except (UnidentifiedImageError, Image.DecompressionBombError, Image.DecompressionBombWarning, OSError,
@@ -103,9 +110,11 @@ class MediaStore:
                 'storage_key': keys['orig'], 'optimized_storage_key': keys['view'], 'thumbnail_storage_key': keys['thumb']}
 
     @staticmethod
-    def _jpeg(img, limit):
-        copy = img.copy() if max(img.size) <= limit else img.resize(
-            _fit(img.size, limit), Image.Resampling.LANCZOS)
+    def _fit_image(img, limit):
+        return img if max(img.size) <= limit else img.resize(_fit(img.size, limit), Image.Resampling.LANCZOS)
+
+    @staticmethod
+    def _encode(copy):
         if copy.mode not in ('RGB', 'L'):
             background = Image.new('RGB', copy.size, (255, 255, 255))
             rgba = copy.convert('RGBA')

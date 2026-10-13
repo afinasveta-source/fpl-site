@@ -128,6 +128,7 @@ def test_pairwise_judging_flow(app, seed, clock):
         for _, jc2 in js:
             vote_all(app, jc2, st['id'], power, phase='tie_break')
         st = ok(c.get(url))['streams'][0]
+        by = {r['name'].split('@')[0]: r for r in st['rows']}   # переголосование тоже идёт в балл (BT по всем сравнениям)
     assert st['border']['status'] == 'ok' and sum(1 for r in st['rows'] if r['advanced']) == 3
     assert [r['advanced'] for r in st['rows']] == sorted([r['advanced'] for r in st['rows']], reverse=True)
     view = ok(c.post(publish_url, headers=ORIGIN))

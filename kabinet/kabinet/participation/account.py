@@ -321,6 +321,9 @@ def set_publicity(body: Publicity, request: Request, user=Depends(browser_user))
             if not body.accept_publication or doc is None:
                 raise HTTPException(409, 'consent_required')
             record_consent(conn, user['id'], doc, 'accepted', 'Показывать мои работы')
+        if enabling:
+            # рейтинг на сайте — по тому же согласию на публикацию (отдельного переключателя нет)
+            conn.execute('UPDATE users SET public_rating=true WHERE id=%s', (user['id'],))
         changes = {k: v for k, v in (('public_works', body.gallery), ('public_social', body.social),
                                      ('public_profile', body.master_page)) if v is not None}
         for column, value in changes.items():
@@ -334,7 +337,8 @@ def revoke(request: Request, user=Depends(browser_user)):
     """«Скрыть всё и отозвать согласие на публикацию». Уже вышедшие посты в соцсетях остаются (решение 11.10)."""
     with db(request).transaction() as conn:
         conn.execute('SELECT 1 FROM users WHERE id=%s FOR UPDATE', (user['id'],))
-        conn.execute('UPDATE users SET public_works=false, public_social=false, public_profile=false WHERE id=%s', (user['id'],))
+        conn.execute('''UPDATE users SET public_works=false, public_social=false, public_profile=false, public_rating=false
+WHERE id=%s''', (user['id'],))
         last = latest_consent(conn, user['id'], 'publication')
         if last and last['status'] == 'accepted':
             doc = conn.execute('SELECT * FROM legal_documents WHERE id=%s', (last['legal_document_id'],)).fetchone() \
