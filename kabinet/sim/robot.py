@@ -279,6 +279,8 @@ VALUES (%s,%s,now(),'active',%s,'Казань','RU') RETURNING id''', (email, h,
     save('вход и запись участниц')
 
     def join(p):
+        if p['i'] % 100 == 99:
+            db.execute('DELETE FROM auth_rate_limits')   # все роботы входят с одного адреса сервера (лимит 200 на адрес)
         c = Client(base, f"участница {p['i']}")
         for _ in range(20):        # «занято» — нажать ещё раз через пару секунд
             r = c.call('POST', '/web-auth/login', {'email': p['email'], 'password': PASSWORD}, expect=(200, 503), timing='вход')

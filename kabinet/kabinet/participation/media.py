@@ -71,9 +71,10 @@ class MediaStore:
             with Image.open(io.BytesIO(data)) as probe:
                 kind = probe.format
                 raw_w, raw_h = width, height = probe.size
-                if probe.getexif().get(0x0112) in (5, 6, 7, 8):   # снято «боком»: показываем повёрнутым
+                probe.verify()      # сразу после открытия: чтение EXIF раньше ломает verify у PNG (Codex, 13.10)
+            with Image.open(io.BytesIO(data)) as meta:
+                if meta.getexif().get(0x0112) in (5, 6, 7, 8):    # снято «боком»: показываем повёрнутым
                     width, height = height, width
-                probe.verify()
             if kind not in FORMATS:
                 raise MediaError('unsupported_format')
             if width * height > (MAX_PIXELS if kind == 'JPEG' else MAX_PIXELS_OTHER):
@@ -95,7 +96,7 @@ class MediaStore:
         except MediaError:
             raise
         except (UnidentifiedImageError, Image.DecompressionBombError, Image.DecompressionBombWarning, OSError,
-                SyntaxError, ValueError, MemoryError):
+                SyntaxError, ValueError, MemoryError, RuntimeError):
             raise MediaError('not_an_image') from None
         if not self.free_ok(len(data) + len(view) + len(thumb)):
             raise MediaError('storage_full')

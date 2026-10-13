@@ -15,6 +15,7 @@
 """
 import math
 from dataclasses import dataclass, field
+from fractions import Fraction
 
 FORMULA = 'GAME_PATH_FINAL_V1'
 LEAGUE_LETTER = {'gold': 'G', 'silver': 'S', 'bronze': 'B'}
@@ -31,9 +32,15 @@ DEFAULT_POINTS = {
 DEFAULT_PATH_WEIGHT = 40
 
 
+def exact(x):
+    """Число без двоичной погрешности: 61.75 → 247/4 (баллы и веса — конечные десятичные дроби)."""
+    return x if isinstance(x, Fraction) else Fraction(str(x)) if isinstance(x, float) else Fraction(x)
+
+
 def half_up(x, digits=0):
+    """Округление «половина вверх» точно: 37,675 → 37,68 (во float 37,675 хранится как 37,67499… — Codex, 13.10)."""
     q = 10 ** digits
-    return math.floor(x * q + 0.5) / q
+    return float(Fraction(math.floor(exact(x) * q + Fraction(1, 2)), q))
 
 
 @dataclass
@@ -85,7 +92,7 @@ def config_defaults(cfg, round_nos):
 def compute(people, cfg, awards_points=True):
     """Считает итог, места, общий список и очки. people — [Person]; cfg — из config_defaults.
     Возвращает список людей в порядке общего списка (сначала вошедшие, потом остальные)."""
-    final, path_rounds, w = cfg['final_round'], cfg['path_rounds'], cfg['path_weight'] / 100
+    final, path_rounds, w = cfg['final_round'], cfg['path_rounds'], Fraction(cfg['path_weight']) / 100   # вес — точно
     # последний тур Игры: финал, а без финала — последний тур пути (дошедшие до него ранжируются по итогу)
     last = final if final is not None else (max(path_rounds) if path_rounds else None)
     for p in people:
@@ -96,19 +103,20 @@ def compute(people, cfg, awards_points=True):
         first = (cfg.get('rounds') or [None])[0]
         if p.excluded is None and not p.finalist and p.stage is not None and p.stage == first and first != last:
             p.excluded = 'not_qualified_round1'
-        path = [p.scores[n] for n in path_rounds if p.scores.get(n) is not None]
-        p.path = sum(path) / len(path) if path else None
+        path = [exact(p.scores[n]) for n in path_rounds if p.scores.get(n) is not None]
+        path_exact = sum(path) / len(path) if path else None
+        p.path = float(path_exact) if path_exact is not None else None
         p.final = p.scores.get(final) if final is not None else None
         if not p.finalist:
             continue
         if final is None:
-            p.total = half_up(p.path, 2) if p.path is not None else None
+            p.total = half_up(path_exact, 2) if path_exact is not None else None
         elif p.final is None:
             p.total = None            # финал без оценки — итога нет, в места и общий список не входит
-        elif p.path is None or w == 0:
+        elif path_exact is None or w == 0:
             p.total = half_up(p.final, 2)
         else:
-            p.total = half_up(p.path * w + p.final * (1 - w), 2)
+            p.total = half_up(path_exact * w + exact(p.final) * (1 - w), 2)
     ranked = [p for p in people if p.excluded is None and p.stage is not None and stage_value(p, final) is not None]
     ranked.sort(key=lambda p: standing_key(p, final))
     # общий список: равные делят место (1, 1, 3)

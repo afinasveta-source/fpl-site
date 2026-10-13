@@ -143,3 +143,12 @@ def test_bradley_terry_one_sided():
     one = base + [('d', 'a', 'd', True, False)]           # досудейство d: победа над a в счёт только d
     s0, s1 = C.bradley_terry(base), C.bradley_terry(one)
     assert abs(s0['a'] - s1['a']) < 1e-9 and 'd' in s1 and s1['d'] > s1['a']
+
+
+def test_criteria_half_exactly_rounds_up():
+    """Среднее с весами ровно ,5 — вверх; одинаковые оценки — равны до бита (точные дроби, 13.10)."""
+    from fractions import Fraction
+    v = C.criteria_exact({'j1': {'a': 70, 'b': 71}}, {'a': 1.5, 'b': 1.5})
+    assert v == Fraction(141, 2) and C.criteria_score(v) == 71
+    v2 = C.criteria_exact({'j1': {'a': 60, 'b': 61}, 'j2': {'a': 80, 'b': 81}}, {'a': 0.1, 'b': 0.1})
+    assert C.criteria_score(v2) == 71 and C.criteria_value({'j1': {'a': 60, 'b': 61}, 'j2': {'a': 80, 'b': 81}}, {'a': 0.1, 'b': 0.1}) == 70.5

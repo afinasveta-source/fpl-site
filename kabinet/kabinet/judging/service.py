@@ -246,7 +246,7 @@ def criteria_values(data):
     by_target = defaultdict(lambda: defaultdict(dict))
     for s in data['scores']:
         by_target[s['evaluation_target_id']][s['judge_slot_id']][s['criterion_id']] = float(s['score'])
-    return {t['id']: C.criteria_value(by_target.get(t['id'], {}), weights) for t in data['targets']}
+    return {t['id']: C.criteria_exact(by_target.get(t['id'], {}), weights) for t in data['targets']}
 
 
 def tie_groups(st, data):
@@ -279,7 +279,9 @@ def evaluate(conn, st, data=None):
         values = criteria_values(data)
         for t in data['targets']:
             v = values[t['id']]
-            rows.append(C.Row(str(t['id']), v, C.criteria_score(v), extra={'value': round(v, 3) if v is not None else None}))
+            # ключ места — float точной дроби (равные оценки равны до бита), балл — округление точной дроби
+            rows.append(C.Row(str(t['id']), float(v) if v is not None else None, C.criteria_score(v),
+                              extra={'value': round(float(v), 3) if v is not None else None}))
     ordered = C.rank_rows(rows)
     n = sum(1 for r in ordered if r.key is not None)
     # Вышла, дисквалифицирована или перешла вне конкурса во время судейства — за проход и TOP WORK не борется,

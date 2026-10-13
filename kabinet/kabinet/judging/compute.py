@@ -18,6 +18,7 @@
 """
 import math
 import random
+from fractions import Fraction
 from collections import defaultdict
 from dataclasses import dataclass, field
 
@@ -144,22 +145,35 @@ def share_score(share):
     return half_up(SCALE_MIN + (SCALE_MAX - SCALE_MIN) * share)
 
 
-def criteria_value(judge_scores, weights):
-    """judge_scores: {судья: {критерий: оценка}} — только полные оценки судьи. Среднее с весами, потом по судьям."""
+def exact(x):
+    return x if isinstance(x, Fraction) else Fraction(str(x)) if isinstance(x, float) else Fraction(x)
+
+
+def criteria_exact(judge_scores, weights):
+    """judge_scores: {судья: {критерий: оценка}} — только полные оценки судьи. Среднее с весами, потом по судьям.
+    Считается точно (дроби), чтобы ровно ,5 округлялось вверх, а равные оценки были равны до бита."""
     per_judge = []
-    total_w = sum(weights.values())
+    w = {c: exact(x) for c, x in weights.items()}
+    total_w = sum(w.values())
     for scores in judge_scores.values():
-        if set(scores) >= set(weights):
-            per_judge.append(sum(scores[c] * w for c, w in weights.items()) / total_w)
+        if set(scores) >= set(w):
+            per_judge.append(sum(exact(scores[c]) * x for c, x in w.items()) / total_w)
     if not per_judge:
         return None
     return sum(per_judge) / len(per_judge)
 
 
+def criteria_value(judge_scores, weights):
+    v = criteria_exact(judge_scores, weights)
+    return float(v) if v is not None else None
+
+
 def criteria_score(value):
-    """Оценки судей уже по шкале 1–100 — балл тура = среднее, округлённое половина вверх."""
+    """Оценки судей уже по шкале 1–100 — балл тура = среднее, округлённое половина вверх (точно)."""
     if value is None:
         return None
+    if isinstance(value, Fraction):
+        return int(math.floor(value + Fraction(1, 2)))
     return half_up(value)
 
 

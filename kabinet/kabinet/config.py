@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     smtp_username: str | None = None
     smtp_password: SecretStr | None = None
     mail_from: str | None = None
-    session_hours: int = 12
+    session_hours: int = 24 * 14   # вход держится две недели: меньше повторных входов у толпы после рассылки (робот на сервере, 13.10)
     token_minutes: int = 30
     # Ссылки, которые организатор отправляет сам (писем нет): приглашение — 7 дней, новый пароль — сутки.
     # Регистрация в кабинете самой участницей (решение 12.10). Email не подтверждается письмом — писем пока нет.

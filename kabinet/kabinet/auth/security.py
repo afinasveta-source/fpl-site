@@ -4,6 +4,7 @@ import threading
 
 from pwdlib import PasswordHash
 from pwdlib.exceptions import UnknownHashError
+from pwdlib.hashers.argon2 import Argon2Hasher
 
 
 class Busy(Exception):
@@ -45,7 +46,9 @@ class BoundedHasher:
         return self._run(self.inner.verify, password, encoded)
 
 
-password_hasher = BoundedHasher(PasswordHash.recommended())  # Argon2id
+# Argon2id с параметрами OWASP (19 МБ, 2 прохода, 1 поток): на сервере проверка в ~4 раза быстрее и в 3 раза легче, чем
+# по умолчанию (64 МБ, 3 прохода) — робот на сервере 13.10: 200 входов шли по 10 с. Старые пароли проверяются по своим параметрам.
+password_hasher = BoundedHasher(PasswordHash((Argon2Hasher(memory_cost=19456, time_cost=2, parallelism=1),)))
 DUMMY_HASH = password_hasher.hash(secrets.token_urlsafe(32))
 
 

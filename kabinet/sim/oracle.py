@@ -2,13 +2,19 @@
 голоса, оценки, статусы, сроки. Модули расчёта кабинета (kabinet.*.compute) здесь НЕ используются.
 """
 import math
+from fractions import Fraction
 from collections import defaultdict
 from datetime import timedelta
 
 
+def fr(x):
+    return x if isinstance(x, Fraction) else Fraction(str(x)) if isinstance(x, float) else Fraction(x)
+
+
 def hu(x, d=0):
+    """Половина вверх — точно (дроби), как требуют Правила."""
     q = 10 ** d
-    return math.floor(x * q + 0.5) / q
+    return float(Fraction(math.floor(fr(x) * q + Fraction(1, 2)), q))
 
 
 # ---------------------------------------------------------------- Брэдли–Терри (своя реализация)
@@ -98,10 +104,10 @@ def check_round(w, rnd):
                     P.check(not odd, 'minor', area, f'пул {lg}: у судьи {len(odd)} работ встречаются не {expect} раз '
                                                      f'(например {cnt.get(odd[0], 0) if odd else 0})')
         else:
-            crit = {str(c['id']): float(c['weight']) for c in w.q('SELECT * FROM evaluation_criteria WHERE evaluation_stream_id=%s', (st['id'],))}
+            crit = {str(c['id']): fr(float(c['weight'])) for c in w.q('SELECT * FROM evaluation_criteria WHERE evaluation_stream_id=%s', (st['id'],))}
             by = defaultdict(lambda: defaultdict(dict))
             for s in w.q("SELECT * FROM criterion_scores WHERE evaluation_stream_id=%s AND status='valid'", (st['id'],)):
-                by[str(s['evaluation_target_id'])][s['judge_slot_id']][str(s['criterion_id'])] = float(s['score'])
+                by[str(s['evaluation_target_id'])][s['judge_slot_id']][str(s['criterion_id'])] = fr(float(s['score']))
                 P.check(1 <= float(s['score']) <= 100 and float(s['score']) == int(s['score']), 'critical', area,
                         f'оценка вне 1–100 или дробная: {s["score"]}')
             tw = sum(crit.values())
@@ -109,8 +115,8 @@ def check_round(w, rnd):
             for t in targets:
                 per_judge = [sum(sc[c] * wt for c, wt in crit.items()) / tw for sc in by[t].values() if set(sc) >= set(crit)]
                 v = sum(per_judge) / len(per_judge) if per_judge else None
-                key[t] = v
-                mine[t] = int(math.floor(v + 0.5)) if v is not None else None
+                key[t] = float(v) if v is not None else None
+                mine[t] = int(math.floor(v + Fraction(1, 2))) if v is not None else None
         for t, r in res.items():
             got = float(r['display_score']) if r['display_score'] is not None else None
             if got != mine.get(t):
@@ -303,12 +309,13 @@ WHERE r.event_id=%s GROUP BY 1,2''', (eid,)):
         if p['excl'] is None and not p['finalist'] and p['stage'] == 1:
             p['excl'] = 'not_qualified_round1'
         if p['finalist']:
-            path = [p['scores'][n] for n in PATH if p['scores'].get(n) is not None]
+            path = [fr(p['scores'][n]) for n in PATH if p['scores'].get(n) is not None]
+            W = Fraction(fmt['weight'], 100)
             if FIN is None:
                 p['total'] = hu(sum(path) / len(path), 2)
             else:
-                f = p['scores'][FIN]
-                p['total'] = hu(sum(path) / len(path) * WT + f * (1 - WT), 2) if path and WT else hu(f, 2)
+                f = fr(p['scores'][FIN])
+                p['total'] = hu(sum(path) / len(path) * W + f * (1 - W), 2) if path and W else hu(f, 2)
         else:
             p['total'] = None
     ranked = [p for p in people if p['excl'] is None and p['stage'] is not None]

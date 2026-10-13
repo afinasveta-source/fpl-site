@@ -370,3 +370,32 @@ def test_site_name_when_public_name_empty(app, seed, clock):
     assert register(c, game['event']).status_code == 201
     with app.state.db.transaction() as conn:
         assert conn.execute("SELECT display_name FROM users WHERE email='anna@example.com'").fetchone()['display_name'] == 'Анна Петрова'
+
+
+def test_png_and_transparent_png_upload(app, seed, clock):
+    """PNG и PNG с прозрачностью принимаются (раньше — ошибка сервера 500; Codex, 13.10)."""
+    c = login(app, seed, 'anna@example.com')
+    for mode, color in (('RGB', (10, 200, 30)), ('RGBA', (10, 200, 30, 120))):
+        buf = io.BytesIO()
+        Image.new(mode, (300, 200), color).save(buf, 'PNG')
+        r = upload(c, buf.getvalue(), 'image/png')
+        assert r.status_code == 201, (mode, r.status_code, r.text)
+        view = Image.open(io.BytesIO(c.get(r.json()['view_url']).content))
+        assert view.format == 'JPEG' and view.size == (300, 200)
+
+
+def test_same_photo_uploaded_at_once_is_one_record(app, seed, clock):
+    """Двойное нажатие: одно фото, загруженное одновременно, — одна запись (Codex, 13.10)."""
+    import threading
+    c = login(app, seed, 'anna@example.com')
+    data = jpeg((1, 2, 3))
+    ids, lock = [], threading.Lock()
+
+    def one():
+        r = upload(c, data)
+        with lock:
+            ids.append(r.json()['id'])
+    ts = [threading.Thread(target=one) for _ in range(5)]
+    [t.start() for t in ts]
+    [t.join() for t in ts]
+    assert len(set(ids)) == 1

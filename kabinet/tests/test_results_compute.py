@@ -110,3 +110,11 @@ def test_round1_eliminated_out_of_standing():
     assert not out['p9'].top10 and out['p0'].league_rank == 1
     one = {p.id: p for p in C.compute([person(1, 'gold', {1: 50}), person(2, 'gold', {1: 40})], C.config_defaults({}, [1]))}
     assert one['p2'].excluded is None and one['p2'].league_rank == 2           # Игра из одного тура — это и есть финал
+
+
+def test_total_rounds_half_up_exactly():
+    """37,675 → 37,68: путь 61,75 × 10% + финал 35 × 90% (во float было 37,67; Codex, 13.10)."""
+    c = C.config_defaults({'path_weight': 10}, [1, 2, 3, 4, 5])
+    out = C.compute([person(1, 'gold', {1: 71, 2: 53, 3: 36, 4: 87, 5: 35})], c)
+    assert out[0].total == 37.68
+    assert C.half_up(2.675, 2) == 2.68 and C.half_up(1.005, 2) == 1.01 and C.half_up(-0.5) == 0.0

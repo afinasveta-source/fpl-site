@@ -269,3 +269,9 @@ def test_readiness_missing_revision(client,app):
     finally:
         with app.state.db.transaction() as conn:
             conn.execute('UPDATE alembic_version SET version_num=%s',(old,))
+
+
+def test_import_huge_telegram_id_is_422(client, admin_headers):
+    """Telegram ID больше bigint — понятная ошибка, не сбой сервера (Codex, 13.10)."""
+    r = client.post('/users/import', headers=admin_headers, json={'telegram_id': 10 ** 100, 'full_name': 'Тест'})
+    assert r.status_code == 422

@@ -344,7 +344,9 @@ def store_photo(request, user, data):
         except MediaError as exc:
             raise HTTPException(507 if exc.code == 'storage_full' else 422, exc.code) from None
     with db(request).transaction() as conn:
-        # Тот же файл тем же человеком — та же запись (повторная загрузка ничего не дублирует).
+        # Тот же файл тем же человеком — та же запись (повторная загрузка ничего не дублирует). Одновременные загрузки
+        # одного фото (двойное нажатие) ждут друг друга на этой блокировке — иначе выходило несколько записей (Codex, 13.10).
+        conn.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))", (f"media:{user['id']}:{info['sha256']}",))
         row = conn.execute('''SELECT * FROM media_files WHERE uploaded_by=%s AND sha256=%s AND deleted_at IS NULL
 AND storage_key IS NOT NULL ORDER BY created_at LIMIT 1''', (user['id'], info['sha256'])).fetchone()
         if row is None:
