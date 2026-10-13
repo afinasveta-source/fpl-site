@@ -50,6 +50,8 @@ LEAGUE = {'а': 'gold', 'a': 'gold', 'лига а': 'gold', 'gold': 'gold', 'б'
 YES = {'да', 'yes', '1', 'true', '+'}
 NO = {'нет', 'no', '0', 'false', '-', ''}
 DEFAULT_FORM = {'photo': 'required', 'link': 'required', 'photo_max': 1}
+BOT_TASK_TEXT = ('Тур {no} «{title}» прошёл в боте. Если вашей работы этого тура нет в итогах, загрузите её здесь — '
+                 'она пойдёт вне конкурса, для диплома. Задание — как было в боте.')
 
 # Колонка таблицы → поле. Ищется по началу заголовка (без регистра), порядок колонок не важен.
 COLUMNS = [
@@ -310,6 +312,16 @@ VALUES (%s,%s,%s,%s,'published',%s,%s,%s,%s) RETURNING *''', (ev['id'], no, cfg[
 opens_at=coalesce(opens_at,%s), deadline=coalesce(deadline,%s) WHERE id=%s RETURNING *''',
                              (Jsonb(settings), cfg['title'], Jsonb({'ru': cfg['title']}), cfg['opens'], cfg['deadline'], r['id']))
             self.rounds[no] = r
+            if not self.one('SELECT 1 FROM assignments WHERE round_id=%s', (r['id'],)):
+                # задание тура 1–2 в кабинете — только для сдачи вне конкурса тем, у кого нет оценки из бота (решение 14.10):
+                # на зачёт, диплом и «опоздавших» не влияет; у кого оценка из бота есть, сдать заново не может
+                a = self.one('''INSERT INTO assignments(event_id,round_id,code,title,required_for_competition,required_for_game_count,
+required_for_diploma,on_missed_deadline,settings) VALUES (%s,%s,'work',%s,false,false,false,'none',%s) RETURNING *''',
+                             (ev['id'], r['id'], cfg['title'], Jsonb({'bot_round': True})))
+                self.conn.execute('''INSERT INTO assignment_variants(assignment_id,code,title_i18n,instructions_i18n,submission_schema)
+VALUES (%s,'all',%s,%s,%s)''', (a['id'], Jsonb({'ru': cfg['title']}), Jsonb({'ru': BOT_TASK_TEXT.format(no=no, title=cfg['title'])}),
+                                 Jsonb({'photo': 'required', 'link': 'optional', 'photo_max': 1})))
+                self.count('bot_round_tasks')
         for no, (title, relay) in NEXT_ROUNDS.items():
             r = self.one('SELECT * FROM rounds WHERE event_id=%s AND round_no=%s', (ev['id'], no))
             if r is not None:

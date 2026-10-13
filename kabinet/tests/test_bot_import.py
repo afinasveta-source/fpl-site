@@ -178,3 +178,39 @@ def test_undo_wrong_table_then_import_right_one(app, seed, clock):
     ok(c.post(f'/api/org/claims/{no}/approve', headers=ORIGIN, json={'user_id': uid}))
     assert ok(c.get('/api/org/import/game01'))['undo_blockers'] == ['participants_logged_in']
     assert c.post('/api/org/import/game01/undo', headers=ORIGIN, json={'confirm': 'ОТМЕНИТЬ'}).json()['detail'] == 'participants_logged_in'
+
+
+def test_outside_newcomer_can_upload_rounds_1_2(app, seed, clock):
+    """14.10: кого нет в таблице (рисовала вне конкурса) — «добавить вне конкурса» из заявки; туры 1–2 сдаются в кабинете
+    только теми, у кого нет оценки из бота; на зачёт, диплом и «опоздавших» задания туров 1–2 не влияют."""
+    from kabinet.participation import game as G
+    clock.set(h())
+    with app.state.db.transaction() as conn:
+        add_docs(conn)
+    c = org(app, seed)
+    _, res = do_import(c)
+    eid = res['event_id']
+    with app.state.db.transaction() as conn:
+        tasks = {r['round_no']: r for r in conn.execute('''SELECT a.*, r.round_no FROM assignments a JOIN rounds r ON r.id=a.round_id
+WHERE r.event_id=%s''', (eid,))}
+        assert not tasks[1]['required_for_competition'] and not tasks[1]['required_for_diploma'] and not tasks[2]['required_for_game_count']
+        assert G.sync_event(conn, eid, h()) == 0            # задания туров 1–2 никого не делают «опоздавшим»
+    no = ok(claim(app, full_name='Новикова Мария', email='maria@example.com'), 201)['claim_no']
+    assert ok(c.get('/api/org/claims'))['items'][0]['suggestions'] == []
+    ok(c.post(f'/api/org/claims/{no}/add-outside', headers=ORIGIN, json={'league': 'silver'}))
+    assert c.post(f'/api/org/claims/{no}/add-outside', headers=ORIGIN, json={}).json()['detail'] == 'claim_decided'
+    p = TestClient(app)
+    ok(p.post('/web-auth/login', headers=ORIGIN, json={'email': 'maria@example.com', 'password': PASSWORD}))
+    g = ok(p.get(f'/api/games/{eid}'))
+    assert g['me']['mode'] == 'outside' and g['me']['league'] == 'silver'
+    t1 = ok(p.get(f"/api/games/{eid}/tasks/{tasks[1]['id']}"))
+    assert t1['window']['open'], t1['window']
+    # перенесённая участница с оценкой тура 1 из бота сдать заново не может
+    no2 = ok(claim(app, email='anna@example.com'), 201)['claim_no']
+    uid = ok(c.get('/api/org/claims'))['items'][0]['suggestions'][0]['user_id']
+    ok(c.post(f'/api/org/claims/{no2}/approve', headers=ORIGIN, json={'user_id': uid}))
+    a = TestClient(app)
+    ok(a.post('/web-auth/login', headers=ORIGIN, json={'email': 'anna@example.com', 'password': PASSWORD}))
+    w = ok(a.get(f"/api/games/{eid}/tasks/{tasks[1]['id']}"))['window']
+    assert not w['open'] and w['reason'] == 'done_in_bot'
+    assert ok(c.get('/api/org/import/game01'))['undo_blockers'] == ['participants_logged_in']

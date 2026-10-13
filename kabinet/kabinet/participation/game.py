@@ -236,6 +236,9 @@ def needs_source(game, rnd):
 def window(conn, game, assignment, now, user_id):
     from kabinet import relay
     rnd = game.round_of(assignment)
+    if (rnd['settings'] or {}).get('source') == 'bot' and game.results.get(rnd['id']):
+        # тур прошёл в боте и работа уже оценена — в кабинете её не сдают заново (сдают только те, у кого оценки нет)
+        return R.Window(False, 'done_in_bot')
     w = R.submission_window(game.event, rnd, assignment, game.pas.get(assignment['id']), game.mode, now,
                             rules_ok(conn, user_id, now))
     if w.open and game.mode == R.IN and game.ep['entry_league'] and conn.execute(

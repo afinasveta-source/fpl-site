@@ -191,7 +191,8 @@
         }).join('') + '</div>' : '<p class="small muted">Похожих ФИО в списке нет — поищите вручную (по фамилии или ID SaleBot).</p>') +
           '<form class="search" data-find="' + c.no + '"><label class="sr" for="cl-q-' + c.no + '">Поиск</label><input class="input" id="cl-q-' + c.no + '" type="search" maxlength="100" placeholder="Фамилия или ID SaleBot">' +
           '<button class="btn sec small" type="submit">Найти</button></form><div class="stack" id="cl-found-' + c.no + '"></div>' +
-          '<div class="row"><button class="btn ghost small" type="button" data-act="clReject" data-no="' + c.no + '">Отклонить</button></div>';
+          '<div class="row"><button class="btn sec small" type="button" data-act="clOutside" data-no="' + c.no + '" data-n="' + esc(c.full_name) + '">Её нет в списке — добавить вне конкурса</button>' +
+          '<button class="btn ghost small" type="button" data-act="clReject" data-no="' + c.no + '">Отклонить</button></div>';
       }
       return x + '</section>';
     }).join('');
@@ -210,6 +211,17 @@
       });
     });
   }
+  K.actions.clOutside = function (b) {
+    var no = b.getAttribute('data-no');
+    O.confirm({ title: 'Добавить «' + b.getAttribute('data-n') + '» в Игру 01 вне конкурса?',
+      html: '<p>Для тех, кого нет в таблице бота. Появится новый вход (email и пароль из заявки), участница будет в Игре 01 вне конкурса: ' +
+        'может сдать работы всех туров, включая 1 и 2, до конца Игры. Диплом решаете потом.</p>' +
+        '<div class="field"><label for="cl-lg">Лига (нужна, чтобы в эстафете получить исходник своей лиги)</label><select class="input" id="cl-lg">' +
+        '<option value="">Без лиги</option><option value="gold">Gold (Лига А)</option><option value="silver">Silver (Лига Б)</option></select></div>',
+      ok: 'Добавить', path: '/api/org/claims/' + no + '/add-outside',
+      body: function () { var v = document.getElementById('cl-lg').value; return { league: v || null }; },
+      done: function () { K.toast('Добавлена вне конкурса — вход открыт'); O.refreshCounts(); K.route(); } });
+  };
   K.actions.clApprove = function (b) {
     var no = b.getAttribute('data-no');
     O.confirm({ title: 'Открыть вход для заявки № ' + no + '?', text: 'Запись «' + b.getAttribute('data-n') + '» получит email и пароль из заявки. Отменить это можно только через поддержку.',

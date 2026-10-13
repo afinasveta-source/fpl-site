@@ -479,7 +479,8 @@
       var c = res.data, docs = c.documents || {};
       K.authPage('<div class="stack"><span class="eyebrow">Face Painting League · ' + esc(c.game) + '</span><h1>Продолжить Игру в кабинете</h1>' +
         '<p class="muted">Бот лиги временно не работает, поэтому ' + esc(c.game) + ' продолжается здесь — с 3 тура. Ваши баллы туров 1–2, лига и рейтинг уже перенесены. ' +
-        'Заполните форму: организатор найдёт вас в списке участниц и откроет вход — обычно в течение дня. Потом входите с этим email и паролем.</p></div>' +
+        'Заполните форму: организатор найдёт вас в списке участниц и откроет вход — обычно в течение дня. Потом входите с этим email и паролем.</p>' +
+        '<p class="small muted">Рисовали вне конкурса или пропустили туры? Тоже заполните форму — вас добавят, и работы туров 1–2 можно будет загрузить здесь.</p></div>' +
         '<form class="card" id="f-claim" novalidate>' +
         field('full_name', 'Фамилия, имя, отчество — как в боте', 'text', 'autocomplete="name" required maxlength="200"') +
         field('email', 'Email', 'email', 'autocomplete="username" required') +

@@ -7,6 +7,7 @@
 До подтверждения аккаунта нет. Пароль хранится только хешем. Чужую запись занять нельзя: подтверждает человек.
 """
 import re
+from typing import Literal
 from uuid import UUID
 
 import psycopg
@@ -246,3 +247,60 @@ def reject(claim_no: int, body: Reject, request: Request, user=Depends(org_user)
 WHERE id=%s RETURNING *''', (user['id'], now, body.note.strip(), c['id'])).fetchone()
         audit(conn, user['id'], 'account_claim', c['id'], 'claim_rejected', {'claim_no': c['claim_no']})
         return claim_view(c)
+
+
+class AddOutside(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    league: Literal['gold', 'silver'] | None = None
+
+
+@org.post('/{claim_no}/add-outside', dependencies=WRITE)
+def add_outside(claim_no: int, body: AddOutside, request: Request, user=Depends(org_user)):
+    """Человека нет в таблице бота (рисовала вне конкурса, тура 1 в судействе не было): новый вход и запись в Игру 01
+    вне конкурса (решение 14.10). Туры 1–2 она может сдать в кабинете вне конкурса; диплом решается потом."""
+    now = now_of(request)
+    with db(request).transaction() as conn:
+        locked_admin(conn, user)
+        c = conn.execute('SELECT * FROM account_claims WHERE claim_no=%s FOR UPDATE', (claim_no,)).fetchone()
+        if not c:
+            raise HTTPException(404, 'Not found')
+        if c['status'] != 'pending':
+            raise problem('claim_decided', 409)
+        ev = conn.execute('SELECT * FROM events WHERE id=%s', (c['event_id'],)).fetchone()
+        if not ev or not (ev['settings'] or {}).get('moved_to_kabinet'):
+            raise problem('not_moved', 409)
+        if conn.execute('SELECT 1 FROM users WHERE lower(email)=%s', (c['email'].lower(),)).fetchone():
+            raise problem('email_taken', 409)
+        conn.execute('SAVEPOINT outside')
+        try:
+            person = conn.execute('''INSERT INTO users(email,password_hash,email_verified_at,account_status,full_name,display_name,
+country_code,city,public_works,public_social,public_rating) VALUES (%s,%s,%s,'active',%s,%s,%s,%s,true,true,true) RETURNING *''',
+                                  (c['email'], c['password_hash'], now, c['full_name'], R.name_for_site(c['full_name']),
+                                   c['country_code'], c['city'])).fetchone()
+        except psycopg.errors.UniqueViolation:
+            conn.execute('ROLLBACK TO SAVEPOINT outside')
+            raise problem('email_taken', 409) from None
+        conn.execute("INSERT INTO user_roles(user_id,role) VALUES (%s,'participant') ON CONFLICT DO NOTHING", (person['id'],))
+        ep = conn.execute('''INSERT INTO event_participants(event_id,user_id,registration_status,eligibility_status,payment_status,
+competition_status,elimination_reason,out_of_competition_at,out_of_competition_source,entry_league,joined_at)
+VALUES (%s,%s,'participating','eligible','not_required','diploma_only','admin',%s,'admin',%s,%s) RETURNING *''',
+                          (ev['id'], person['id'], now, body.league, now)).fetchone()
+        docs = (c['consents'] or {}).get('documents') or {}
+        for kind in KINDS:
+            d = docs.get(kind)
+            if not d:
+                continue
+            conn.execute('''INSERT INTO consents(user_id,event_id,consent_type,accepted,status,document_version,legal_document_id,channel,
+button_text,idempotency_key,recorded_at,metadata) VALUES (%s,%s,%s,true,'accepted',%s,%s,'web',%s,%s,%s,%s)
+ON CONFLICT (idempotency_key) DO NOTHING''', (person['id'], c['event_id'], kind, d['version'], d['id'], 'Войти в кабинет — Игра 01',
+                                                f"claim:{c['claim_no']}:{kind}", c['created_at'],
+                                                Jsonb({'claim_no': c['claim_no'], 'adult_confirmed': True})))
+        conn.execute('''UPDATE account_claims SET status='approved', matched_user_id=%s, decided_by=%s, decided_at=%s,
+password_hash='-', decision_note=%s WHERE id=%s''', (person['id'], user['id'], now, 'Добавлена вне конкурса', c['id']))
+        audit(conn, user['id'], 'event_participant', ep['id'], 'claim_added_outside',
+              {'claim_no': c['claim_no'], 'claim_name': c['full_name'], 'league': body.league})
+        notify(conn, person['id'], 'reg', f"claim:{c['claim_no']}",
+               {'title': 'Добро пожаловать в кабинет лиги',
+                'text': 'Вы в Игре 01 вне конкурса. Работы всех туров, включая 1 и 2, можно сдать до конца Игры.',
+                'route': 'game', 'event_id': str(c['event_id'])}, c['event_id'])
+        return claim_view(conn.execute('SELECT * FROM account_claims WHERE id=%s', (c['id'],)).fetchone())

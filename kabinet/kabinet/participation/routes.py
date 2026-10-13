@@ -286,7 +286,7 @@ def render_task(conn, request, game, assignment, user_id, now):
     rnd = game.round_of(assignment)
     if game.ep is not None:
         w = G.window(conn, game, assignment, now, user_id)
-        if not w.open and w.reason in ('judging_started', 'no_source', 'source_pending'):
+        if not w.open and w.reason in ('judging_started', 'no_source', 'source_pending', 'done_in_bot'):
             out['window'] = {'open': False, 'reason': w.reason, 'deadline': V.iso(w.deadline), 'source': w.deadline_source}
     if G.needs_source(game, rnd):
         photos = relay.source_rows(conn, rnd['id'], [game.ep['id']]).get(game.ep['id'], [])
