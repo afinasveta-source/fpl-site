@@ -1,5 +1,6 @@
 """Вход из браузера: сессия в cookie (HttpOnly, SameSite=Strict), страницы кабинета, первый администратор."""
 import hashlib
+import re
 import hmac
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -289,4 +290,20 @@ def page(request: Request):
         return JSONResponse(status_code=503, content={'detail': 'Interface files are missing'})
     # Адрес кабинета на сервере (/kabinet) подставляется в ссылки на файлы и запросы страницы.
     html = index.read_text(encoding='utf-8').replace('{{ROOT}}', request.app.state.settings.root_path)
+    # после обновления браузер берёт новые файлы, а не старые из кеша: к ссылкам добавляется метка версии
+    html = re.sub(r'(/assets/[A-Za-z0-9_.-]+\.(?:js|css|svg))"', lambda m: f'{m.group(1)}?v={asset_version()}"', html)
     return HTMLResponse(html)
+
+
+_ASSET_VERSION = None
+
+
+def asset_version():
+    global _ASSET_VERSION
+    if _ASSET_VERSION is None:
+        h = hashlib.sha256()
+        for f in sorted((STATIC / 'assets').glob('*')):
+            if f.is_file():
+                h.update(f.name.encode()); h.update(f.read_bytes())
+        _ASSET_VERSION = h.hexdigest()[:10]
+    return _ASSET_VERSION

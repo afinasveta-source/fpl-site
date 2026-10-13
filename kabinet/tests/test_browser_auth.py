@@ -102,7 +102,7 @@ def test_frontend_pages_and_local_assets(client):
         response=client.get(url)
         assert response.status_code==200 and '<html lang="ru">' in response.text
         assert 'noindex,nofollow' in response.text and 'frame-ancestors' in response.headers['Content-Security-Policy']
-        assert '{{ROOT}}' not in response.text and 'src="/assets/core.js"' in response.text
+        assert '{{ROOT}}' not in response.text and 'src="/assets/core.js?v=' in response.text
     for url in ('/assets/core.js','/assets/pages.js','/assets/org.js','/assets/org-people.js','/assets/org-judging.js','/assets/judge.js','/assets/account.js','/assets/cabinet.css','/assets/kabinet.css','/assets/fonts.css'):
         assert client.get(url).status_code==200, url
     # шрифты — с сайта (тот же домен), а не из кабинета

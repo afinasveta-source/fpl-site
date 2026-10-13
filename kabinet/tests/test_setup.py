@@ -61,7 +61,7 @@ def test_root_path_and_disabled_mail(database_dsn, app):
         for asset in ('/assets/core.js', '/assets/pages.js', '/assets/org.js', '/assets/org-people.js', '/assets/org-judging.js', '/assets/judge.js', '/assets/account.js', '/assets/cabinet.css', '/assets/fonts.css'):
             assert c.get(asset).status_code == 200, asset
         page = c.get('/')
-        assert 'src="/kabinet/assets/core.js"' in page.text and 'data-root="/kabinet"' in page.text
+        assert 'src="/kabinet/assets/core.js?v=' in page.text and 'data-root="/kabinet"' in page.text
         assert c.get('/web-auth/config').json()['mail_delivery'] is False
         with app2.state.db.transaction() as conn:
             conn.execute("""INSERT INTO users(email,password_hash,email_verified_at,account_status)

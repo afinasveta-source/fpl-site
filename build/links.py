@@ -70,5 +70,15 @@ c = open(css, encoding='utf-8').read()
 if 'a.btn-wide' not in c:
     c += '\n/* кнопки-ссылки */\na.btn-wide,a.btn-outline{text-decoration:none; display:inline-flex; align-items:center; justify-content:center; text-align:center}\n.mbar a.btn-wide{display:flex}\n.mmenu-foot a.btn-wide{display:flex}\n'
     open(css, 'w', encoding='utf-8').write(c)
+# метка версии к стилям и скриптам: сервер отдаёт /assets/ с кешем на 7 дней — без метки браузер неделю показывал бы старое
+import hashlib
+for f in glob.glob(D + '/*.html') + glob.glob(D + '/ru/*.html') + glob.glob(D + '/admin/*.html'):
+    s = open(f, encoding='utf-8').read()
+    def ver(m):
+        path = os.path.join(D, 'assets', m.group(2))
+        if not os.path.exists(path): return m.group(0)
+        return m.group(1) + m.group(2) + '?v=' + hashlib.sha256(open(path, 'rb').read()).hexdigest()[:10] + '"'
+    t = re.sub(r'((?:\.\./|/)?assets/)([A-Za-z0-9_.-]+\.(?:css|js))(?:\?v=[0-9a-f]+)?"', ver, s)
+    if t != s: open(f, 'w', encoding='utf-8').write(t)
 print('изменено файлов:', cnt)
 
