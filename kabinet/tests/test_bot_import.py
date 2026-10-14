@@ -270,6 +270,11 @@ def test_self_registered_player_is_linked_to_bot_record(app, seed, clock):
         old = conn.execute('SELECT * FROM users WHERE id=%s', (elena['user_id'],)).fetchone()
         assert old['account_status'] == 'deleted' and old['email'] is None and old['deleted_at'] is not None
         assert conn.execute("SELECT count(*) AS n FROM consents WHERE user_id=%s AND consent_type='marketing'", (bot,)).fetchone()['n'] == 1
+    # организатор видит итоги туров 1–2 из бота и в карточке, и в списке участниц (14.10)
+    ep = ok(c.get(f'/api/org/events/{eid}/participants?q=' + 'Кузнецова'))['participants'][0]
+    assert [x['score'] for x in ep['rounds'][:2]] == [70.0, 88.0] and ep['rounds'][0]['from_bot']
+    card = ok(c.get(f"/api/org/participants/{ep['id']}"))
+    assert card['rounds'][1]['result'] == {'score': 88.0, 'advanced': True} and card['rounds'][1]['from_bot']
     left = ok(c.get('/api/org/claims/accounts'))['items']
     assert [a['email'] for a in left] == ['newbie@example.com']
     # новичка с запись из бота, у которой уже есть вход, не соединить

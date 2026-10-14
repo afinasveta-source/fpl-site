@@ -232,7 +232,11 @@
               '<td data-label="Статус">' + O.st(O.MODE, p.mode) + '</td><td data-label="Лига">' + esc(p.league ? LEAGUE[p.league] : '—') + '</td>' +
               p.rounds.map(function (c) {
                 var w = c.work, txt = w ? CELL[w] : '—';
-                return '<td class="c" data-label="Тур ' + c.round_no + '"><div>' + (w && w !== 'plan' ? '<span class="cell ' + w + '" title="' + esc(O.WORK[w][0]) + '">' + esc(txt) + '</span>' : '<span class="muted">' + (w === 'plan' ? 'не открыт' : '—') + '</span>') +
+                // туры из бота: работы в кабинете нет, есть итог — показываем баллы (14.10)
+                var shown = c.score != null && (c.from_bot || !w || w === 'none' || w === 'missed')
+                  ? '<span class="cell sent" title="Итог тура' + (c.from_bot ? ' (из бота)' : '') + '">' + esc(String(c.score)) + '</span>'
+                  : (c.from_bot && w !== 'sent' && w !== 'sent_late' ? '<span class="muted" title="Тур прошёл в боте, итога нет">бот · —</span>' : null);
+                return '<td class="c" data-label="Тур ' + c.round_no + '"><div>' + (shown || (w && w !== 'plan' ? '<span class="cell ' + w + '" title="' + esc(O.WORK[w][0]) + '">' + esc(txt) + '</span>' : '<span class="muted">' + (w === 'plan' ? 'не открыт' : '—') + '</span>')) +
                   (c.personal_deadline ? '<span class="small muted">личный срок до ' + esc(K.day(c.personal_deadline)) + '</span>' : '') + '</div></td>';
               }).join('') + '</tr>';
           }).join('') + '</tbody></table></div>';
@@ -349,13 +353,18 @@
     h += '<section class="card"><h2>Туры</h2>' + (x.rounds.length ? x.rounds.map(function (r) {
       var src = { personal: 'личный срок', assignment: 'срок её лиги', round: 'общий срок тура' }[r.deadline_source] || '';
       var s = r.submitted;
-      return '<div class="round-row"><div class="between"><h3>Тур ' + r.round_no + ' · ' + esc(r.title) + '</h3>' + (r.opened ? O.st(O.WORK, r.work) : pill('Не открыт', 'plain')) + '</div>' +
-        '<p class="small muted">Срок: ' + esc(O.when(r.deadline)) + (src ? ' (' + src + ')' : '') + (r.personal ? ' · причина: ' + esc(r.personal.reason || '—') : '') + '</p>' +
+      var botRow = r.from_bot && !s;
+      return '<div class="round-row"><div class="between"><h3>Тур ' + r.round_no + ' · ' + esc(r.title) + '</h3>' +
+        (botRow ? pill('Прошёл в боте', 'plain') : r.opened ? O.st(O.WORK, r.work) : pill('Не открыт', 'plain')) + '</div>' +
+        (r.result ? '<p><b>Итог тура: ' + esc(String(r.result.score != null ? r.result.score : '—')) + ' баллов</b>' +
+          (r.result.advanced === true ? ' · прошла дальше' : r.result.advanced === false ? ' · не прошла отбор' : '') + (r.from_bot ? ' <span class="small muted">(из бота)</span>' : '') + '</p>'
+          : botRow ? '<p class="small muted">Итога из бота нет — работу можно сдать в кабинете вне конкурса.</p>' : '') +
+        (botRow ? '' : '<p class="small muted">Срок: ' + esc(O.when(r.deadline)) + (src ? ' (' + src + ')' : '') + (r.personal ? ' · причина: ' + esc(r.personal.reason || '—') : '') + '</p>') +
         (s ? '<div class="thumbs">' + s.photos.map(function (ph) {
           return '<a href="' + esc(ph.view_url) + '" target="_blank" rel="noopener"><img src="' + esc(ph.thumb_url) + '" alt="Фото работы, тур ' + r.round_no + '" loading="lazy"></a>';
         }).join('') + '</div><p class="small muted">Сдана ' + esc(O.when(s.submitted_at)) + (s.is_on_time ? '' : ' · после срока') + (s.version_no > 1 ? ' · версия ' + s.version_no : '') +
           (s.link ? ' · <a href="' + esc(s.link) + '" target="_blank" rel="noopener nofollow">ссылка</a>' : '') + '</p>' : '') +
-        (live && r.opened && !s ? '<button class="btn sec small" type="button" data-act="partDeadline" data-r="' + r.round_id + '">' + (r.personal ? 'Изменить личный срок' : 'Продлить срок') + '</button>' : '') + '</div>';
+        (live && r.opened && !s && !r.from_bot ? '<button class="btn sec small" type="button" data-act="partDeadline" data-r="' + r.round_id + '">' + (r.personal ? 'Изменить личный срок' : 'Продлить срок') + '</button>' : '') + '</div>';
     }).join('') : '<p class="muted">Туры ещё не опубликованы.</p>') + '</section>';
     h += '<section class="card"><h2>Журнал</h2>' + (x.log.length ? '<ul class="log">' + x.log.map(function (l) {
       var extra = l.data && l.data.round_no ? ' · тур ' + l.data.round_no : '';

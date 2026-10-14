@@ -88,6 +88,7 @@ ps.current_rating, ps.rating_status FROM event_participants p JOIN users u ON u.
 LEFT JOIN participant_stats ps ON ps.user_id=p.user_id AND ps.rating_status<>'unrated'
 WHERE p.event_id=%s ORDER BY p.joined_at NULLS LAST, p.created_at''', (event_id,)).fetchall()
         rounds, mains = event_structure(conn, event_id)
+        scores = round_scores(conn, event_id)
         pas, subs, drafts = works_of(conn, [r['id'] for r in rows], [a['id'] for a in mains.values()])
         variants = variants_of(conn, [a['id'] for a in mains.values()])
         rules_doc = G.rules_document(conn, now)
@@ -114,7 +115,9 @@ WHERE legal_document_id=%s ORDER BY user_id, recorded_at DESC, id DESC''', (rule
             pa = pas.get((p['id'], a['id']))
             sub = subs.get(pa['id']) if pa else None
             er, a = effective(r, a, variants, pa, p)
+            res = scores.get((str(p['id']), str(r['id'])))
             cells.append({'round_no': r['round_no'], 'work': work_state(er, a, pa, sub, bool(sub and sub['id'] in drafts), now),
+                          'score': res['score'] if res else None, 'from_bot': (r['settings'] or {}).get('source') == 'bot',
                           'personal_deadline': iso(pa['deadline_override']) if pa and pa['deadline_override'] else None})
         out.append({'id': str(p['id']), 'user_id': str(p['user_id']), 'name': person_name(p), 'email': p['email'],
                     'city': p['city'], 'country_code': p['country_code'], 'mode': m, 'league': p['entry_league'],
@@ -134,12 +137,23 @@ def load_ep(conn, ep_id, lock=False):
     return ep
 
 
+def round_scores(conn, event_id, ep_ids=None):
+    """Опубликованные итоги туров (в том числе туры 1–2 из бота): {(участие, тур): {score, advanced}} — чтобы организатор
+    видел баллы там, где работы в кабинете нет (14.10: «у всех нет данных» в карточке)."""
+    rows = conn.execute('''SELECT event_participant_id, round_id, display_score, advanced FROM round_results
+WHERE event_id=%s AND is_current AND status='published' AND (%s::uuid[] IS NULL OR event_participant_id = ANY(%s::uuid[]))''',
+                        (event_id, ep_ids, ep_ids)).fetchall()
+    return {(str(r['event_participant_id']), str(r['round_id'])): {
+        'score': float(r['display_score']) if r['display_score'] is not None else None, 'advanced': r['advanced']} for r in rows}
+
+
 def participant_detail(conn, ep, request, now):
     e = load_event(conn, ep['event_id'])
     u = conn.execute('SELECT * FROM users WHERE id=%s', (ep['user_id'],)).fetchone()
     game = G.load(conn, ep['event_id'], ep['user_id'])
     root = request.app.state.settings.root_path
     rounds_out = []
+    scores = round_scores(conn, ep['event_id'], [ep['id']])
     for r in game.rounds:
         items = game.assignments.get(r['id'], [])
         a = items[0] if items else None
@@ -157,6 +171,8 @@ def participant_detail(conn, ep, request, now):
             'personal': {'deadline': iso(pa['deadline_override']), 'reason': pa['deadline_override_reason']}
             if pa and pa['deadline_override'] else None,
             'work': work_state(r, a, pa, sub, bool(versions.get('draft')), now),
+            'result': scores.get((str(ep['id']), str(r['id']))),
+            'from_bot': (r['settings'] or {}).get('source') == 'bot',
             'submitted': V.version_view(game, latest, root) | {'is_on_time': sub['is_on_time'],
                                                                'first_submitted_at': iso(sub['first_submitted_at'])}
             if latest else None})
