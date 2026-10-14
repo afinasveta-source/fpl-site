@@ -166,6 +166,10 @@ audio.wide{width:100%;margin-block:8px}
 
 /* фото работ из бота: предпросмотр прямо с источника */
 .bp-phs{display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap}
+.bp-zoom{padding:0;border:0;background:none;cursor:zoom-in;border-radius:8px}
+.bp-lb{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.82);display:flex;align-items:center;justify-content:center;padding:56px 16px 16px;cursor:zoom-out}
+.bp-lb img{max-width:100%;max-height:100%;object-fit:contain;border-radius:8px;cursor:default}
+.bp-lb-x{position:absolute;top:12px;right:16px}
 .bp-ph{display:block;width:96px;max-height:120px;object-fit:cover;border-radius:8px;background:var(--sunk)}
 .bp-cur{width:64px;max-height:80px;opacity:.85}
 .bp-table td input[type=checkbox]{width:20px;height:20px}

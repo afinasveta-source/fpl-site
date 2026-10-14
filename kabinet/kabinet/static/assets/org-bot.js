@@ -119,7 +119,10 @@
      Адреса фото туров 1–2 восстановлены по ID участника SaleBot; часть фото тура 2 — догадки. Организатор вставляет список,
      смотрит фото (прямо с источника, сервер ничего не качает), снимает отметки с сомнительных и переносит отмеченные —
      пачками по 5. Повторный перенос безопасен: уже перенесённое пропускается, новый адрес — исправление (новая версия). */
-  var BP = { text: '', rows: null, counts: null, errors: [], results: {}, checked: {}, running: false, stop: false, prog: null };
+  var BP_KEY = 'fpl-bp-text';
+  function bpLoad() { try { return sessionStorage.getItem(BP_KEY) || ''; } catch (e) { return ''; } }
+  function bpSave(v) { try { sessionStorage.setItem(BP_KEY, v); } catch (e) { /* без хранилища — просто не запоминаем */ } }
+  var BP = { text: bpLoad(), rows: null, counts: null, errors: [], results: {}, checked: {}, running: false, stop: false, prog: null };
   var BP_PATH = '/api/org/import/game01/photos';
   var BP_STATUS = {
     ok: ['Можно перенести', 'ok'], replace: ['Заменит фото из бота', 'warn'], same: ['Уже перенесено', 'plain'],
@@ -178,7 +181,7 @@
   function photosBind() {
     var ta = document.getElementById('bp-text');
     if (!ta) return;
-    ta.addEventListener('input', function () { BP.text = ta.value; });
+    ta.addEventListener('input', function () { BP.text = ta.value; bpSave(ta.value); });
     bpDraw();
   }
   function bpSelected() {
@@ -194,11 +197,11 @@
   }
   function bpRow(r) {
     var st = BP_STATUS[r.status] || [r.status, 'plain'], pick = !!BP_PICK[r.status], x = BP.results[r.index];
-    var ph = r.url && r.status !== 'bad_url' ? '<a href="' + esc(r.url) + '" target="_blank" rel="noopener noreferrer"><img class="bp-ph" src="' + esc(r.url) + '" alt="Фото из бота: ' +
-      esc(r.name || r.cid) + ', тур ' + r.round + '" loading="lazy" referrerpolicy="no-referrer"></a>' : '<span class="small muted">—</span>';
-    if (x && x.photo) ph += '<a href="' + esc(x.photo.view_url) + '" target="_blank" rel="noopener"><img class="bp-ph bp-cur" src="' + esc(x.photo.thumb_url) + '" alt="Сохранённое фото" loading="lazy"></a>';
-    else if (r.current && r.status === 'replace') ph += '<span class="small muted">Сейчас:</span><a href="' + esc(r.current.view_url) + '" target="_blank" rel="noopener"><img class="bp-ph bp-cur" src="' +
-      esc(r.current.thumb_url) + '" alt="Фото, перенесённое раньше" loading="lazy"></a>';
+    var ph = r.url && r.status !== 'bad_url' ? '<button type="button" class="bp-zoom" data-act="bpZoom" data-src="' + esc(r.url) + '" aria-label="Увеличить фото"><img class="bp-ph" src="' + esc(r.url) + '" alt="Фото из бота: ' +
+      esc(r.name || r.cid) + ', тур ' + r.round + '" loading="lazy" referrerpolicy="no-referrer"></button>' : '<span class="small muted">—</span>';
+    if (x && x.photo) ph += '<button type="button" class="bp-zoom" data-act="bpZoom" data-src="' + esc(x.photo.view_url) + '" aria-label="Увеличить фото"><img class="bp-ph bp-cur" src="' + esc(x.photo.thumb_url) + '" alt="Сохранённое фото" loading="lazy"></button>';
+    else if (r.current && r.status === 'replace') ph += '<span class="small muted">Сейчас:</span><button type="button" class="bp-zoom" data-act="bpZoom" data-src="' + esc(r.current.view_url) + '" aria-label="Увеличить фото"><img class="bp-ph bp-cur" src="' +
+      esc(r.current.thumb_url) + '" alt="Фото, перенесённое раньше" loading="lazy"></button>';
     return '<tr><td data-label="Перенести"><input type="checkbox" data-act="bpCheck" data-i="' + r.index + '" aria-label="Перенести фото ' + esc(r.name || r.cid) + ', тур ' + r.round + '"' +
       (pick ? (BP.checked[r.index] ? ' checked' : '') : ' disabled') + (BP.running ? ' disabled' : '') + '></td>' +
       '<td data-label="Фото"><div class="bp-phs">' + ph + '</div></td>' +
@@ -229,7 +232,7 @@
     box.innerHTML = h;
     // фото, которое не открылось у источника, видно сразу
     Array.prototype.forEach.call(box.querySelectorAll('img.bp-ph:not(.bp-cur)'), function (img) {
-      img.addEventListener('error', function () { var a = img.parentNode; a.outerHTML = '<span class="pill bad">Фото не открылось</span>'; });
+      img.addEventListener('error', function () { var a = img.parentNode; if (a && a.classList.contains('bp-zoom')) a.outerHTML = '<span class="pill bad">Фото не открылось</span>'; });
     });
   }
   function bpCount() {
@@ -251,6 +254,22 @@
       BP.rows.forEach(function (x) { if (BP_PICK[x.status]) BP.checked[x.index] = true; });
       bpDraw();
     });
+  };
+  // Увеличенное фото — поверх страницы: закрывается кнопкой, Esc или щелчком мимо фото (14.10: ссылка в новое окно
+  // во встроенном браузере открывала фото вместо страницы, и список пропадал).
+  K.actions.bpZoom = function (b) {
+    var old = document.getElementById('bp-lb');
+    if (old) old.remove();
+    var box = document.createElement('div');
+    box.id = 'bp-lb'; box.className = 'bp-lb'; box.setAttribute('role', 'dialog'); box.setAttribute('aria-modal', 'true'); box.setAttribute('aria-label', 'Фото');
+    box.innerHTML = '<button type="button" class="btn bp-lb-x">Закрыть ✕</button><img alt="Фото работы" referrerpolicy="no-referrer">';
+    box.querySelector('img').src = b.getAttribute('data-src');
+    function close() { box.remove(); document.removeEventListener('keydown', key); b.focus(); }
+    function key(e) { if (e.key === 'Escape') close(); }
+    box.addEventListener('click', function (e) { e.stopPropagation(); if (e.target === box || e.target.classList.contains('bp-lb-x')) close(); });
+    document.addEventListener('keydown', key);
+    document.body.appendChild(box);
+    box.querySelector('.bp-lb-x').focus();
   };
   K.actions.bpCheck = function (b) { BP.checked[b.getAttribute('data-i')] = b.checked; bpCount(); };
   K.actions.bpAll = function (b) {
