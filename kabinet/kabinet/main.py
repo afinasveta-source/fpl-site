@@ -17,6 +17,7 @@ from kabinet.users.routes import router as users_router
 from kabinet.web.routes import router as web_router, STATIC
 from kabinet.participation.routes import router as participant_router
 from kabinet.participation.account import router as account_router
+from kabinet.participation.gallery import router as gallery_router
 from kabinet.participation.media import MediaStore
 from kabinet.org import games as org_games, rounds as org_rounds, documents as org_documents, people as org_people
 from kabinet.judging import routes as judging_routes
@@ -110,6 +111,7 @@ def create_app(settings=None, mailer=None, clock=None):
     app.include_router(web_router)
     app.include_router(participant_router)
     app.include_router(account_router)
+    app.include_router(gallery_router)
     for module in (org_home, org_overview, org_games, org_rounds, org_documents, org_people, org_participants, org_support, org_bot_import, org_bot_photos):
         app.include_router(module.router)
     app.include_router(org_support.public)

@@ -830,4 +830,140 @@
       K.go('/games/' + T.ids[0] + '/tasks/' + T.ids[1], true);
     });
   };
+
+  /* ---------- Галерея тура (15.10) ----------
+     Работы тура — только после публикации итогов и только тех, кто разрешил показ (своя — всегда). Без баллов и мест.
+     Сверху — TOP WORK по лигам, ниже — все работы (фильтр по лиге, по 60 за раз). Фото — поверх страницы, стрелки и Esc. */
+  var GAL = { ov: null, g: null, r: null, data: null, league: '', shown: 60, list: [], at: 0 };
+  var GAL_STEP = 60, GAL_LEAGUES = ['gold', 'silver', 'bronze', 'none'];
+  K.on(/^\/gallery$/, function () {
+    var crumbs = [['Галерея']];
+    K.load(['/api/gallery'], function (ov) {
+      GAL.ov = ov;
+      var q = K.query(), ev = q.get('event'), rd = q.get('round');
+      var g = ov.games.filter(function (x) { return x.id === ev; })[0] ||
+        (ov.default ? ov.games.filter(function (x) { return x.id === ov.default.event_id; })[0] : null);
+      if (!g) {
+        K.page('<h1>Галерея</h1><section class="card empty"><p>Здесь будут работы туров ваших Игр — после публикации итогов.</p>' +
+          '<button class="btn ghost" type="button" data-href="/events">Игры лиги</button></section>', crumbs);
+        return;
+      }
+      var pub = g.rounds.filter(function (x) { return x.published; });
+      var r = g.rounds.filter(function (x) { return x.id === rd; })[0] ||
+        (ov.default && ov.default.event_id === g.id ? g.rounds.filter(function (x) { return x.id === ov.default.round_id; })[0] : null) ||
+        pub[pub.length - 1] || g.rounds[g.rounds.length - 1];
+      GAL.g = g; GAL.r = r; GAL.league = q.get('league') || ''; GAL.shown = GAL_STEP; GAL.data = null;
+      if (!r) { galDraw(); return; }
+      if (ev !== g.id || rd !== r.id) history.replaceState(null, '', K.ROOT + '/gallery?event=' + g.id + '&round=' + r.id);
+      var stamp = K.route.stamp;
+      K.api('GET', '/api/gallery/' + g.id + '/rounds/' + r.id).then(function (res) {
+        if (stamp !== K.route.stamp) return;
+        if (!res.ok) { K.failed(res, crumbs); return; }
+        GAL.data = res.data; galDraw();
+      });
+      galDraw();
+    }, crumbs);
+  });
+  function galLeague(l) { return l && l !== 'none' ? K.LEAGUE[l] : 'Без лиги'; }
+  function galTile(it, list, i) {
+    return '<button class="gal-tile" type="button" data-act="galOpen" data-l="' + list + '" data-i="' + i + '" aria-label="Работа: ' + esc(it.author) + '">' +
+      '<span class="gal-ph"><img src="' + esc(it.photo.thumb_url) + '" alt="" loading="lazy" decoding="async"></span>' +
+      '<span class="gal-cap"><b>' + esc(it.author) + '</b><span>' + esc(galLeague(it.league)) + '</span></span>' +
+      (it.top_work || it.own ? '<span class="gal-tags">' + (it.top_work ? '<i class="gal-tw">TOP WORK</i>' : '') + (it.own ? '<i class="gal-me">' + (it.only_you ? 'Ваша · видна только вам' : 'Ваша') + '</i>' : '') + '</span>' : '') +
+      '</button>';
+  }
+  function galAll() {
+    var items = GAL.data ? GAL.data.items : [];
+    return GAL.league ? items.filter(function (x) { return (x.league || 'none') === GAL.league; }) : items;
+  }
+  function galDraw() {
+    var ov = GAL.ov, g = GAL.g, r = GAL.r, d = GAL.data;
+    var h = '<div class="stack" data-s="g6"><h1>Галерея</h1><p class="small muted">Работы туров — после публикации итогов. Показываются работы тех, кто разрешил их показывать; ' +
+      'ваша работа видна вам всегда. Баллов и мест здесь нет.</p></div>' +
+      '<section class="card gal-pick" data-nodraft><div class="field"><label for="gal-game">Игра</label><select class="input" id="gal-game">' +
+      ov.games.map(function (x) { return '<option value="' + x.id + '"' + (x.id === g.id ? ' selected' : '') + '>' + esc(x.title) + '</option>'; }).join('') + '</select></div>' +
+      '<div class="field"><label for="gal-round">Тур</label><select class="input" id="gal-round"' + (g.rounds.length ? '' : ' disabled') + '>' +
+      (g.rounds.length ? g.rounds.map(function (x) {
+        return '<option value="' + x.id + '"' + (r && x.id === r.id ? ' selected' : '') + '>Тур ' + x.round_no + (x.title && !/^Тур\s*\d+$/i.test(x.title) ? ' · ' + esc(x.title) : '') +
+          (x.published ? '' : ' — итоги ещё не опубликованы') + '</option>';
+      }).join('') : '<option>Туров пока нет</option>') + '</select></div></section>';
+    if (!r) h += '<div class="note">В этой Игре ещё нет туров.</div>';
+    else if (!d) h += '<div class="stack" aria-busy="true"><div class="skel" data-s="h120"></div><div class="skel"></div></div>';
+    else if (!d.round.published) h += '<section class="card empty"><p>Итоги тура ещё не опубликованы — работы появятся после публикации.</p></section>';
+    else if (!d.total) h += '<section class="card empty"><p>Пока нет работ, которые авторы разрешили показывать.</p></section>';
+    else {
+      if (d.top.length) {
+        h += '<section class="stack gal-sec"><h2>TOP WORK</h2>' + GAL_LEAGUES.map(function (l) {
+          var part = d.top.map(function (it, i) { return [it, i]; }).filter(function (x) { return (x[0].league || 'none') === l; });
+          return part.length ? '<h3 class="gal-lg">' + esc(galLeague(l)) + '</h3><div class="gal-grid">' + part.map(function (x) { return galTile(x[0], 'top', x[1]); }).join('') + '</div>' : '';
+        }).join('') + '</section>';
+      }
+      var all = galAll(), keys = GAL_LEAGUES.filter(function (l) { return d.leagues[l]; });
+      h += '<section class="stack gal-sec"><h2>Все работы <span class="muted small">· ' + d.total + '</span></h2>' +
+        (keys.length > 1 ? '<div class="row gal-chips" role="group" aria-label="Лига">' + [['', 'Все', d.total]].concat(keys.map(function (l) { return [l, galLeague(l), d.leagues[l]]; })).map(function (c) {
+          return '<button class="btn small ' + (GAL.league === c[0] ? '' : 'sec') + '" type="button" data-act="galLeague" data-v="' + c[0] + '" aria-pressed="' + (GAL.league === c[0]) + '">' + esc(c[1]) + ' · ' + c[2] + '</button>';
+        }).join('') + '</div>' : '') +
+        '<div class="gal-grid">' + all.slice(0, GAL.shown).map(function (it, i) { return galTile(it, 'all', i); }).join('') + '</div>' +
+        (all.length > GAL.shown ? '<div class="row"><button class="btn sec" type="button" data-act="galMore">Показать ещё · ' + (all.length - GAL.shown) + '</button></div>' : '') + '</section>';
+    }
+    K.page(h, [['Галерея']]);
+    var sg = document.getElementById('gal-game'), sr = document.getElementById('gal-round');
+    if (sg) sg.addEventListener('change', function () { K.go('/gallery?event=' + sg.value); });
+    if (sr) sr.addEventListener('change', function () { K.go('/gallery?event=' + g.id + '&round=' + sr.value); });
+  }
+  K.actions.galLeague = function (b) {
+    GAL.league = b.getAttribute('data-v'); GAL.shown = GAL_STEP;
+    history.replaceState(null, '', K.ROOT + '/gallery?event=' + GAL.g.id + '&round=' + GAL.r.id + (GAL.league ? '&league=' + GAL.league : ''));
+    galDraw();
+  };
+  K.actions.galMore = function () { GAL.shown += GAL_STEP; galDraw(); };
+  K.actions.galOpen = function (b) {
+    GAL.list = b.getAttribute('data-l') === 'top' ? GAL.data.top : galAll();
+    GAL.back = b;
+    galShow(parseInt(b.getAttribute('data-i'), 10));
+  };
+  function galClose() {
+    var box = document.getElementById('gal-lb');
+    if (box) box.remove();
+    document.removeEventListener('keydown', galKeys);
+    document.body.classList.remove('lb-open');
+    K.onEscape = null;
+    if (GAL.back && GAL.back.isConnected) GAL.back.focus();
+  }
+  function galKeys(e) {
+    if (!document.getElementById('gal-lb')) { document.removeEventListener('keydown', galKeys); return; }
+    if (e.key === 'ArrowRight') { e.preventDefault(); galShow(GAL.at + 1); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); galShow(GAL.at - 1); }
+  }
+  function galShow(i) {
+    var n = GAL.list.length;
+    if (!n) return;
+    GAL.at = (i + n) % n;
+    var it = GAL.list[GAL.at], box = document.getElementById('gal-lb');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'gal-lb'; box.className = 'bp-lb gal-lb'; box.setAttribute('role', 'dialog'); box.setAttribute('aria-modal', 'true');
+      box.innerHTML = '<button type="button" class="btn bp-lb-x" data-x="close">Закрыть ✕</button>' +
+        '<button type="button" class="gal-nav gal-prev" data-x="prev" aria-label="Предыдущая работа">‹</button><figure><img alt=""><figcaption></figcaption></figure>' +
+        '<button type="button" class="gal-nav gal-next" data-x="next" aria-label="Следующая работа">›</button>';
+      box.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var x = e.target.getAttribute && e.target.getAttribute('data-x');
+        if (x === 'prev') galShow(GAL.at - 1);
+        else if (x === 'next') galShow(GAL.at + 1);
+        else if (x === 'close' || e.target === box) galClose();
+      });
+      document.body.appendChild(box);
+      document.body.classList.add('lb-open');
+      document.addEventListener('keydown', galKeys);
+      K.onEscape = galClose;
+      box.querySelector('.bp-lb-x').focus();
+    }
+    var img = box.querySelector('img');
+    img.src = it.photo.view_url; img.alt = 'Работа: ' + it.author;
+    box.setAttribute('aria-label', 'Работа: ' + it.author);
+    box.querySelector('figcaption').innerHTML = '<b>' + esc(it.author) + '</b> · ' + esc(galLeague(it.league)) + (it.top_work ? ' · TOP WORK' : '') +
+      ' <span>' + (GAL.at + 1) + ' из ' + n + '</span>';
+    Array.prototype.forEach.call(box.querySelectorAll('.gal-nav'), function (x) { x.hidden = n < 2; });
+  }
 })();

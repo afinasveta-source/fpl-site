@@ -176,7 +176,7 @@
   };
 
   /* ---------- каркас ---------- */
-  var SECTIONS = [['/', 'Главная'], ['/events', 'Игры лиги'], ['/games', 'Мои Игры'], ['/achievements', 'Мои достижения'],
+  var SECTIONS = [['/', 'Главная'], ['/events', 'Игры лиги'], ['/games', 'Мои Игры'], ['/gallery', 'Галерея'], ['/achievements', 'Мои достижения'],
     ['/reviews', 'Мои разборы'], ['/notifications', 'Уведомления'], ['/support', 'Поддержка'], ['/profile', 'Профиль и настройки']];
   /* Кабинет организатора — свой раздел /org со своим меню (этап 3). */
   var ORG = [['/org', 'Обзор'], ['/org/games', 'Игры и туры'], ['/org/people', 'Люди'], ['/org/support', 'Поддержка'],
@@ -222,7 +222,7 @@
   function tabbarHTML() {
     var cur = section(), n = K.state.unread;
     var tabs = [['/', 'Главная'], ['/games', 'Мои Игры'], ['/notifications', 'Уведомления'], ['/profile', 'Профиль']];
-    var inMore = ['/events', '/achievements', '/support', '/judging', '/reviews'].indexOf(cur) >= 0;
+    var inMore = ['/events', '/gallery', '/achievements', '/support', '/judging', '/reviews'].indexOf(cur) >= 0;
     return '<nav class="tabbar" aria-label="Разделы кабинета">' + tabs.map(function (t) {
       return '<button type="button" data-href="' + t[0] + '"' + (cur === t[0] ? ' aria-current="page"' : '') + '>' + ico(t[0]) +
         (t[0] === '/notifications' && n ? '<span class="cnt">' + n + '</span>' : '') + '<span>' + t[1] + '</span></button>';
@@ -231,7 +231,7 @@
   function moreHTML() {
     return '<div class="sheet" data-act="closeMore"><div class="panel" role="dialog" aria-label="Ещё разделы"><span class="grip"></span><div class="list">' +
       (K.isAdmin() ? K.li('Кабинет организатора', 'Игры, туры, люди, заявки', '', '/org') : '') +
-      K.li('Игры лиги', 'Каталог Игр и челленджей', '', '/events') + (K.isJudge() ? K.li('Судейство', 'Оценка работ туров', '', '/judging') : '') +
+      K.li('Игры лиги', 'Каталог Игр и челленджей', '', '/events') + K.li('Галерея', 'Работы туров после итогов', '', '/gallery') + (K.isJudge() ? K.li('Судейство', 'Оценка работ туров', '', '/judging') : '') +
       K.li('Мои достижения', 'Рейтинг, баллы, дипломы', '', '/achievements') + K.li('Мои разборы', 'Аудиоразбор работ от судьи', '', '/reviews') +
       K.li('Поддержка', 'Вопросы организатору', '', '/support') +
       '<button class="li" type="button" data-act="toSite"><span class="t">Сайт лиги ↗</span><span class="s">Рейтинг, Игры, Правила — вход в кабинет сохранится</span><span class="r"></span></button>' +
@@ -818,6 +818,8 @@
   K.route = function () {
     K.route.stamp = (K.route.stamp || 0) + 1;
     K.onEscape = null;
+    var lb = document.getElementById('gal-lb');   // фото галереи поверх страницы — закрыть при переходе
+    if (lb) { lb.remove(); document.body.classList.remove('lb-open'); }
     var p = K.path();
     if (p === '/auth/set-password') return setPasswordView('set');
     if (p === '/auth/reset-password') return setPasswordView('reset');

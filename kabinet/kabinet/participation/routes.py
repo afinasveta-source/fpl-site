@@ -16,6 +16,7 @@ from kabinet.web.routes import browser_user, same_origin
 from . import game as G
 from . import rules as R
 from . import views as V
+from . import gallery as GL
 from .media import MediaError
 
 router = APIRouter(prefix='/api', tags=['participant'])
@@ -437,9 +438,12 @@ WHERE reviewer_id=%s AND user_id=%s AND status IN ('paid','done') LIMIT 1''', (u
         source = row and not staff and not judge and not reviewer and row['uploaded_by'] != user['id'] \
             and (relay.media_allowed(conn, user['id'], media_id)
                  or ('judge' in user['roles'] and relay.media_allowed_judge(conn, user['id'], media_id)))
-    # Своё фото видит автор; организатор и модератор — любое; судья — работы своего пула; получательница — свой исходник.
-    # Чужое — как будто его нет.
-    if not row or (row['uploaded_by'] != user['id'] and not staff and not judge and not reviewer and not source):
+        # Галерея тура (15.10): работа опубликованного тура, автор разрешает показ, зритель — участница этой Игры (или судья).
+        gallery = row and not staff and not judge and not reviewer and not source and row['uploaded_by'] != user['id'] \
+            and GL.media_allowed(conn, user, media_id)
+    # Своё фото видит автор; организатор и модератор — любое; судья — работы своего пула; получательница — свой исходник;
+    # участница Игры — работы галереи. Чужое — как будто его нет. Оригинал не отдаётся никому (только view / thumb).
+    if not row or (row['uploaded_by'] != user['id'] and not staff and not judge and not reviewer and not source and not gallery):
         raise HTTPException(404, 'Not found')
     key = row['optimized_storage_key'] if size == 'view' else row['thumbnail_storage_key']
     path = request.app.state.media.path(key)
