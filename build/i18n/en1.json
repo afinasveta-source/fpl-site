@@ -88,7 +88,7 @@
  "<b>31</b><span>очки FPL</span>": "<b>31</b><span>FPL Points</span>",
  "<b>2</b><span>Игры сыграно</span>": "<b>2</b><span>Games played</span>",
  "<span class=\"c on\"></span><span class=\"c on\"></span><span class=\"c\"></span><span>Сезон 1 · 2 из 3 Игр</span>": "<span class=\"c on\"></span><span class=\"c on\"></span><span class=\"c\"></span><span>Season 1 · 2 of 3 Games</span>",
- "<span class=\"mini mini--medal\"><i>2</i>Серебро · Игра 02</span><span class=\"mini mini--top\"><i>10</i>TOP-10 · Игра 01</span><span class=\"mini mini--work\"><i>★</i>TOP WORK ×3</span><span class=\"mini mini--league\"><i>S</i>Лига Silver</span>": "<span class=\"mini mini--medal\"><i>2</i>Silver · Game 02</span><span class=\"mini mini--top\"><i>10</i>TOP-10 · Game 01</span><span class=\"mini mini--work\"><i>★</i>TOP WORK ×3</span><span class=\"mini mini--league\"><i>S</i>Silver League</span>",
+ "<span class=\"mini mini--medal\"><i>2</i>Серебро · Игра 02</span><span class=\"mini mini--top\"><i>10</i>TOP-10 · Игра 01</span><span class=\"mini mini--work\"><i>★</i>TOP WORK Silver ×3</span><span class=\"mini mini--league\"><i>S</i>Лига Silver</span>": "<span class=\"mini mini--medal\"><i>2</i>Silver · Game 02</span><span class=\"mini mini--top\"><i>10</i>TOP-10 · Game 01</span><span class=\"mini mini--work\"><i>★</i>TOP WORK Silver ×3</span><span class=\"mini mini--league\"><i>S</i>Silver League</span>",
  "Образец карточки участника": "Sample participant card",
  "TOP<br/>WORK<small>+1 очко</small>": "TOP<br/>WORK<small>+1 point</small>",
  "Лучшая работа тура<span>около 20% работ</span>": "Best work of the round<span>about 20% of works</span>",

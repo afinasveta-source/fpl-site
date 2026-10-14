@@ -281,7 +281,7 @@ def test_self_registered_player_is_linked_to_bot_record(app, seed, clock):
     ep = ok(c.get(f'/api/org/events/{eid}/participants?q=' + 'Кузнецова'))['participants'][0]
     assert [x['score'] for x in ep['rounds'][:2]] == [70.0, 88.0] and ep['rounds'][0]['from_bot']
     card = ok(c.get(f"/api/org/participants/{ep['id']}"))
-    assert card['rounds'][1]['result'] == {'score': 88.0, 'advanced': True} and card['rounds'][1]['from_bot']
+    assert {k: card['rounds'][1]['result'][k] for k in ('score', 'advanced')} == {'score': 88.0, 'advanced': True} and card['rounds'][1]['from_bot']
     left = ok(c.get('/api/org/claims/accounts'))['items']
     assert [a['email'] for a in left] == ['newbie@example.com']
     # новичка с запись из бота, у которой уже есть вход, не соединить

@@ -158,9 +158,17 @@ def view(conn, e, now):
     if published(e):
         out['rows'] = published_rows(conn, e)
         out['checks'] = {'problems': ['already_published'], 'warnings': []}
-        return out
-    out['rows'] = [row_view(p, extra) for p in order]
-    out['checks'] = checks(conn, e, cfg, order, now)
+    else:
+        out['rows'] = [row_view(p, extra) for p in order]
+        out['checks'] = checks(conn, e, cfg, order, now)
+    # FPL Rating — для справки организатору (текущий); на итог, места и очки FPL не влияет
+    ratings = {str(r['id']): {'value': round(float(r['current_rating'])), 'status': r['rating_status'],
+                              'calibration': r['calibration_rounds_completed']}
+               for r in conn.execute('''SELECT p.id, ps.current_rating, ps.rating_status, ps.calibration_rounds_completed
+FROM event_participants p JOIN participant_stats ps ON ps.user_id=p.user_id
+WHERE p.event_id=%s AND ps.current_rating IS NOT NULL AND ps.rating_status<>'unrated' ''', (e['id'],))}
+    for row in out['rows']:
+        row['rating'] = ratings.get(str(row['id']))
     return out
 
 
@@ -261,10 +269,12 @@ points_rule_snapshot,created_by,idempotency_key,source_type,source_id) VALUES (%
         total += pts['result']
     per = cfg['points']['top_work']
     if per and p.excluded != 'disqualified':
+        tw_league = {str(x['id']): x['league'] for x in conn.execute('SELECT id, league FROM round_results WHERE id = ANY(%s::uuid[])',
+                                                                     (list(p.top_works),))}
         for rr in p.top_works:
             conn.execute('''INSERT INTO points_transactions(user_id,event_id,lifetime_delta,available_delta,reason_code,reason_text,
 points_rule_snapshot,created_by,idempotency_key,source_type,source_id) VALUES (%s,%s,%s,0,'top_work',%s,%s,%s,%s,'round_result',%s)''',
-                         (ep['user_id'], e['id'], per, f"TOP WORK · {e['title']}", G.Jsonb({'top_work': per}), actor_id, f'top_work:{rr}', rr))
+                         (ep['user_id'], e['id'], per, f"TOP WORK{(' ' + LEAGUE_NAME[tw_league[rr]]) if tw_league.get(rr) in LEAGUE_NAME else ''} · {e['title']}", G.Jsonb({'top_work': per}), actor_id, f'top_work:{rr}', rr))
             total += per
     if total:
         conn.execute('''INSERT INTO participant_stats(user_id,lifetime_points) VALUES (%s,%s)

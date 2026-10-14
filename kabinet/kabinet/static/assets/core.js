@@ -134,7 +134,8 @@
   };
   K.fromInput = function (v) { return v ? v + ':00+03:00' : null; };
   /* «TOP WORK · Gold» — отметка всегда с лигой (решение 13.10: лучшие работы выбираются в каждой лиге). */
-  K.topWork = function (league) { return 'TOP WORK' + (league && K.LEAGUE[league] ? ' · ' + K.LEAGUE[league] : ''); };
+  // TOP WORK всегда с лигой работы в этом туре: «TOP WORK Gold» (17.10). Просто «TOP WORK» — только если лига неизвестна.
+  K.topWork = function (league) { return 'TOP WORK' + (league && K.LEAGUE[league] ? ' ' + K.LEAGUE[league] : ''); };
   K.score = function (v) { return v == null ? '—' : String(Math.round(v * 10) / 10).replace('.', ','); };
   /* «Записаться на Игру 02»: название Игры в винительном падеже. */
   K.acc = function (title) { return String(title || '').replace(/^Игра(?=\s)/, 'Игру'); };

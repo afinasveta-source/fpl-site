@@ -289,6 +289,7 @@ def update_profile(body: ProfileChange, user=Depends(browser_user), auth=Depends
 @router.get('/profile', include_in_schema=False)
 @router.get('/achievements', include_in_schema=False)
 @router.get('/reviews', include_in_schema=False)
+@router.get('/gallery', include_in_schema=False)   # «Галерея» (16.10): без этого обновление страницы давало 404
 @router.get('/games/{rest:path}', include_in_schema=False)
 @router.get('/events/{rest:path}', include_in_schema=False)
 @router.get('/support/{rest:path}', include_in_schema=False)

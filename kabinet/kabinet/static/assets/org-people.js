@@ -258,31 +258,42 @@
   /* ---------- Участницы Игры ---------- */
   var CELL = { sent: '✓ сдана', sent_late: '✓ после срока', missed: '✕ не сдана', draft: 'черновик', none: 'ещё нет', plan: '' };
   O.on(/^\/org\/games\/([0-9a-f-]{36})\/people$/, function (id) {
-    var q = K.query(), term = q.get('q') || '', mode = q.get('mode') || '', league = q.get('league') || '', status = q.get('status') || '';
+    var q = K.query(), term = q.get('q') || '', mode = q.get('mode') || '', league = q.get('league') || '', status = q.get('status') || '', sort = q.get('sort') || '';
+    if (sort !== 'rating_desc' && sort !== 'rating_asc') sort = '';
     if (!GROUPS.some(function (g) { return g[0] === status; })) status = '';
     if (!LGS.some(function (g) { return g[0] === league; })) league = '';
-    K.load(['/api/org/events/' + id + '/participants' + qs({ q: term, mode: mode, league: league, status: status })], function (d) {
+    K.load(['/api/org/events/' + id + '/participants' + qs({ q: term, mode: mode, league: league, status: status, sort: sort })], function (d) {
       var base = '/org/games/' + id + '/people', crumbs = [['Игры и туры', '/org/games'], [d.event.title, '/org/games/' + id], ['Участницы']];
       var canLeagues = d.total && ['registration', 'active', 'finished'].indexOf(d.event.status) >= 0;
       var h = '<div class="stack" data-s="g6"><span class="eyebrow">' + esc(d.event.title) + '</span><div class="between"><h1>Участницы · ' + d.total + '</h1>' +
         (canLeagues ? '<button class="btn sec small" type="button" data-href="/org/games/' + id + '/leagues">Расставить лиги</button>' : '') + '</div></div>' +
         searchForm('f-parts', term, 'ФИО, имя, email или город') +
         '<div class="filters">' + filterRow('Статус', [['', 'Все', { status: '' }, d.league_total]].concat(GROUPS.map(function (g) { return [g[0], g[1], { status: g[0] }, d.groups[g[0]] || 0]; })),
-          mode ? '-' : status, base, { q: term, league: league }) +
+          mode ? '-' : status, base, { q: term, league: league, sort: sort }) +
         filterRow('Лига', [['', 'Все', { league: '' }, sum(d.leagues)]].concat(LGS.map(function (g) { return [g[0], g[1], { league: g[0] }, d.leagues[g[0]] || 0]; })),
-          league, base, { q: term, status: status, mode: mode }) + '</div>';
-      if (mode) h += '<div class="note small">Только: <b>' + esc((O.MODE[mode] || [mode])[0]) + '</b>. <button class="lnk" type="button" data-href="' + esc(base + qs({ q: term, league: league })) + '">Показать всех</button></div>';
+          league, base, { q: term, status: status, mode: mode, sort: sort }) +
+        filterRow('Порядок', [['', 'Как записались', { sort: '' }], ['rating_desc', 'FPL Rating ↓', { sort: 'rating_desc' }], ['rating_asc', 'FPL Rating ↑', { sort: 'rating_asc' }]],
+          sort, base, { q: term, status: status, mode: mode, league: league }) + '</div>';
+      if (mode) h += '<div class="note small">Только: <b>' + esc((O.MODE[mode] || [mode])[0]) + '</b>. <button class="lnk" type="button" data-href="' + esc(base + qs({ q: term, league: league, sort: sort })) + '">Показать всех</button></div>';
+      // Сортировка по FPL Rating: по убыванию → по возрастанию → как записались. Фильтры и поиск сохраняются.
+      var nextSort = sort === 'rating_desc' ? 'rating_asc' : sort === 'rating_asc' ? '' : 'rating_desc';
+      var sortHref = base + qs({ q: term, mode: mode, league: league, status: status, sort: nextSort });
       if (d.participants.length) h += shownLine(d.shown, d.total);
       if (d.current_round) h += '<p class="small muted">Сейчас тур ' + d.current_round + '. «✕ не сдана» — срок прошёл, а работы нет; «ещё нет» — срок не прошёл.</p>';
       if (!d.participants.length) h += '<div class="note">' + (d.total ? 'Никого не нашлось. <button class="lnk" type="button" data-href="' + base + '">Сбросить фильтры</button>' : 'В Игру пока никто не записался.') + '</div>';
       else {
         h += '<div class="table-wrap"><table class="otable"><thead><tr><th scope="col">Участница</th><th scope="col">Статус</th><th scope="col">Лига</th>' +
+          '<th scope="col" class="c"' + (sort ? ' aria-sort="' + (sort === 'rating_desc' ? 'descending' : 'ascending') + '"' : '') + '><button class="lnk sort-btn" type="button" data-href="' + esc(sortHref) + '" title="' +
+          (nextSort === 'rating_desc' ? 'Сортировать по рейтингу: сначала высокий' : nextSort === 'rating_asc' ? 'Сортировать по рейтингу: сначала низкий' : 'Убрать сортировку') + '">FPL Rating' +
+          (sort === 'rating_desc' ? ' ↓' : sort === 'rating_asc' ? ' ↑' : ' ↕') + '</button></th>' +
           d.rounds.map(function (r) { return '<th scope="col" class="c">Тур ' + r.round_no + '</th>'; }).join('') + '</tr></thead><tbody>' +
           d.participants.map(function (p) {
             return '<tr data-href="/org/participants/' + p.id + '"><th scope="row" data-label="Участница"><button class="lnk" type="button" data-href="/org/participants/' + p.id + '">' + esc(p.name || 'Без имени') + '</button>' +
               '<span class="small muted">' + esc([p.city, p.account_status === 'imported' ? 'не входила в кабинет' : ''].filter(Boolean).join(' · ')) + '</span>' +
               (p.rules_ok ? '' : '<span class="small">' + pill('Правила не приняты', 'warn') + '</span>') + '</th>' +
               '<td data-label="Статус">' + O.st(O.MODE, p.mode) + '</td><td data-label="Лига">' + esc(p.league ? LEAGUE[p.league] : '—') + '</td>' +
+              '<td class="c" data-label="FPL Rating"><div>' + (p.rating == null ? '<span class="muted">—</span>' : '<b class="num">' + p.rating + '</b>' +
+                (p.rating_status === 'calibrating' ? '<span class="small muted">калибровка ' + p.calibration + '/3</span>' : '')) + '</div></td>' +
               p.rounds.map(function (c) {
                 var w = c.work, txt = w ? CELL[w] : '—';
                 // туры из бота: работы в кабинете нет, есть итог — показываем баллы (14.10)
@@ -290,12 +301,13 @@
                   ? '<span class="cell sent" title="Итог тура' + (c.from_bot ? ' (из бота)' : '') + '">' + esc(String(c.score)) + '</span>'
                   : (c.from_bot && w !== 'sent' && w !== 'sent_late' ? '<span class="muted" title="Тур прошёл в боте, итога нет">бот · —</span>' : null);
                 return '<td class="c" data-label="Тур ' + c.round_no + '"><div>' + (shown || (w && w !== 'plan' ? '<span class="cell ' + w + '" title="' + esc(O.WORK[w][0]) + '">' + esc(txt) + '</span>' : '<span class="muted">' + (w === 'plan' ? 'не открыт' : '—') + '</span>')) +
+                  (c.top_work ? '<span class="tw-mark">★ ' + esc(K.topWork(c.top_work_league || p.league)) + '</span>' : '') +
                   (c.personal_deadline ? '<span class="small muted">личный срок до ' + esc(K.day(c.personal_deadline)) + '</span>' : '') + '</div></td>';
               }).join('') + '</tr>';
           }).join('') + '</tbody></table></div>';
       }
       K.page(h, crumbs);
-      bindSearch('f-parts', function (v) { K.go(base + qs({ q: v, mode: mode, league: league, status: status })); });
+      bindSearch('f-parts', function (v) { K.go(base + qs({ q: v, mode: mode, league: league, status: status, sort: sort })); });
     }, [['Игры и туры', '/org/games'], ['Участницы']]);
   });
 
@@ -384,6 +396,26 @@
   var LOG = { org_outside: 'Переведена вне конкурса', org_return: 'Возвращена в конкурс', org_withdraw: 'Выведена из Игры', org_restore: 'Участие возвращено',
     org_disqualify: 'Дисквалифицирована', org_undisqualify: 'Дисквалификация отменена', league_set: 'Лига изменена', deadline_extended: 'Продлён срок', deadline_reset: 'Личный срок снят',
     registered: 'Записалась', chose_outside: 'Сама выбрала «вне конкурса»', late_to_outside: 'Пропущен срок — вне конкурса', withdrew: 'Сама вышла из Игры' };
+  /* FPL Rating (17.10): текущий, калибровка и изменение за каждый тур этой Игры. Это не очки FPL — очки копятся отдельно
+     (за итог Игры и TOP WORK) и на рейтинг не влияют. */
+  O.ratingLabel = function (rating, status, calibration) {
+    if (rating == null || status === 'unrated') return 'нет рейтинга';
+    return rating + (status === 'calibrating' ? ' · калибровка ' + (calibration || 0) + ' из 3' : ' · установлен');
+  };
+  function signed(n) { return n > 0 ? '+' + n : n < 0 ? '−' + Math.abs(n) : '0'; }
+  function rtRound(x, r) {
+    var t = ((x.rating || {}).rounds || []).filter(function (y) { return y.round_id === r.round_id; })[0];
+    if (!t) return '';
+    if (t.before == null) return 'FPL Rating: стартовый ' + t.after;
+    return 'FPL Rating: ' + t.before + ' → ' + t.after + ' (' + signed(t.delta != null ? t.delta : t.after - t.before) + ')';
+  }
+  function ratingBlock(x) {
+    var rt = x.rating || {};
+    return '<dl class="kv"><dt>FPL Rating</dt><dd><b>' + esc(O.ratingLabel(rt.current, rt.status, rt.calibration)) + '</b>' +
+      (rt.rounds && rt.rounds.length ? '<span class="small muted"> · за эту Игру: ' + esc(rt.rounds.map(function (t) {
+        return 'тур ' + (t.round_no || '?') + ' ' + (t.before == null ? 'старт ' + t.after : signed(t.delta != null ? t.delta : t.after - t.before));
+      }).join(', ')) + '</span>' : '') + '</dd></dl><p class="small muted">Рейтинг — не очки FPL: очки копятся отдельно (за итог Игры и TOP WORK) и на рейтинг не влияют.</p>';
+  }
   function drawParticipant(x) {
     O.part = x;
     var live = x.event.status === 'active' || x.event.status === 'registration';
@@ -393,6 +425,7 @@
       '<dt>Правила</dt><dd>' + (x.rules_ok ? pill('Приняты', 'ok') : pill('Не приняты действующие', 'warn')) + '</dd>' +
       (x.out_of_competition_at ? '<dt>Вне конкурса с</dt><dd>' + esc(K.dateY(x.out_of_competition_at)) + ' · ' + esc(x.out_source === 'admin' ? 'решение организатора' : x.out_source === 'participant' ? 'выбор участницы' : 'пропущен срок') + '</dd>' : '') +
       '<dt>Аккаунт</dt><dd>' + O.st(ACCOUNT, x.person.account_status) + ' <button class="lnk" type="button" data-href="/org/people/' + x.person.id + '">карточка</button></dd></dl>' +
+      ratingBlock(x) +
       (x.missed_round ? '<div class="note warn small">Пропущен срок тура ' + x.missed_round + '. Чтобы вернуть в конкурс, сначала продлите ей срок этого тура.</div>' : '') + '</section>';
     if (live) {
       h += '<section class="card"><h2>Действия</h2><form id="f-league" class="row" novalidate>' + O.sel('p-league', 'Лига', [['', 'Не указана']].concat(O.LEAGUES), x.league || '') +
@@ -411,8 +444,10 @@
       return '<div class="round-row"><div class="between"><h3>Тур ' + r.round_no + ' · ' + esc(r.title) + '</h3>' +
         (botRow || botPhoto ? pill('Прошёл в боте', 'plain') : r.opened ? O.st(O.WORK, r.work) : pill('Не открыт', 'plain')) + '</div>' +
         (r.result ? '<p><b>Итог тура: ' + esc(String(r.result.score != null ? r.result.score : '—')) + ' баллов</b>' +
+          (r.result.top_work ? ' ' + pill(K.topWork(r.result.league || x.league), 'acc') : '') +
           (r.result.advanced === true ? ' · прошла дальше' : r.result.advanced === false ? ' · не прошла отбор' : '') + (r.from_bot ? ' <span class="small muted">(из бота)</span>' : '') + '</p>'
           : botRow ? '<p class="small muted">Итога из бота нет.</p>' : '') +
+        (rtRound(x, r) ? '<p class="small">' + rtRound(x, r) + '</p>' : '') +
         (botRow ? '<p class="small muted">Фото работы нет — участница может загрузить его сама до конца Игры (в архив, итог тура не меняется).</p>' : '') +
         (botRow || botPhoto ? '' : '<p class="small muted">Срок: ' + esc(O.when(r.deadline)) + (src ? ' (' + src + ')' : '') + (r.personal ? ' · причина: ' + esc(r.personal.reason || '—') : '') + '</p>') +
         (s ? '<div class="thumbs">' + s.photos.map(function (ph) {

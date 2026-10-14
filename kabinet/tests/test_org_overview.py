@@ -176,3 +176,60 @@ def test_people_list_filters(app, seed, clock):
     paged = ok(c.get('/api/org/people', params={'status': 'in', 'limit': 2}))
     assert len(paged['people']) == 2 and paged['counts']['all'] == 3
     assert ok(c.get('/api/org/people', params={'status': 'in', 'kind': 'staff'}))['people'] == []
+
+
+def test_rating_for_organizer(app, seed, clock):
+    """FPL Rating у организатора (17.10): колонка и сортировка в списке участниц, рейтинг и изменения за туры в карточке,
+    столбец в итогах Игры. TOP WORK в списке и карточке — с лигой работы в туре."""
+    c, game, eps, _ = game_with_people(app, seed)
+    with app.state.db.transaction() as conn:
+        uid = {k: conn.execute('SELECT user_id FROM event_participants WHERE id=%s', (v,)).fetchone()['user_id'] for k, v in eps.items()}
+        for who, rating, cal, st in (('anna', 612, 2, 'calibrating'), ('bella', 540, 3, 'established'), ('vera', 700, 3, 'established')):
+            conn.execute('''INSERT INTO participant_stats(user_id,current_rating,calibration_rounds_completed,rating_status)
+VALUES (%s,%s,%s,%s)''', (uid[who], rating, cal, st))
+        conn.execute("UPDATE rounds SET settings='{\"source\":\"bot\"}', status='published' WHERE id=%s", (game['rounds'][2],))
+        for no, before, after in ((1, None, 590), (3, 590, 612)):
+            conn.execute('''INSERT INTO rating_transactions(user_id,event_id,round_id,method,formula_version,rating_before,delta_after_cap,
+rating_after,status,idempotency_key) VALUES (%s,%s,%s,%s,'test',%s,%s,%s,'active',%s)''',
+                         (uid['anna'], game['event'], game['rounds'][no - 1], 'initial_seeding' if before is None else 'pairwise_elo',
+                          before, None if before is None else after - before, after, f'test:{no}'))
+        conn.execute('''INSERT INTO round_results(event_id,round_id,event_participant_id,version_no,is_current,status,display_score,advanced,
+league,top_work,top_work_rule_version,published_at) VALUES (%s,%s,%s,1,true,'published',91,true,'gold',true,'FPL_TOPWORK_V1',now())''', (game['event'], game['rounds'][2], eps['anna']))
+    base = f"/api/org/events/{game['event']}/participants"
+    first = lambda d: [p['name'].split()[0] for p in d['participants']]
+    assert first(ok(c.get(base, params={'sort': 'rating_desc'}))) == ['Вера', 'Анна', 'Белла', 'Галина', 'Дина']
+    asc = ok(c.get(base, params={'sort': 'rating_asc', 'status': 'in'}))
+    assert first(asc) == ['Белла', 'Анна', 'Вера']   # фильтр сохраняется; без рейтинга — в конце
+    anna = next(p for p in asc['participants'] if p['name'].startswith('Анна'))
+    assert (anna['rating'], anna['rating_status'], anna['calibration']) == (612, 'calibrating', 2)
+    cell = anna['rounds'][2]
+    assert cell['top_work'] and cell['top_work_league'] == 'gold'
+    assert c.get(base, params={'sort': 'name'}).status_code == 422
+    card = ok(c.get(f"/api/org/participants/{eps['anna']}"))
+    assert card['rating']['current'] == 612 and card['rating']['status'] == 'calibrating' and card['rating']['calibration'] == 2
+    assert [(t['round_no'], t['before'], t['after'], t['delta']) for t in card['rating']['rounds']] == [(1, None, 590, None), (3, 590, 612, 22)]
+    r3 = next(r for r in card['rounds'] if r['round_no'] == 3)
+    assert r3['result']['top_work'] and r3['result']['league'] == 'gold'
+    galina = ok(c.get(f"/api/org/participants/{eps['galina']}"))['rating']
+    assert galina == {'current': None, 'status': 'unrated', 'calibration': 0, 'rounds': []}
+    res = ok(c.get(f"/api/org/events/{game['event']}/results"))
+    by = {r['name'].split()[0]: r.get('rating') for r in res['rows']}
+    assert by['Анна'] == {'value': 612, 'status': 'calibrating', 'calibration': 2} and by['Галина'] is None
+
+
+def test_site_rating_switch(app, seed, clock):
+    """Рейтинг на сайте во время Игры: по умолчанию — на начало (Правила, п. 7.3); организатор может разрешить текущий."""
+    c = org(app, seed)
+    with app.state.db.transaction() as conn:
+        game = build_game(conn)
+    url = f"/api/org/events/{game['event']}"
+    assert ok(c.get(url))['site_rating_live'] is False
+    assert c.post(url + '/site-rating', json={'live': True}).status_code == 403   # только со страницы кабинета
+    assert ok(c.post(url + '/site-rating', headers=ORIGIN, json={'live': True}))['site_rating_live'] is True
+    with app.state.db.transaction() as conn:
+        assert conn.execute('SELECT settings FROM events WHERE id=%s', (game['event'],)).fetchone()['settings']['site_rating_live'] is True
+        assert conn.execute("SELECT count(*) AS n FROM audit_log WHERE action='site_rating_live'").fetchone()['n'] == 1
+    assert ok(c.post(url + '/site-rating', headers=ORIGIN, json={'live': False}))['site_rating_live'] is False
+    other = ok(c.post('/api/org/events', headers=ORIGIN, json={'title': 'Челлендж', 'event_type': 'challenge'}), 201)
+    assert c.post(f"/api/org/events/{other['id']}/site-rating", headers=ORIGIN, json={'live': True}).json()['detail'] == 'not_ranked'
+    assert login(app, seed, 'p@example.com').post(url + '/site-rating', headers=ORIGIN, json={'live': True}).status_code == 403

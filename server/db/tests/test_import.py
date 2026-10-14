@@ -208,6 +208,24 @@ def main():
         check('score' not in dumped and 'league_rank' not in dumped, 'баллы и места других в games.json не публикуются')
         check(games['games'][0]['rounds'][1]['top_work'] == [], 'TOP WORK неопубликованного тура 2 не виден')
         check(games['games'][0]['participants'] == 11, 'участниц Игры 11')
+        check(sum(r1['top_work_leagues'].values()) == 2 and set(r1['top_work_leagues']) <= {'gold', 'silver'},
+              'TOP WORK тура 1 посчитан по лигам (для «TOP WORK Gold»)')
+        check(games['games'][0]['rating_live'] is False, 'по умолчанию рейтинг во время Игры — на её начало')
+        tw_players = [p for p in rating['seasons'][0]['players'] if p['top_work']]
+        check(tw_players and all(sum(p['top_work_leagues'].values()) == p['top_work'] for p in tw_players),
+              'TOP WORK в рейтинге — по лигам')
+
+        print('2a. организатор разрешил текущий рейтинг во время Игры (17.10)')
+        q1("""UPDATE events SET settings = settings || '{"site_rating_live": true}' WHERE status='active' RETURNING 1""")
+        try:
+            lv = q1('SELECT site_export_rating()')
+            check(lv['frozen'] is None and lv['live'] and lv['live']['after_round'] == 1, 'вместо «на начало Игры» — «после тура 1»')
+            lp = lv['seasons'][0]['players']
+            check(len(lp) == 10 and [p['place'] for p in lp][:3] == [1, 2, 3], 'таблица во время Игры: 10 мастеров, места по порядку')
+            check(q1('SELECT site_export_games()')['games'][0]['rating_live'] is True, 'games.json знает, что рейтинг текущий')
+        finally:
+            q1("""UPDATE events SET settings = settings - 'site_rating_live' WHERE status='active' RETURNING 1""")
+        check(all(not x['players'] for x in q1('SELECT site_export_rating()')['seasons']), 'флаг снят — снова на начало Игры')
 
         print('3. тот же снимок ещё раз — пропускается')
         p, st = run(priv, data)

@@ -7,6 +7,7 @@
     frozenEmpty: 'The overall rating is not published while a Game is running (Rules, 7.3). It will appear here after {g} ends.',
     frozenNote: 'Rating as of the start of {g}: it does not change during the Game and will be updated after it ends.',
     frozenLink: 'League rating', frozenDd: 'at the start of the Game',
+    liveNote: 'Rating after round {n} of {g}: during the Game it is updated after every round.',
     calib: 'Provisional rating: every artist has played {n} of 3 calibration rounds so far. Places can still change a lot.',
     updated: 'Updated {d}', none: 'No one found. Try another name.',
     rounds: 'rounds', masters: 'artists', leagueN: '{n} artists', range: '{a}–{b}',
@@ -18,6 +19,7 @@
     frozenEmpty: 'Во время Игры общий рейтинг не публикуется (Правила, п. 7.3). Он появится здесь после окончания {g}.',
     frozenNote: 'Рейтинг на начало {g}: во время Игры он не меняется и обновится после её окончания.',
     frozenLink: 'Рейтинг лиги', frozenDd: 'на начало Игры',
+    liveNote: 'Рейтинг после {n} тура {g}: во время Игры обновляется после каждого тура.',
     calib: 'Рейтинг предварительный: у всех пока {n} из 3 калибровочных туров. Места ещё могут заметно меняться.',
     updated: 'Обновлено {d}', none: 'Никого не нашли. Попробуйте другое имя.',
     rounds: 'туров', masters: 'мастеров', leagueN: '{n} мастеров', range: '{a}–{b}',
@@ -33,6 +35,15 @@
   }
   function f(s, o) { return s.replace(/\{(\w+)\}/g, function (m, k) { return o[k]; }); }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  var LG_ORDER = ['gold', 'silver', 'bronze'];
+  // TOP WORK всегда с лигой работы в туре: «TOP WORK Gold» (17.10). Просто «TOP WORK» — только если лига неизвестна.
+  function twName(l) { return T.tw + (l && LG[l] ? ' ' + LG[l] : ''); }
+  // {gold: 2, silver: 1} → «TOP WORK Gold ×2 · TOP WORK Silver»
+  function twBadges(byLeague, total) {
+    var keys = LG_ORDER.filter(function (k) { return byLeague && byLeague[k]; });
+    if (!keys.length) return total ? ['<span class="aw aw--tw">' + T.tw + (total > 1 ? ' ×' + total : '') + '</span>'] : [];
+    return keys.map(function (k) { return '<span class="aw aw--tw">' + esc(twName(k)) + (byLeague[k] > 1 ? ' ×' + byLeague[k] : '') + '</span>'; });
+  }
   function lg(l) { return l ? '<span class="lgb lgb--' + LG[l] + '">' + LG[l] + '</span>' : '<span class="lgb">—</span>'; }
   function date(iso) {
     try { return new Date(iso).toLocaleString(EN ? 'en-GB' : 'ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Moscow' }) + (EN ? ' MSK' : ' МСК'); }
@@ -78,28 +89,40 @@
     var pub = (game.rounds || []).filter(function (r) { return r.published; });
     if (!pub.length) return;
     var last = Math.max.apply(null, pub.map(function (r) { return r.no; }));
-    var running = game.status === 'active';   // идёт Игра — рейтинг на сайте на её начало (Правила, п. 7.3)
+    // идёт Игра — рейтинг на сайте на её начало (Правила, п. 7.3), если организатор не разрешил текущий (rating_live, 17.10)
+    var running = game.status === 'active' && !game.rating_live;
     afters.forEach(function (el) {
       var arrow = /→\s*$/.test(el.textContent) ? ' →' : '';
       var dd = el.getAttribute('data-fpl-after') === 'dd';
       el.textContent = running ? (dd ? T.frozenDd : T.frozenLink + arrow) : dd ? f(T.roundShort, { n: last }) : f(T.afterRound, { n: last }) + arrow;
     });
     function title(r) { return (r.title_i18n && r.title_i18n[EN ? 'en' : 'ru']) || r.title; }
-    function names(r) { return (r.top_work || []).map(function (w) { return esc(w.name) + (w.league ? ' ' + lg(w.league) : ''); }); }
+    // TOP WORK тура — по лигам: «TOP WORK Gold · 5» и имена; без лиги (старые данные) — общим списком
+    function byLeague(r) {
+      var per = r.top_work_leagues || {}, known = LG_ORDER.some(function (k) { return per[k]; });
+      var named = function (k) { return (r.top_work || []).filter(function (w) { return (w.league || '') === k; }); };
+      var out = LG_ORDER.map(function (k) { var sh = named(k); return { league: k, shown: sh, count: Math.max(known ? (per[k] || 0) : sh.length, sh.length) }; });
+      var rest = named(''), restCount = known ? rest.length : r.top_work_count - out.reduce(function (a, g) { return a + g.count; }, 0);
+      out.push({ league: '', shown: rest, count: Math.max(restCount, rest.length) });
+      return out.filter(function (g) { return g.count > 0; });
+    }
     if (twRounds) {
       var html = pub.filter(function (r) { return r.top_work_count > 0; }).map(function (r) {
-        var shown = r.top_work || [], hidden = r.top_work_count - shown.length;
-        return '<article class="tw-round"><h3>' + esc(title(r)) + '</h3><p class="meta">' + f(T.twCount, { n: r.top_work_count }) + '</p>' +
-          (shown.length ? '<ul class="tw-names">' + names(r).map(function (n) { return '<li>' + n + '</li>'; }).join('') + '</ul>' : '') +
-          (hidden > 0 ? '<p class="meta">' + f(T.twHidden, { n: hidden }) + '</p>' : '') + '</article>';
+        return '<article class="tw-round"><h3>' + esc(title(r)) + '</h3>' + byLeague(r).map(function (g) {
+          var hidden = g.count - g.shown.length;
+          return '<p class="meta"><b>' + esc(twName(g.league)) + '</b> · ' + g.count + '</p>' +
+            (g.shown.length ? '<ul class="tw-names">' + g.shown.map(function (w) { return '<li>' + esc(w.name) + '</li>'; }).join('') + '</ul>' : '') +
+            (hidden > 0 ? '<p class="meta">' + f(T.twHidden, { n: hidden }) + '</p>' : '');
+        }).join('') + '</article>';
       }).join('');
       if (html) { twRounds.innerHTML = html; var sec = twRounds.closest('[data-fpl="tw-section"]'); if (sec) sec.hidden = false; }
     }
     if (twHome) {
       var lr = pub.filter(function (r) { return r.no === last; })[0];
       if (lr && lr.top_work && lr.top_work.length) {
-        twHome.innerHTML = '<b>' + esc(f(T.twOf, { r: title(lr) })) + '</b> ' + lr.top_work.map(function (w) { return esc(w.name); }).join(', ') +
-          ' · <a class="text-link" href="games.html#g01">' + T.twAll + '</a>';
+        twHome.innerHTML = byLeague(lr).filter(function (g) { return g.shown.length; }).map(function (g) {
+          return '<b>' + esc(twName(g.league)) + ', ' + esc(title(lr)) + ':</b> ' + g.shown.map(function (w) { return esc(w.name); }).join(', ');
+        }).join(' · ') + ' · <a class="text-link" href="games.html#g01">' + T.twAll + '</a>';
         twHome.hidden = false;
       }
     }
@@ -112,7 +135,7 @@
     if (!players.length) { prev.hidden = true; if (empty) { empty.textContent = fr ? f(T.frozenEmpty, { g: gameName(fr) }) : T.empty; empty.hidden = false; } return; }
     body.innerHTML = players.slice(0, 5).map(function (p) {
       return '<tr><td>' + p.place + '</td><td>' + esc(p.name) + '</td><td>' + lg(p.league) + '</td><td>' + p.rating +
-        (p.status === 'calibrating' ? ' <small class="prov">' + T.prov + '</small>' : '') + '</td><td>' + (p.top_work ? T.tw + (p.top_work > 1 ? ' ×' + p.top_work : '') : '—') + '</td></tr>';
+        (p.status === 'calibrating' ? ' <small class="prov">' + T.prov + '</small>' : '') + '</td><td>' + (p.top_work ? twBadges(p.top_work_leagues, p.top_work).join(' ') : '—') + '</td></tr>';
     }).join('');
     var note = document.querySelector('[data-fpl="rating-note"]');
     var cal = players.filter(function (p) { return p.status === 'calibrating'; });
@@ -127,7 +150,9 @@
     var hide = function (sel) { document.querySelectorAll(sel).forEach(function (el) { el.hidden = true; el.style.display = 'none'; }); };
     var show = function (el) { if (el) { el.hidden = false; el.style.display = ''; } };
     var fr = data && data.frozen;
+    var live = data && data.live;
     if (note) note.textContent = (fr && players.length ? f(T.frozenNote, { g: gameName(fr) }) + ' ' : '') +
+      (live && live.after_round && players.length ? f(T.liveNote, { n: live.after_round, g: gameName(live) }) + ' ' : '') +
       (data && data.generated_at ? f(T.updated, { d: date(data.generated_at) }) : '');
     set('rsCount', s ? s.rated : '—');
     if (players.length) { show(document.querySelector('.rleagues')); show(document.querySelector('.rcontrols')); }
@@ -162,7 +187,7 @@
       var q = state.q.trim().toLowerCase();
       var rows = players.filter(function (p) { return (state.league === 'all' || p.league === state.league) && (!q || String(p.name).toLowerCase().indexOf(q) > -1); });
       rbody.innerHTML = rows.map(function (p) {
-        var aw = p.top_work ? '<span class="aw aw--tw">' + T.tw + (p.top_work > 1 ? ' ×' + p.top_work : '') + '</span>' : '<span class="none" style="color:#B9AEA2">—</span>';
+        var aw = p.top_work ? twBadges(p.top_work_leagues, p.top_work).join('') : '<span class="none" style="color:#B9AEA2">—</span>';
         var rt = '<span class="rt-val">' + p.rating + '</span>' + (p.status === 'calibrating' ? '<span class="prov">' + T.prov + '</span>' : '');
         var games = p.status === 'calibrating' ? f(T.calibShort, { n: p.calibration || 1 }) : '';
         return '<tr><td class="c-pl"><span class="place">' + p.place + '</span></td>' +

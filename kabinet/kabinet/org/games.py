@@ -230,6 +230,7 @@ def event_view(e, season=None):
             'affects_rating': e['affects_rating'], 'has_diploma': e['has_diploma'], 'awards_points': e['awards_points'],
             'counts_for_final': e['counts_for_final'], 'payment_required': e['payment_required'],
             'locked': locked_fields(e) if started else [],
+            'site_rating_live': bool((e['settings'] or {}).get('site_rating_live')),
             'readonly': e['status'] in ('finished', 'archived')}
 
 
@@ -450,6 +451,27 @@ def change_status(event_id: UUID, body: StatusChange, request: Request, user=Dep
             conn.execute("UPDATE seasons SET status='active' WHERE id=%s AND status='draft'", (e['season_id'],))
         audit(conn, user['id'], 'event', event_id, 'event_' + body.action, {'from': source, 'to': target})
         return event_detail(conn, e, now)
+
+
+class SiteRatingIn(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    live: bool
+
+
+@router.post('/events/{event_id}/site-rating', dependencies=WRITE)
+def site_rating(event_id: UUID, body: SiteRatingIn, request: Request, user=Depends(org_user)):
+    """Рейтинг на сайте во время этой Игры (17.10). По умолчанию (Правила, п. 7.3; решение 13.10) сайт показывает рейтинг
+    на начало идущей Игры, а новый — после её конца. Организатор может разрешить показывать текущий рейтинг (после каждого
+    опубликованного тура) — флаг settings.site_rating_live этой Игры; его читает выгрузка сайта (server/db/site_views.sql)."""
+    with db(request).transaction() as conn:
+        locked_admin(conn, user)
+        e = load_event(conn, event_id, lock=True)
+        if e['event_type'] != 'ranked_game':
+            raise problem('not_ranked', 409)
+        e = conn.execute('''UPDATE events SET settings = coalesce(settings, '{}'::jsonb) || jsonb_build_object('site_rating_live', %s::boolean)
+WHERE id=%s RETURNING *''', (body.live, event_id)).fetchone()
+        audit(conn, user['id'], 'event', event_id, 'site_rating_live', {'live': body.live})
+        return event_detail(conn, e, now_of(request))
 
 
 @router.delete('/events/{event_id}', status_code=204, dependencies=WRITE)

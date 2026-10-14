@@ -42,10 +42,13 @@ WHERE u.deleted_at IS NULL AND u.anonymized_at IS NULL
 -- Во время Игры сайт показывает рейтинг НА НАЧАЛО Игры (решение 13.10, Правила 7.3: общий рейтинговый список
 -- в ходе Игры не публикуется): для того, у кого есть изменения в идущей Игре, берётся значение до первого из них.
 -- Новый рейтинг появляется на сайте, когда Игра завершена.
+-- Исключение (17.10): организатор в настройках Игры разрешил сайту текущий рейтинг во время неё
+-- (events.settings.site_rating_live) — тогда эта Игра рейтинг не «замораживает».
 CREATE OR REPLACE VIEW site_rating_frozen AS
 SELECT DISTINCT ON (rt.user_id) rt.user_id, rt.rating_before, rt.calibration_rounds_completed_before AS calibration_before
 FROM rating_transactions rt
 JOIN events e ON e.id = rt.event_id AND e.status IN ('registration','active')
+  AND NOT coalesce((e.settings->>'site_rating_live')::boolean, false)
 WHERE rt.status = 'active'
 ORDER BY rt.user_id, rt.ledger_seq;
 
@@ -61,7 +64,15 @@ SELECT s.id AS season_id, s.season_no, s.name AS season_name,
           JOIN event_participants ep ON ep.id = rr.event_participant_id
           JOIN events e ON e.id = rr.event_id
         WHERE ep.user_id = ps.user_id AND e.season_id = s.id
-          AND rr.top_work AND rr.is_current AND rr.status = 'published')::int AS top_work
+          AND rr.top_work AND rr.is_current AND rr.status = 'published')::int AS top_work,
+       -- TOP WORK по лигам работы в том туре (17.10: «TOP WORK Gold» — всегда с лигой)
+       (SELECT json_object_agg(l.league, l.n) FROM (
+          SELECT coalesce(rr.league, ep.entry_league) AS league, count(*) AS n FROM round_results rr
+          JOIN event_participants ep ON ep.id = rr.event_participant_id
+          JOIN events e ON e.id = rr.event_id
+          WHERE ep.user_id = ps.user_id AND e.season_id = s.id AND rr.top_work AND rr.is_current AND rr.status = 'published'
+            AND coalesce(rr.league, ep.entry_league) IS NOT NULL
+          GROUP BY 1) l) AS top_work_leagues
 FROM participant_stats ps
 LEFT JOIN site_rating_frozen f ON f.user_id = ps.user_id
 CROSS JOIN LATERAL (SELECT
@@ -81,7 +92,16 @@ CREATE OR REPLACE FUNCTION site_export_rating() RETURNS json LANGUAGE sql STABLE
     -- идёт Игра — рейтинг на её начало (сайт так и пишет); null — рейтинг текущий
     'frozen', (SELECT json_build_object('title', e.title, 'title_i18n', e.title_i18n, 'season_no', s.season_no, 'game_no', e.game_no)
                FROM events e LEFT JOIN seasons s ON s.id = e.season_id
-               WHERE e.status = 'active' AND e.event_type = 'ranked_game' ORDER BY e.starts_at NULLS LAST LIMIT 1),
+               WHERE e.status = 'active' AND e.event_type = 'ranked_game'
+                 AND NOT coalesce((e.settings->>'site_rating_live')::boolean, false)
+               ORDER BY e.starts_at NULLS LAST LIMIT 1),
+    -- идёт Игра, и организатор разрешил текущий рейтинг: «рейтинг после тура N» (null — нет такой Игры)
+    'live', (SELECT json_build_object('title', e.title, 'title_i18n', e.title_i18n, 'season_no', s.season_no, 'game_no', e.game_no,
+                                      'after_round', (SELECT max(r.round_no) FROM rounds r WHERE r.event_id = e.id AND r.status = 'published'))
+             FROM events e LEFT JOIN seasons s ON s.id = e.season_id
+             WHERE e.status = 'active' AND e.event_type = 'ranked_game'
+               AND coalesce((e.settings->>'site_rating_live')::boolean, false)
+             ORDER BY e.starts_at NULLS LAST LIMIT 1),
     'seasons', coalesce((
       SELECT json_agg(json_build_object(
         'no', x.season_no, 'name', x.season_name,
@@ -92,7 +112,8 @@ CREATE OR REPLACE FUNCTION site_export_rating() RETURNS json LANGUAGE sql STABLE
                coalesce(json_agg(json_build_object(
                  'place', r.place, 'name', p.display_name, 'league', r.league,
                  'rating', r.rating, 'status', r.rating_status,
-                 'calibration', r.calibration, 'top_work', r.top_work)
+                 'calibration', r.calibration, 'top_work', r.top_work,
+                 'top_work_leagues', coalesce(r.top_work_leagues, '{}'::json))
                  ORDER BY r.place, p.display_name) FILTER (WHERE p.show_rating), '[]'::json) AS players
         FROM site_rating_all r
         LEFT JOIN site_public_people p ON p.user_id = r.user_id
@@ -111,6 +132,8 @@ CREATE OR REPLACE FUNCTION site_export_games() RETURNS json LANGUAGE sql STABLE 
         'season_no', s.season_no, 'game_no', e.game_no,
         'title', e.title, 'title_i18n', e.title_i18n,
         'status', e.status, 'starts_at', e.starts_at, 'ends_at', coalesce(e.completion_deadline, e.ends_at),
+        -- организатор разрешил сайту текущий рейтинг во время этой Игры (17.10)
+        'rating_live', coalesce((e.settings->>'site_rating_live')::boolean, false),
         'participants', (SELECT count(*) FROM event_participants ep WHERE ep.event_id = e.id
                            AND ep.registration_status IN ('participating','completed')),
         'rounds', coalesce((
@@ -124,6 +147,11 @@ CREATE OR REPLACE FUNCTION site_export_games() RETURNS json LANGUAGE sql STABLE 
             'published', (r.status = 'published'),
             'top_work_count', (SELECT count(*) FROM round_results rr
                                WHERE rr.round_id = r.id AND rr.is_current AND rr.status = 'published' AND rr.top_work),
+            -- сколько TOP WORK в каждой лиге (вместе с теми, чьё имя не публикуется)
+            'top_work_leagues', (SELECT coalesce(json_object_agg(l.league, l.n), '{}'::json) FROM (
+                          SELECT rr.league, count(*) AS n FROM round_results rr
+                          WHERE rr.round_id = r.id AND rr.is_current AND rr.status = 'published' AND rr.top_work AND rr.league IS NOT NULL
+                          GROUP BY rr.league) l),
             'top_work', coalesce((
               SELECT json_agg(json_build_object('name', p.display_name, 'league', rr.league)
                 ORDER BY p.display_name)

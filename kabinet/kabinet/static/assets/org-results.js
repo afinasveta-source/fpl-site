@@ -113,20 +113,22 @@
     });
     if (!rows.length) return h + '<p class="muted">В Игре пока нет участниц.</p></section>';
     var final = d.config.final_round;
-    h += '<div class="table-wrap"><table class="otable rtable"><thead><tr><th scope="col">Общее место</th><th scope="col">Участница</th><th scope="col">Лига, место</th>' +
-      '<th scope="col" class="c">Путь</th><th scope="col" class="c">Финал</th><th scope="col" class="c">Итог</th><th scope="col">Зачёт, диплом</th><th scope="col" class="c">Очки FPL</th></tr></thead><tbody>' +
+    h += '<p class="small muted">Очки FPL — за итог Игры и TOP WORK, копятся и не сгорают. FPL Rating — отдельное число: меняется после туров и на итоги, места и очки не влияет (в таблице — текущий, для справки).</p>' +
+      '<div class="table-wrap"><table class="otable rtable"><thead><tr><th scope="col">Общее место</th><th scope="col">Участница</th><th scope="col">Лига, место</th>' +
+      '<th scope="col" class="c">Путь</th><th scope="col" class="c">Финал</th><th scope="col" class="c">Итог</th><th scope="col">Зачёт, диплом</th><th scope="col" class="c">Очки FPL</th><th scope="col" class="c">FPL Rating</th></tr></thead><tbody>' +
       rows.map(function (r) {
         var place = (r.award_place ? pill(r.award_place + ' место', r.award_place === 1 ? 'ok' : 'acc') : r.league_rank ? r.league_rank + ' в лиге' : '—') +
           (r.top10 ? ' ' + pill('TOP-10', 'info') : r.top25 ? ' ' + pill('TOP-25', 'info') : '');
         var who = r.excluded ? pill(EXCL[r.excluded] || r.excluded, 'plain') : !r.finalist && r.stage ? '<span class="small muted">выбыла после тура ' + r.stage + '</span>' : !r.stage ? '<span class="small muted">не судилась</span>' : '';
         var dip = (r.counted ? pill('Зачёт', 'ok') : '') + ' ' + (r.certificate ? '<span class="small nowrap">' + esc(r.certificate) + '</span>' : r.diploma ? pill('Диплом', 'acc') : '');
-        var pts = r.points && r.points.total != null ? '<b class="num">' + r.points.total + '</b>' + (r.points.best ? '<span class="small muted"> ' + esc(BEST[r.points.best] || '') + (r.points.top_work ? ' + TOP WORK ' + r.points.top_work : '') + '</span>' : '') : '—';
+        var pts = r.points && r.points.total != null ? '<b class="num">' + r.points.total + '</b>' + (r.points.best ? '<span class="small muted"> ' + esc(BEST[r.points.best] || '') + (r.points.top_work ? ' + за ' + esc(K.topWork(r.league)) + ' ' + r.points.top_work : '') + '</span>' : '') : '—';
         return '<tr class="' + (r.tie && r.tie.length ? 'tied' : '') + '"><td data-label="Общее место">' + (r.overall_rank || '—') + '</td>' +
           '<td data-label="Участница"><button class="lnk" type="button" data-href="/org/participants/' + r.id + '">' + esc(r.name) + '</button> ' + who + '</td>' +
           '<td data-label="Лига, место">' + esc(r.league ? LNAME[r.league] : '—') + ' · ' + place + '</td>' +
           '<td class="c" data-label="Путь">' + fmt(r.path) + '</td><td class="c" data-label="Финал">' + (final == null ? '—' : fmt(r.final)) + '</td>' +
           '<td class="c" data-label="Итог"><b class="num">' + fmt(r.total) + '</b></td><td data-label="Зачёт, диплом">' + dip + '</td>' +
-          '<td class="c" data-label="Очки FPL">' + pts + '</td></tr>';
+          '<td class="c" data-label="Очки FPL">' + pts + '</td>' +
+          '<td class="c" data-label="FPL Rating">' + (r.rating ? '<span class="num">' + r.rating.value + '</span>' + (r.rating.status === 'calibrating' ? '<span class="small muted"> · калибр. ' + r.rating.calibration + '/3</span>' : '') : '<span class="muted">—</span>') + '</td></tr>';
       }).join('') + '</tbody></table></div>';
     if (!pub) {
       var can = !d.checks.problems.length;

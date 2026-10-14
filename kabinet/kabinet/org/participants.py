@@ -84,14 +84,15 @@ def works_of(conn, ep_ids, task_ids):
 def participants(event_id: UUID, request: Request, q: str = Query('', max_length=100),
                  mode: str = Query('', pattern='^(|' + '|'.join(MODES) + ')$'),
                  league: str = Query('', pattern='^(|bronze|silver|gold|none)$'),
-                 status: str = Query('', pattern='^(|in|outside|out)$'), user=Depends(org_user)):
+                 status: str = Query('', pattern='^(|in|outside|out)$'),
+                 sort: str = Query('', pattern='^(|rating_desc|rating_asc)$'), user=Depends(org_user)):
     now = now_of(request)
     with db(request).transaction() as conn:
         e = load_event(conn, event_id)
         if e['status'] in ('active', 'registration'):
             G.sync_event(conn, event_id, now)   # опоздавшие — вне конкурса, как увидит сама участница
         rows = conn.execute('''SELECT p.*, u.full_name, u.display_name, u.email, u.city, u.country_code, u.account_status,
-ps.current_rating, ps.rating_status FROM event_participants p JOIN users u ON u.id=p.user_id
+ps.current_rating, ps.rating_status, ps.calibration_rounds_completed FROM event_participants p JOIN users u ON u.id=p.user_id
 LEFT JOIN participant_stats ps ON ps.user_id=p.user_id AND ps.rating_status<>'unrated'
 WHERE p.event_id=%s ORDER BY p.joined_at NULLS LAST, p.created_at''', (event_id,)).fetchall()
         rounds, mains = event_structure(conn, event_id)
@@ -138,13 +139,19 @@ WHERE legal_document_id=%s ORDER BY user_id, recorded_at DESC, id DESC''', (rule
             er, a = effective(r, a, variants, pa, p)
             res = scores.get((str(p['id']), str(r['id'])))
             cells.append({'round_no': r['round_no'], 'work': work_state(er, a, pa, sub, bool(sub and sub['id'] in drafts), now),
-                          'score': res['score'] if res else None, 'from_bot': (r['settings'] or {}).get('source') == 'bot',
+                          'score': res['score'] if res else None, 'top_work': bool(res and res['top_work']),
+                          'top_work_league': res['league'] if res else None, 'from_bot': (r['settings'] or {}).get('source') == 'bot',
                           'personal_deadline': iso(pa['deadline_override']) if pa and pa['deadline_override'] else None})
         out.append({'id': str(p['id']), 'user_id': str(p['user_id']), 'name': person_name(p), 'email': p['email'],
                     'city': p['city'], 'country_code': p['country_code'], 'mode': m, 'league': p['entry_league'],
                     'joined_at': iso(p['joined_at']), 'account_status': p['account_status'],
                     'rating': round(float(p['current_rating'])) if p['current_rating'] is not None else None,
+                    'rating_status': p['rating_status'] or 'unrated', 'calibration': p['calibration_rounds_completed'] or 0,
                     'rules_ok': rules_doc is None or p['user_id'] in accepted, 'rounds': cells})
+    if sort:
+        # без рейтинга — всегда в конце списка; при равном рейтинге — как были (по записи)
+        sign = -1 if sort == 'rating_desc' else 1
+        out.sort(key=lambda x: (x['rating'] is None, sign * (x['rating'] or 0)))
     return {'event': {'id': str(e['id']), 'title': e['title'], 'status': e['status']},
             'current_round': current['round_no'] if current else None,
             'rounds': [{'id': str(r['id']), 'round_no': r['round_no'], 'title': r['title']} for r in rounds],
@@ -162,11 +169,30 @@ def load_ep(conn, ep_id, lock=False):
 def round_scores(conn, event_id, ep_ids=None):
     """Опубликованные итоги туров (в том числе туры 1–2 из бота): {(участие, тур): {score, advanced}} — чтобы организатор
     видел баллы там, где работы в кабинете нет (14.10: «у всех нет данных» в карточке)."""
-    rows = conn.execute('''SELECT event_participant_id, round_id, display_score, advanced FROM round_results
+    rows = conn.execute('''SELECT event_participant_id, round_id, display_score, advanced, top_work, league FROM round_results
 WHERE event_id=%s AND is_current AND status='published' AND (%s::uuid[] IS NULL OR event_participant_id = ANY(%s::uuid[]))''',
                         (event_id, ep_ids, ep_ids)).fetchall()
     return {(str(r['event_participant_id']), str(r['round_id'])): {
-        'score': float(r['display_score']) if r['display_score'] is not None else None, 'advanced': r['advanced']} for r in rows}
+        'score': float(r['display_score']) if r['display_score'] is not None else None, 'advanced': r['advanced'],
+        'top_work': bool(r['top_work']), 'league': r['league']} for r in rows}
+
+
+def rating_of(conn, user_id, event_id):
+    """FPL Rating участницы для организатора: текущий, калибровка и изменения за туры этой Игры (до → после).
+    Это рейтинг, а не очки FPL: очки копятся отдельно и на рейтинг не влияют."""
+    st = conn.execute('SELECT current_rating, calibration_rounds_completed, rating_status FROM participant_stats WHERE user_id=%s',
+                      (user_id,)).fetchone()
+    tx = conn.execute('''SELECT t.round_id, r.round_no, t.method, t.rating_before, t.rating_after, t.delta_after_cap
+FROM rating_transactions t LEFT JOIN rounds r ON r.id=t.round_id
+WHERE t.user_id=%s AND t.event_id=%s AND t.status='active' ORDER BY t.ledger_seq''', (user_id, event_id)).fetchall()
+    num = lambda v: round(float(v)) if v is not None else None
+    return {'current': num(st['current_rating']) if st and st['rating_status'] != 'unrated' else None,
+            'status': st['rating_status'] if st else 'unrated', 'calibration': st['calibration_rounds_completed'] if st else 0,
+            'rounds': [{'round_id': str(t['round_id']) if t['round_id'] else None, 'round_no': t['round_no'], 'method': t['method'],
+                        'before': num(t['rating_before']), 'after': num(t['rating_after']),
+                        'delta': num(t['delta_after_cap']) if t['delta_after_cap'] is not None
+                        else (num(t['rating_after']) - num(t['rating_before']) if t['rating_before'] is not None and t['rating_after'] is not None else None)}
+                       for t in tx]}
 
 
 def participant_detail(conn, ep, request, now):
@@ -210,6 +236,7 @@ WHERE a.entity_type='event_participant' AND a.entity_id=%s ORDER BY a.created_at
             'out_of_competition_at': iso(ep['out_of_competition_at']), 'out_source': ep['out_of_competition_source'],
             'joined_at': iso(ep['joined_at']), 'rules_ok': G.rules_ok(conn, ep['user_id'], now),
             'missed_round': missed['round_no'] if missed else None, 'rounds': rounds_out,
+            'rating': rating_of(conn, ep['user_id'], ep['event_id']),
             'log': [{'action': x['action'], 'data': x['after_data'], 'reason': x['reason'], 'at': iso(x['created_at']),
                      'by': person_name(x) if (x['full_name'] or x['display_name'] or x['email']) else 'Система'} for x in log]}
 

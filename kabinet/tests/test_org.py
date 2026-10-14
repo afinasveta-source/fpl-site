@@ -456,7 +456,7 @@ def test_dashboard(app, seed, clock):
 
 
 def test_org_pages_served(client):
-    for path in ('/org', '/org/games/x', '/auth/invite'):
+    for path in ('/org', '/org/games/x', '/auth/invite', '/gallery'):
         r = client.get(path)
         assert r.status_code == 200 and 'core.js' in r.text
 

@@ -364,6 +364,16 @@
     finished: [['reopen', 'Вернуть в «Идёт»', 'Вернуть Игру в «Идёт»?', 'Только чтобы исправить ошибку: приём работ снова откроется по срокам туров и конца Игры.']]
   };
 
+  O.addText({ not_ranked: 'Только для рейтинговой Игры.' });
+  K.actions.siteRating = function (b) {
+    var on = b.getAttribute('data-v') === '1';
+    O.confirm({ title: on ? 'Показывать на сайте текущий рейтинг?' : 'Вернуть рейтинг на начало Игры?',
+      html: on ? '<p>Таблица FPL Rating на сайте станет меняться после каждого опубликованного тура этой Игры.</p>' +
+        '<div class="note warn small">В Правилах (п. 7.3) сказано, что общий рейтинговый список в ходе Игры не публикуется. Если включаете — стоит предупредить участниц или поправить Правила.</div>'
+        : '<p>Сайт снова покажет рейтинг на начало Игры, а новый — после её конца.</p>',
+      ok: on ? 'Показывать текущий' : 'Вернуть', path: '/api/org/events/' + O.game.id + '/site-rating', body: function () { return { live: on }; },
+      done: function () { K.toast('Сохранено — сайт обновится в течение 10 минут'); K.route(); } });
+  };
   O.on(/^\/org\/games\/([0-9a-f-]{36})$/, function (id) {
     K.load(['/api/org/events/' + id, '/api/org/seasons'], function (e, s) { drawGame(e, s.seasons); }, [['Игры и туры', '/org/games'], ['Игра']]);
   });
@@ -381,6 +391,15 @@
       O.issues(e.checks) + '<div class="row">' + next.map(function (n, i) {
         return '<button class="btn' + (i ? ' sec' : '') + '" type="button" data-act="gameStatus" data-a="' + n[0] + '"' + (n[0] !== 'unpublish' && n[0] !== 'finish' && n[0] !== 'reopen' && e.checks.problems.length ? ' disabled' : '') + '>' + n[1] + '</button>';
       }).join('') + (e.status === 'draft' ? '<button class="btn ghost" type="button" data-act="gameDelete">Удалить черновик</button>' : '') + '</div></section>';
+    if (e.type === 'ranked_game' && (e.status === 'registration' || e.status === 'active')) {
+      // Рейтинг на сайте во время Игры (17.10): по умолчанию — на начало Игры (Правила, п. 7.3); организатор может разрешить текущий.
+      h += '<section class="card"><h2>FPL Rating на сайте</h2><p class="small">' + (e.site_rating_live
+        ? '<b>Сейчас: текущий.</b> Таблица на сайте обновляется после каждого опубликованного тура (сайт забирает данные раз в 10 минут). Только участницы, разрешившие публикацию; места считаются среди всех.'
+        : '<b>Сейчас: на начало Игры.</b> Во время Игры общий рейтинг на сайте не меняется (Правила, п. 7.3), новый появится после её конца.' +
+          (/Игра 01\b/.test(e.title) ? ' У Игры 01 рейтинга на начало ни у кого не было — до конца Игры таблица на сайте пустая.' : '')) + '</p>' +
+        '<div class="row"><button class="btn sec" type="button" data-act="siteRating" data-v="' + (e.site_rating_live ? '0' : '1') + '">' +
+        (e.site_rating_live ? 'Вернуть: рейтинг на начало Игры' : 'Показывать текущий рейтинг') + '</button></div></section>';
+    }
     h += '<section class="card"><div class="between"><h2>Туры</h2>' + (e.readonly ? '' : '<button class="btn sec" type="button" data-act="addRound">Добавить тур</button>') + '</div>' +
       (e.rounds.length ? '<div class="list">' + e.rounds.map(function (r) {
         return li(roundName(r), esc([r.task_title, r.opens_at ? 'открытие ' + K.date(r.opens_at) : 'нет даты открытия', r.deadline ? 'срок ' + K.date(r.deadline) : 'нет срока', r.state !== 'draft' && r.state !== 'plan' ? 'сдали: ' + r.sent : ''].filter(Boolean).join(' · ')),

@@ -869,7 +869,7 @@
     return '<button class="gal-tile" type="button" data-act="galOpen" data-l="' + list + '" data-i="' + i + '" aria-label="Работа: ' + esc(it.author) + '">' +
       '<span class="gal-ph"><img src="' + esc(it.photo.thumb_url) + '" alt="" loading="lazy" decoding="async"></span>' +
       '<span class="gal-cap"><b>' + esc(it.author) + '</b><span>' + esc(galLeague(it.league)) + '</span></span>' +
-      (it.top_work || it.own ? '<span class="gal-tags">' + (it.top_work ? '<i class="gal-tw">TOP WORK</i>' : '') + (it.own ? '<i class="gal-me">' + (it.only_you ? 'Ваша · видна только вам' : 'Ваша') + '</i>' : '') + '</span>' : '') +
+      (it.top_work || it.own ? '<span class="gal-tags">' + (it.top_work ? '<i class="gal-tw">' + esc(K.topWork(it.league)) + '</i>' : '') + (it.own ? '<i class="gal-me">' + (it.only_you ? 'Ваша · видна только вам' : 'Ваша') + '</i>' : '') + '</span>' : '') +
       '</button>';
   }
   function galAll() {
@@ -893,9 +893,9 @@
     else if (!d.total) h += '<section class="card empty"><p>Пока нет работ, которые авторы разрешили показывать.</p></section>';
     else {
       if (d.top.length) {
-        h += '<section class="stack gal-sec"><h2>TOP WORK</h2>' + GAL_LEAGUES.map(function (l) {
+        h += '<section class="stack gal-sec"><h2>Лучшие работы</h2>' + GAL_LEAGUES.map(function (l) {
           var part = d.top.map(function (it, i) { return [it, i]; }).filter(function (x) { return (x[0].league || 'none') === l; });
-          return part.length ? '<h3 class="gal-lg">' + esc(galLeague(l)) + '</h3><div class="gal-grid">' + part.map(function (x) { return galTile(x[0], 'top', x[1]); }).join('') + '</div>' : '';
+          return part.length ? '<h3 class="gal-lg">' + esc(K.topWork(l === 'none' ? null : l)) + '</h3><div class="gal-grid">' + part.map(function (x) { return galTile(x[0], 'top', x[1]); }).join('') + '</div>' : '';
         }).join('') + '</section>';
       }
       var all = galAll(), keys = GAL_LEAGUES.filter(function (l) { return d.leagues[l]; });
@@ -962,7 +962,7 @@
     var img = box.querySelector('img');
     img.src = it.photo.view_url; img.alt = 'Работа: ' + it.author;
     box.setAttribute('aria-label', 'Работа: ' + it.author);
-    box.querySelector('figcaption').innerHTML = '<b>' + esc(it.author) + '</b> · ' + esc(galLeague(it.league)) + (it.top_work ? ' · TOP WORK' : '') +
+    box.querySelector('figcaption').innerHTML = '<b>' + esc(it.author) + '</b> · ' + esc(galLeague(it.league)) + (it.top_work ? ' · ' + esc(K.topWork(it.league)) : '') +
       ' <span>' + (GAL.at + 1) + ' из ' + n + '</span>';
     Array.prototype.forEach.call(box.querySelectorAll('.gal-nav'), function (x) { x.hidden = n < 2; });
   }

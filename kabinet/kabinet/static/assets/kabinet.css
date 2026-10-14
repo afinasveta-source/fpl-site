@@ -243,3 +243,5 @@ audio.wide{width:100%;margin-block:8px}
 .gal-nav:hover{background:rgba(255,255,255,.28)}
 .gal-prev{left:8px}.gal-next{right:8px}
 body.lb-open{overflow:hidden}
+.sort-btn{font:inherit;color:inherit;white-space:nowrap;text-decoration:none}
+.tw-mark{display:block;font-size:11px;font-weight:700;line-height:1.2;color:var(--accent-ink)}
