@@ -259,9 +259,13 @@ def needs_source(game, rnd):
 def window(conn, game, assignment, now, user_id):
     from kabinet import relay
     rnd = game.round_of(assignment)
-    if (rnd['settings'] or {}).get('source') == 'bot' and game.results.get(rnd['id']):
-        # тур прошёл в боте и работа уже оценена — в кабинете её не сдают заново (сдают только те, у кого оценки нет)
-        return R.Window(False, 'done_in_bot')
+    if R.bot_round(rnd):
+        # тур прошёл в боте (решение 14.10): фото работы, перенесённое организатором, — у неё уже есть, загружать нечего;
+        # нет фото — можно загрузить своё в архив Игры до её конца (и заменить), итоги тура от этого не меняются
+        if bot_photo(conn, game, assignment):
+            return R.Window(False, 'done_in_bot')
+        return R.submission_window(game.event, rnd, assignment, game.pas.get(assignment['id']), game.mode, now,
+                                   rules_ok(conn, user_id, now))
     w = R.submission_window(game.event, rnd, assignment, game.pas.get(assignment['id']), game.mode, now,
                             rules_ok(conn, user_id, now))
     if w.open and game.mode == R.IN and game.ep['entry_league'] and conn.execute(
@@ -274,6 +278,13 @@ def window(conn, game, assignment, now, user_id):
             else 'source_pending'
         return R.Window(False, reason, w.deadline, w.deadline_source)
     return w
+
+
+def bot_photo(conn, game, assignment):
+    """У работы тура есть фото, перенесённое из бота организатором (версия migration)."""
+    sub = game.subs.get(assignment['id'])
+    return bool(sub and conn.execute("SELECT 1 FROM submission_versions WHERE submission_id=%s AND source='migration' LIMIT 1",
+                                     (sub['id'],)).fetchone())
 
 
 def require_open(conn, game, assignment, now, user_id):
@@ -382,7 +393,7 @@ def submit(conn, game, assignment, draft_id, user_id, now):
 WHERE id=%s RETURNING *''', (now, draft['id'])).fetchone()
     rnd = game.round_of(assignment)
     marks = R.submission_marks(game.event, rnd, assignment, game.pas.get(assignment['id']), game.mode, now,
-                               sub['first_submitted_at'])
+                               sub['first_submitted_at'], bot_result=game.results.get(rnd['id']) is not None)
     in_competition = marks['counts_for_competition']
     sub = conn.execute('''UPDATE submissions SET latest_version_id=%(v)s,
   competition_version_id = CASE WHEN %(comp)s THEN %(v)s ELSE competition_version_id END,

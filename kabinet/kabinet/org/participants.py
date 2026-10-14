@@ -29,7 +29,7 @@ def work_state(rnd, a, pa, sub, has_draft, now):
         return 'sent' if sub['is_on_time'] else 'sent_late'
     if rnd['status'] == 'draft' or not R.round_opened(rnd, now):
         return 'plan'
-    if R.competition_deadline_passed(rnd, a, pa, now) and a['required_for_competition']:
+    if R.competition_deadline_passed(rnd, a, pa, now) and a['required_for_competition'] and not R.bot_round(rnd):
         return 'missed'
     return 'draft' if has_draft else 'none'
 

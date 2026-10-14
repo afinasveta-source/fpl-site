@@ -237,3 +237,122 @@ def test_fetch_refuses_foreign_hosts_and_redirects():
     with pytest.raises(BP.FetchError) as e:
         BP._Redirects().redirect_request(None, None, 302, 'Found', {}, 'https://169.254.169.254/latest/meta-data')
     assert e.value.code == 'bad_redirect'
+
+
+# ---------- Фото работы тура из бота загружает сама участница (решение 14.10) ----------
+
+def as_participant(app, eid, cid, email):
+    """Вход для записи из бота и принятые документы (как после заявки)."""
+    ep = ep_of(app, eid, cid)
+    with app.state.db.transaction() as conn:
+        conn.execute('''UPDATE users SET email=%s, password_hash=%s, email_verified_at=now(), account_status='active' WHERE id=%s''',
+                     (email, password_hasher.hash(PASSWORD), ep['user_id']))
+        for d in conn.execute('SELECT * FROM legal_documents').fetchall():
+            conn.execute('''INSERT INTO consents(user_id,event_id,consent_type,accepted,status,document_version,legal_document_id,channel,
+button_text,idempotency_key) VALUES (%s,%s,%s,true,'accepted',%s,%s,'web','test',%s)''',
+                         (ep['user_id'], eid, d['doc_type'], d['version'], d['id'], f"t:{ep['user_id']}:{d['id']}"))
+    p = TestClient(app)
+    ok(p.post('/web-auth/login', headers=ORIGIN, json={'email': email, 'password': PASSWORD}))
+    return p, ep
+
+
+def bot_round_of(g, no):
+    return next(x for x in g['rounds'] if x['round_no'] == no)
+
+
+def upload_own(p, eid, aid, color=(9, 9, 9)):
+    photo = ok(p.post('/api/uploads', content=jpeg(color), headers={'Content-Type': 'image/jpeg', **ORIGIN}), 201)
+    url = f'/api/games/{eid}/tasks/{aid}'
+    d = p.put(url + '/draft', headers=ORIGIN, json={'photos': [photo['id']], 'link': None})
+    if d.status_code != 200:
+        return d
+    return p.post(url + '/submit', headers=ORIGIN, json={'draft_id': d.json()['draft']['id']})
+
+
+def state(app, ep):
+    with app.state.db.transaction() as conn:
+        return {'ep': {k: v for k, v in conn.execute('SELECT * FROM event_participants WHERE id=%s', (ep['id'],)).fetchone().items()
+                       if k in ('competition_status', 'elimination_reason', 'eliminated_round_id', 'out_of_competition_at')},
+                'results': [dict(r) for r in conn.execute('''SELECT round_id, display_score, advanced, competition_status_after, top_work
+FROM round_results WHERE event_participant_id=%s ORDER BY round_id''', (ep['id'],))],
+                'rating': [dict(r) for r in conn.execute('''SELECT idempotency_key, rating_after, status FROM rating_transactions
+WHERE user_id=%s ORDER BY idempotency_key''', (ep['user_id'],))]}
+
+
+def test_participant_uploads_lost_bot_photo(app, seed, clock):
+    c, eid = setup(app, seed, clock)
+    with app.state.db.transaction() as conn:
+        # задание тура из бота, заведённое раньше как обычное (обязательное в конкурсе): сверка всё равно никого не переводит
+        conn.execute('''UPDATE assignments SET required_for_competition=true, required_for_game_count=true, on_missed_deadline='diploma_track'
+WHERE round_id IN (SELECT id FROM rounds WHERE event_id=%s AND round_no IN (1,2))''', (eid,))
+    p, ep = as_participant(app, eid, '1000000001', 'anna@example.com')    # в конкурсе, итог тура 1 из бота есть, фото нет
+    before = state(app, ep)
+    g = ok(p.get(f'/api/games/{eid}'))
+    r1 = bot_round_of(g, 1)
+    assert r1['can_submit'] and r1['bot'] == {'has_result': True, 'photo': None} and r1['work'] == 'none'
+    assert g['me']['mode'] == 'in' and g['flags']['counted'] == 'ok'
+    t = ok(p.get(f"/api/games/{eid}/tasks/{r1['assignment_id']}"))
+    assert t['window']['open'] and t['window']['source'] == 'completion' and t['bot_round']['has_result']
+    assert 'фото не сохранилось' in t['instructions'] and 'итог тура' in t['instructions'].lower()
+    done = ok(upload_own(p, eid, r1['assignment_id']))
+    assert done['bot_round']['photo'] == 'own' and done['submitted']['photos'] and done['window']['open']   # заменить можно до конца Игры
+    again = ok(upload_own(p, eid, r1['assignment_id'], color=(200, 1, 1)))
+    assert again['submitted']['version_no'] == 2
+    g = ok(p.get(f'/api/games/{eid}'))
+    r1 = bot_round_of(g, 1)
+    assert r1['work'] == 'sent' and r1['photo'] and not r1['photo']['from_bot'] and r1['can_submit'] and r1['bot']['photo'] == 'own'
+    with app.state.db.transaction() as conn:
+        s = conn.execute('''SELECT s.* FROM submissions s JOIN participant_assignments pa ON pa.id=s.participant_assignment_id
+WHERE s.event_participant_id=%s AND pa.assignment_id=%s''', (ep['id'], r1['assignment_id'])).fetchone()
+    assert s['is_on_time'] and s['counts_for_competition'] and s['counts_for_diploma'] and s['status'] == 'submitted'
+    # итоги, рейтинг и участие — как были; сверка опоздавших (и список участниц у организатора) никого не переводит
+    ok(c.get(f'/api/org/events/{eid}/participants'))
+    assert state(app, ep) == before
+    p2, ep2 = as_participant(app, eid, '1000000002', 'maria@example.com')    # в конкурсе, фото тура 1 не загружала
+    g2 = ok(p2.get(f'/api/games/{eid}'))
+    assert g2['me']['mode'] == 'in' and bot_round_of(g2, 2)['can_submit'] and bot_round_of(g2, 1)['work'] == 'none'
+    with app.state.db.transaction() as conn:
+        assert not conn.execute("SELECT 1 FROM audit_log WHERE action='late_to_outside'").fetchone()
+    # перенос фото из бота её загрузку не перезаписывает
+    app.state.fetch_photo = Fake({U.format('a'): jpeg()})
+    pv = ok(c.post(PATH + '/preview', headers=ORIGIN, json={'items': [item('1000000001', 1, U.format('a'))]}))
+    assert pv['items'][0]['status'] == 'has_own'
+    res = ok(c.post(PATH + '/apply', headers=ORIGIN, json={'items': [item('1000000001', 1, U.format('a'))]}))['items'][0]
+    assert (res['result'], res['reason']) == ('skipped', 'has_own')
+    card = ok(c.get(f"/api/org/participants/{ep['id']}"))
+    c1 = next(x for x in card['rounds'] if x['round_no'] == 1)
+    assert c1['submitted']['source'] == 'web' and c1['submitted']['version_no'] == 2 and c1['result']['score'] == 90
+
+
+def test_imported_photo_closes_upload_and_outside_without_result(app, seed, clock):
+    c, eid = setup(app, seed, clock)
+    app.state.fetch_photo = Fake({U.format('b'): jpeg()})
+    ok(c.post(PATH + '/apply', headers=ORIGIN, json={'items': [item('1000000002', 1, U.format('b'))]}))
+    p, ep = as_participant(app, eid, '1000000002', 'maria@example.com')
+    g = ok(p.get(f'/api/games/{eid}'))
+    r1 = bot_round_of(g, 1)
+    assert not r1['can_submit'] and r1['closed_reason'] == 'done_in_bot' and r1['bot'] == {'has_result': True, 'photo': 'imported'}
+    t = ok(p.get(f"/api/games/{eid}/tasks/{r1['assignment_id']}"))
+    assert not t['window']['open'] and t['window']['reason'] == 'done_in_bot' and t['submitted']['source'] == 'migration'
+    r = upload_own(p, eid, r1['assignment_id'])
+    assert r.status_code == 409 and r.json()['detail'] == 'done_in_bot'
+    # тур 1 сдан из бота, тур 2 — у неё итог есть, фото нет: можно
+    assert bot_round_of(g, 2)['can_submit']
+    # вне конкурса, итога тура 2 нет — загружает в архив, остаётся вне конкурса, итогов тура 2 не появляется
+    p5, ep5 = as_participant(app, eid, '1000000005', 'dasha@example.com')
+    before = state(app, ep5)
+    g5 = ok(p5.get(f'/api/games/{eid}'))
+    r2 = bot_round_of(g5, 2)
+    assert g5['me']['mode'] == 'outside' and r2['can_submit'] and r2['bot'] == {'has_result': False, 'photo': None}
+    t5 = ok(p5.get(f"/api/games/{eid}/tasks/{r2['assignment_id']}"))
+    assert 'итога этого тура у вас нет' in t5['instructions']
+    ok(upload_own(p5, eid, r2['assignment_id']))
+    with app.state.db.transaction() as conn:
+        s = conn.execute('''SELECT s.* FROM submissions s JOIN participant_assignments pa ON pa.id=s.participant_assignment_id
+WHERE s.event_participant_id=%s AND pa.assignment_id=%s''', (ep5['id'], r2['assignment_id'])).fetchone()
+    assert not s['counts_for_competition'] and s['is_on_time'] is False and s['counts_for_diploma'] and s['competition_version_id'] is None
+    assert state(app, ep5) == before
+    # после конца Игры загрузка закрыта
+    clock.set(h(days=1))
+    t5 = ok(p5.get(f"/api/games/{eid}/tasks/{bot_round_of(g5, 1)['assignment_id']}"))
+    assert not t5['window']['open']

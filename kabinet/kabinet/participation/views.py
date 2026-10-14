@@ -57,7 +57,8 @@ def my_work_state(game, rnd, assignment, now):
         draft = 'draft'
     else:
         draft = 'none'
-    if R.round_opened(rnd, now) and R.competition_deadline_passed(rnd, assignment, pa, now) and assignment['required_for_competition']:
+    if R.round_opened(rnd, now) and R.competition_deadline_passed(rnd, assignment, pa, now) and assignment['required_for_competition'] \
+            and not R.bot_round(rnd):
         return 'missed'
     return draft
 
@@ -82,6 +83,23 @@ def work_photo(game, assignment, root):
     return photo_view(media[0], root) | {'from_bot': version['source'] == 'migration'}
 
 
+# Тур из бота (решение 14.10): текст задания — из кода, а не из базы (у заданий туров 1–2 в базе — прежний текст переноса).
+BOT_TEXT_RESULT = ('Тур {no} «{title}» прошёл в боте, ваша работа оценена — но её фото не сохранилось. Загрузите фото этой работы: '
+                   'оно сохранится в архиве Игры. Итог тура и ваше участие в Игре от этого не изменятся.')
+BOT_TEXT_NO_RESULT = ('Тур {no} «{title}» прошёл в боте, итога этого тура у вас нет. Если работа была — загрузите её фото: '
+                      'оно сохранится в архиве Игры. Итоги тура и ваше участие в Игре от этого не изменятся.')
+
+
+def bot_view(game, rnd, assignment):
+    """Тур из бота: есть ли итог из бота и чьё фото у работы (imported — перенёс организатор, own — загрузила сама)."""
+    if not R.bot_round(rnd):
+        return None
+    sub = game.subs.get(assignment['id']) if assignment else None
+    latest = game.versions.get(sub['id'], {}).get('latest') if sub else None
+    photo = None if latest is None else 'imported' if latest['source'] == 'migration' else 'own'
+    return {'has_result': rnd['id'] in game.results, 'photo': photo}
+
+
 def rounds_view(game, now, conn=None, user_id=None, rules_ok=True, root=None):
     out = []
     for rnd in game.rounds:
@@ -98,8 +116,10 @@ def rounds_view(game, now, conn=None, user_id=None, rules_ok=True, root=None):
             if game.ep is not None:
                 w = R.submission_window(game.event, rnd, main, game.pas.get(main['id']), game.mode, now, rules_ok)
                 entry['work'] = my_work_state(game, rnd, main, now)
-                entry['can_submit'] = w.open
-                entry['closed_reason'] = w.reason
+                entry['bot'] = bot_view(game, rnd, main)
+                imported = bool(entry['bot'] and entry['bot']['photo'] == 'imported')
+                entry['can_submit'] = w.open and not imported
+                entry['closed_reason'] = 'done_in_bot' if imported else w.reason
                 entry['submit_deadline'] = iso(w.deadline)
                 if root is not None:
                     entry['photo'] = work_photo(game, main, root)
@@ -136,7 +156,11 @@ def task_view(game, assignment, now, rules_ok, root, variant):
     if instructions is None and variant is not None:
         instructions = localized(variant['instructions_i18n'])
     form = R.submission_form(variant) if variant is not None else None
+    bot = bot_view(game, rnd, assignment) if game.ep is not None else None
+    if bot is not None:
+        instructions = (BOT_TEXT_RESULT if bot['has_result'] else BOT_TEXT_NO_RESULT).format(no=rnd['round_no'], title=rnd['title'])
     return {
+        'bot_round': bot,
         'event': event_brief(game.event), 'me': me_view(game), 'round': {
             'id': str(rnd['id']), 'round_no': rnd['round_no'], 'title': rnd['title'],
             'state': round_state(rnd, game.assignments.get(rnd['id'], []), game, now),

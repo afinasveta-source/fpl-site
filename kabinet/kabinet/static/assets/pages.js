@@ -36,6 +36,7 @@
     if (!me) return { kind: 'none' };
     if (me.mode === 'out_pending') return { kind: 'choose' };
     var i;
+    rs = rs.filter(function (r) { return !r.bot; });   // туры из бота: фото работы — в архив, это не «следующий шаг» Игры
     for (i = 0; i < rs.length; i++) if (rs[i].can_submit && ['none', 'draft', 'missed'].indexOf(rs[i].work) >= 0) return { kind: 'submit', round: rs[i] };
     for (i = rs.length - 1; i >= 0; i--) if (rs[i].can_submit && (rs[i].work === 'sent' || rs[i].work === 'sent_late')) return { kind: 'replace', round: rs[i] };
     if (!g.rules_ok) { for (i = 0; i < rs.length; i++) if (rs[i].closed_reason === 'rules') return { kind: 'rules', round: rs[i] }; }
@@ -369,7 +370,16 @@
   });
 
   /* ---------- Игра ---------- */
+  function botRow(g, r) {
+    // тур прошёл в боте (Игра 01): итог — из бота; фото работы — перенесено организатором или загружено самой в архив
+    var b = r.bot, sub = r.result ? 'Оценка ' + K.score(r.result.score) + (r.result.top_work ? ' · ' + K.topWork(r.result.league) : '') : 'Прошёл в боте';
+    if (b.photo === 'own') sub += ' · фото работы загружено' + (r.can_submit ? ', заменить до конца Игры' : '');
+    else if (!b.photo && r.can_submit) sub += ' · фото работы не сохранилось — загрузите';
+    var href = r.result ? '/games/' + g.event.id + '/rounds/' + r.round_no : taskHref(g, r);
+    return li(K.roundName(r.round_no, r.title), esc(sub), r.result ? pill('Итог опубликован', 'ok') : pill('Из бота', 'plain'), href, '');
+  }
   function roundRow(g, r) {
+    if (r.bot && r.assignment_id) return botRow(g, r);
     var outside = g.me.mode === 'outside', href = null, sub = '', right;
     var stateP = { pub: pill('Итог опубликован', 'ok'), open: pill('Идёт сдача', 'acc'), judging: pill('Судейство', 'info'), plan: pill('Запланирован', 'plain') }[r.state];
     if (r.state === 'plan') sub = r.opens_at ? 'Откроется ' + K.day(r.opens_at) : 'Дата будет объявлена';
@@ -456,7 +466,8 @@
         '<div class="row">' + (idx > 0 && g.rounds[idx - 1].result ? '<button class="btn ghost" type="button" data-href="/games/' + id + '/rounds/' + g.rounds[idx - 1].round_no + '">← Итог тура ' + g.rounds[idx - 1].round_no + '</button>' : '') +
         (nextR && nextR.result ? '<button class="btn ghost" type="button" data-href="/games/' + id + '/rounds/' + nextR.round_no + '">Итог тура ' + nextR.round_no + ' →</button>' : '') +
         '<button class="btn sec" type="button" data-href="/games/' + id + '">Все туры Игры</button>' +
-        (r.assignment_id ? '<button class="btn ghost" type="button" data-href="' + taskHref(g, r) + '">Ваша работа</button>' : '') + '</div>', crumbs);
+        (r.assignment_id ? (r.bot && !r.photo && r.can_submit ? '<button class="btn" type="button" data-href="' + taskHref(g, r) + '">Загрузить фото работы</button>' :
+          '<button class="btn ghost" type="button" data-href="' + taskHref(g, r) + '">Ваша работа</button>') : '') + '</div>', crumbs);
     });
   });
 
@@ -489,7 +500,7 @@
       eliminated: ['Сдача закрыта', 'Вопросы по участию — организатору.'],
       not_participating: ['Участие ещё не подтверждено', 'Задание станет доступно, когда участие будет оформлено.'],
       judging_started: ['Работа у жюри', 'Работы вашей лиги уже оценивают — сданная работа зафиксирована. Итог тура опубликуют для всех лиг одновременно.'],
-      done_in_bot: ['Работа сдана в боте', 'Этот тур прошёл в боте, ваша работа уже оценена — итог тура в «Итогах туров».'],
+      done_in_bot: ['Работа сдана в боте', 'Этот тур прошёл в боте, фото вашей работы уже в архиве Игры — итог тура в «Итогах туров».'],
       source_pending: ['Исходник готовится', 'В этом туре вы работаете по работе участницы другой лиги. Организатор проверяет работы и пришлёт исходник — придёт уведомление.'],
       no_source: ['Исходник ещё не выдан', 'В этом туре вы работаете по работе участницы другой лиги. Исходник выдаётся после её срока сдачи — если его всё ещё нет, напишите организатору.']
     }[w.reason] || ['Сдача закрыта', ''];
@@ -502,6 +513,7 @@
 
   function sentView(t, base, editHref) {
     var s = t.submitted, w = t.window, r = t.round, outside = t.me.mode === 'outside', form = t.form || { link: 'optional', photo: 'required' };
+    if (t.bot_round) return botSentView(t, base, editHref);
     var bot = s.source === 'migration';   // туры 1–2 Игры 01: фото работы перенесено из бота
     var status = bot ? 'Сдана в боте' : s.is_on_time === false ? 'Сдана после срока тура' : 'Сдана';
     var h = '<div class="done-head"><span class="ok-ic" aria-hidden="true">✓</span><h1>Работа к туру ' + r.round_no + ' сдана</h1></div>' +
@@ -525,17 +537,33 @@
     return h;
   }
 
+  /* Тур из бота: фото перенёс организатор (заменить нельзя) или загрузила сама (заменить можно до конца Игры). */
+  function botSentView(t, base, editHref) {
+    var s = t.submitted, w = t.window, r = t.round, own = t.bot_round.photo === 'own';
+    var h = '<div class="done-head"><span class="ok-ic" aria-hidden="true">✓</span><h1>Фото работы тура ' + r.round_no + ' в архиве</h1></div>' +
+      '<section class="card"><span class="eyebrow">' + esc(t.event.title) + ' · Тур ' + r.round_no + ' · прошёл в боте</span>' +
+      s.photos.map(function (p, i) { return photoImg(p, 'Ваша работа' + (s.photos.length > 1 ? ', фото ' + (i + 1) : '')); }).join('') +
+      '<dl class="kv"><dt>Фото</dt><dd>' + (own ? 'Загружено вами ' + esc(K.date(s.submitted_at)) + ' МСК' + (s.version_no > 1 ? ' · версия ' + s.version_no : '') : 'Перенесено из бота') + '</dd>' +
+      '<dt>Итог тура</dt><dd>' + (t.result ? 'Из бота, не меняется' : 'В боте итога нет') + '</dd>' +
+      (own && w.open ? '<dt>Заменить можно до</dt><dd>' + esc(K.date(w.deadline)) + ' МСК (конец Игры)</dd>' : '') + '</dl>' +
+      (own && w.open ? '<div class="row"><button class="btn sec" type="button" data-href="' + editHref + '">Заменить фото</button></div>' : '') + '</section>';
+    if (t.result) h += '<div class="row"><button class="btn" type="button" data-href="/games/' + t.event.id + '/rounds/' + r.round_no + '">Итог тура ' + r.round_no + '</button></div>';
+    return h + '<div class="row"><button class="btn ghost" type="button" data-href="' + base + '">Обзор Игры</button>' +
+      '<button class="btn ghost" type="button" data-href="/support/new?event=' + t.event.id + '&round=' + r.round_no + '&task=' + t.assignment.id + '">Сообщить об ошибке</button></div>';
+  }
+
   function formView(t, base) {
     var w = t.window, r = t.round, form = t.form, outside = t.me.mode === 'outside', work = currentWork(t);
     var replacing = !!t.submitted, photos = work.photos, needPhoto = form.photo !== 'none';
-    var h = '<div class="stack" data-s="g6"><span class="eyebrow">Тур ' + r.round_no + ' · ' + esc(t.event.title) + (outside ? ' · вне конкурса' : '') + '</span><h1>' + esc(t.assignment.title) + '</h1></div>' +
-      '<section class="focus"><span class="lbl">' + (outside ? 'Все работы до' : 'Сдать до') + '</span>' + K.deadline(w.deadline, outside ? 'конец Игры' : null) + '</section>';
-    if (outside) {
+    var bot = !!t.bot_round;   // тур из бота: фото работы — в архив Игры, до конца Игры, итог тура не меняется
+    var h = '<div class="stack" data-s="g6"><span class="eyebrow">Тур ' + r.round_no + ' · ' + esc(t.event.title) + (bot ? ' · прошёл в боте' : outside ? ' · вне конкурса' : '') + '</span><h1>' + esc(t.assignment.title) + '</h1></div>' +
+      '<section class="focus"><span class="lbl">' + (bot ? 'Загрузить фото до' : outside ? 'Все работы до' : 'Сдать до') + '</span>' + K.deadline(w.deadline, outside || bot ? 'конец Игры' : null) + '</section>';
+    if (outside && !bot) {
       h += '<p class="small muted">' + esc(outsideNote({ me: t.me })) + '</p>';
       if (t.me.elimination_reason !== 'late' && t.competition_deadline) h += '<p class="small">Срок тура для зачёта Игры — ' + esc(K.date(t.competition_deadline)) + ' МСК.</p>';
     }
     h += '<section class="stack"><h2>Задание</h2><p class="lead" data-s="pre">' + esc(t.instructions || 'Описание задания появится здесь.') + '</p>' +
-      (t.me.mode === 'in' ? '<p class="small muted">После срока работа в конкурс не идёт — продолжить можно вне конкурса.</p>' : '') + '</section>' +
+      (t.me.mode === 'in' && !bot ? '<p class="small muted">После срока работа в конкурс не идёт — продолжить можно вне конкурса.</p>' : '') + '</section>' +
       sourceBlock(t);
     if (replacing && t.draft) h += '<div class="note warn small">Вы меняете сданную работу. Пока изменения не сохранены, действует предыдущая сданная версия.</div>';
     if (needPhoto) {
@@ -558,7 +586,8 @@
     if (replacing && t.draft) h += '<button class="btn ghost" type="button" data-act="discardDraft">Отменить изменения</button>';
     h += '<button class="btn ghost" type="button" data-href="/support/new?event=' + t.event.id + '&round=' + r.round_no + '">Вопрос по заданию</button>';
     var noPhotoYet = needPhoto && form.photo === 'required' && !photos.length;
-    var label = replacing ? 'Заменить работу ' + r.round_no : 'Сдать работу ' + r.round_no + (outside ? ' — вне конкурса' : '');
+    var label = bot ? (replacing ? 'Заменить фото работы ' + r.round_no : 'Сохранить фото работы ' + r.round_no) :
+      replacing ? 'Заменить работу ' + r.round_no : 'Сдать работу ' + r.round_no + (outside ? ' — вне конкурса' : '');
     h += '<div class="actbar">' + (T.uploading ? '<button class="btn wide" type="button" disabled>' + uploadText() + '</button>' :
       noPhotoYet ? '<label class="btn wide" for="file">Добавить фото</label>' :
       '<button class="btn wide" type="button" data-act="askSubmit"' + (replacing && !t.draft ? ' disabled' : '') + '>' + esc(replacing && !t.draft ? 'Изменений нет' : label) + '</button>') + '</div>';
@@ -568,6 +597,11 @@
 
   function submitSheet(t, label) {
     var work = currentWork(t), outside = t.me.mode === 'outside', repl = !!t.submitted, form = t.form;
+    if (t.bot_round) return '<div class="sheet confirm-sheet"><div class="panel" role="dialog" aria-modal="true" aria-labelledby="askTitle"><span class="grip"></span>' +
+      '<h2 id="askTitle">' + (repl ? 'Заменить фото работы тура ' : 'Сохранить фото работы тура ') + t.round.round_no + '?</h2>' +
+      '<div class="ask-row">' + (work.photos[0] ? '<div class="photo ask-ph"><img alt="Ваше фото" src="' + esc(work.photos[0].thumb_url) + '"></div>' : '') +
+      '<p class="small">Фото сохранится в архиве Игры. Итог тура и ваше участие в Игре не изменятся. Заменить фото можно до конца Игры, ' + esc(K.date(t.window.deadline)) + ' МСК.</p></div>' +
+      '<button class="btn wide" type="button" data-act="submitWork">' + esc(label) + '</button><button class="btn sec wide" type="button" data-act="closeAsk">Отмена</button></div></div>';
     return '<div class="sheet confirm-sheet"><div class="panel" role="dialog" aria-modal="true" aria-labelledby="askTitle"><span class="grip"></span>' +
       '<h2 id="askTitle">' + (repl ? 'Заменить работу ' + t.round.round_no + '?' : 'Сдать работу к туру ' + t.round.round_no + '?') + '</h2>' +
       '<div class="ask-row">' + (work.photos[0] ? '<div class="photo ask-ph"><img alt="Ваше фото" src="' + esc(work.photos[0].thumb_url) + '"></div>' : '') +
@@ -792,7 +826,7 @@
       }
       T.data = r.data;
       K.refreshUnread();
-      K.toast(replaced ? 'Замена сохранена' : 'Работа сдана. До срока её можно заменить.');
+      K.toast(r.data.bot_round ? 'Фото работы сохранено в архиве Игры' : replaced ? 'Замена сохранена' : 'Работа сдана. До срока её можно заменить.');
       K.go('/games/' + T.ids[0] + '/tasks/' + T.ids[1], true);
     });
   };

@@ -181,8 +181,8 @@ def test_undo_wrong_table_then_import_right_one(app, seed, clock):
 
 
 def test_outside_newcomer_can_upload_rounds_1_2(app, seed, clock):
-    """14.10: кого нет в таблице (рисовала вне конкурса) — «добавить вне конкурса» из заявки; туры 1–2 сдаются в кабинете
-    только теми, у кого нет оценки из бота; на зачёт, диплом и «опоздавших» задания туров 1–2 не влияют."""
+    """14.10: кого нет в таблице (рисовала вне конкурса) — «добавить вне конкурса» из заявки; фото работ туров 1–2
+    загружают в кабинете все, у кого фото нет (с оценкой из бота тоже — решение 14.10, позже); на зачёт, диплом и «опоздавших» задания туров 1–2 не влияют."""
     from kabinet.participation import game as G
     clock.set(h())
     with app.state.db.transaction() as conn:
@@ -205,14 +205,14 @@ WHERE r.event_id=%s''', (eid,))}
     assert g['me']['mode'] == 'outside' and g['me']['league'] == 'silver'
     t1 = ok(p.get(f"/api/games/{eid}/tasks/{tasks[1]['id']}"))
     assert t1['window']['open'], t1['window']
-    # перенесённая участница с оценкой тура 1 из бота сдать заново не может
+    # перенесённая участница с оценкой тура 1 из бота: фото работы не сохранилось — может загрузить его в архив (решение 14.10)
     no2 = ok(claim(app, email='anna@example.com'), 201)['claim_no']
     uid = ok(c.get('/api/org/claims'))['items'][0]['suggestions'][0]['user_id']
     ok(c.post(f'/api/org/claims/{no2}/approve', headers=ORIGIN, json={'user_id': uid}))
     a = TestClient(app)
     ok(a.post('/web-auth/login', headers=ORIGIN, json={'email': 'anna@example.com', 'password': PASSWORD}))
     w = ok(a.get(f"/api/games/{eid}/tasks/{tasks[1]['id']}"))['window']
-    assert not w['open'] and w['reason'] == 'done_in_bot'
+    assert w['open'] and w['source'] == 'completion'
     assert ok(c.get('/api/org/import/game01'))['undo_blockers'] == ['participants_logged_in']
 
 

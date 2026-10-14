@@ -74,6 +74,11 @@ def game_deadline(event):
     return event['completion_deadline'] or event['ends_at']
 
 
+def bot_round(rnd):
+    """Тур прошёл в боте (туры 1–2 Игры 01): итоги перенесены, в кабинете — только фото работы в архив Игры."""
+    return ((rnd or {}).get('settings') or {}).get('source') == 'bot'
+
+
 def competition_deadline_passed(rnd, assignment, pa, now):
     deadline, _ = competition_deadline(rnd, assignment, pa)
     if deadline is not None:
@@ -104,7 +109,13 @@ def submission_window(event, rnd, assignment, pa, mode, now, rules_ok=True):
         return Window(False, 'eliminated')
     if not round_opened(rnd, now):
         return Window(False, 'not_open')
-    if mode == IN:
+    if bot_round(rnd):
+        # Тур прошёл в боте (решение 14.10): фото своей работы можно загрузить в архив Игры до её конца — и в конкурсе,
+        # и вне, с итогом из бота и без. Срок тура, судейство и исходники здесь не действуют; итоги тура не меняются.
+        deadline, source = game_deadline(event), 'completion'
+        if deadline is not None and now > deadline:
+            return Window(False, 'game_over', deadline, source)
+    elif mode == IN:
         deadline, source = competition_deadline(rnd, assignment, pa)
         if rnd['status'] in ACCEPTANCE_OVER or (deadline is not None and now > deadline):
             return Window(False, 'deadline_passed', deadline, source)
@@ -117,15 +128,17 @@ def submission_window(event, rnd, assignment, pa, mode, now, rules_ok=True):
     return Window(True, None, deadline, source)
 
 
-def submission_marks(event, rnd, assignment, pa, mode, submitted_at, first_submitted_at):
+def submission_marks(event, rnd, assignment, pa, mode, submitted_at, first_submitted_at, bot_result=False):
     """Отметки работы при сдаче: в срок ли тура, идёт ли в конкурс, в диплом.
 
     «В срок» считается по первой сдаче: замена вне конкурса после срока тура не отменяет того,
     что работа была сдана вовремя (зачёт Игры у отсеянного жюри сохраняется).
+    Тур из бота: как у фото, перенесённого организатором, — «в срок» (и в конкурс, если она в конкурсе) только при итоге
+    тура из бота (bot_result); загрузка в кабинете итоги и состояние участия не меняет.
     """
     deadline, source = competition_deadline(rnd, assignment, pa)
     first = first_submitted_at or submitted_at
-    on_time = deadline is None or first <= deadline
+    on_time = bool(bot_result) if bot_round(rnd) else (deadline is None or first <= deadline)
     end = game_deadline(event)
     return {
         'is_on_time': on_time,
@@ -143,7 +156,7 @@ def missed_round(event, rounds, assignments_by_round, submitted, pa_by_assignmen
     Учитываются только обязательные для конкурса задания с правилом «после срока — вне конкурса».
     """
     for rnd in rounds:
-        if not round_opened(rnd, now):
+        if not round_opened(rnd, now) or bot_round(rnd):     # тур из бота: кто прошёл дальше — решили итоги бота
             continue
         for a in assignments_by_round.get(rnd['id'], []):
             if not (a['required_for_competition'] and a['on_missed_deadline'] == 'diploma_track'):
@@ -273,6 +286,7 @@ def game_flags(event, mode, rounds, assignments_by_round, on_time, by_end, pa_by
     if mode in (WITHDRAWN, DISQUALIFIED, ELIMINATED, None, PENDING):
         return {'counted': 'no', 'diploma': 'no'}
     counted = 'ok'
+    rounds = [r for r in rounds if not bot_round(r)]     # туры из бота: зачёт и диплом по ним — из итогов бота
     for rnd in rounds:
         for a in assignments_by_round.get(rnd['id'], []):
             if a['required_for_game_count'] and competition_deadline_passed(rnd, a, pa_by_assignment.get(a['id']), now) \
