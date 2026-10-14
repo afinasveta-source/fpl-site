@@ -246,7 +246,13 @@ def test_self_registered_player_is_linked_to_bot_record(app, seed, clock):
         # как на сервере: у самостоятельного аккаунта была включена публичность (из-за неё падало соединение 14.10)
         conn.execute('UPDATE users SET public_works=true, public_social=true, public_rating=true, public_city=true WHERE id=%s',
                      (elena['user_id'],))
+    # 14.10: до соединения она написала в поддержку — обращение переходит на запись из бота вместе со входом
+    ok(s.post('/api/support', headers=ORIGIN, json={'subject': 'Не вижу туров', 'body': 'Где мои баллы?'}), 201)
     ok(c.post(f"/api/org/claims/accounts/{elena['user_id']}/link", headers=ORIGIN, json={'user_id': str(bot)}))
+    with app.state.db.transaction() as conn:
+        assert conn.execute('SELECT count(*) AS n FROM support_threads WHERE user_id=%s', (bot,)).fetchone()['n'] == 1
+        assert conn.execute('SELECT count(*) AS n FROM support_threads WHERE user_id=%s', (elena['user_id'],)).fetchone()['n'] == 0
+        assert conn.execute('SELECT count(*) AS n FROM support_messages WHERE author_user_id=%s', (bot,)).fetchone()['n'] == 1
     assert c.post(f"/api/org/claims/accounts/{elena['user_id']}/link", headers=ORIGIN,
                   json={'user_id': str(bot)}).json()['detail'] == 'account_not_linkable'
     # старая сессия закрыта, вход тем же email и паролем — уже на записи из бота с итогами туров 1–2
@@ -255,6 +261,7 @@ def test_self_registered_player_is_linked_to_bot_record(app, seed, clock):
     ok(e.post('/web-auth/login', headers=ORIGIN, json={'email': 'elena@example.com', 'password': PASSWORD}))
     g = ok(e.get(f'/api/games/{eid}'))
     assert g['me']['league'] == 'silver'
+    assert [t['subject'] for t in ok(e.get('/api/support'))['threads']] == ['Не вижу туров']
     # согласий из кабинета у неё нет (в боте давала) — сдавать нельзя, пока не примет документы одним экраном
     assert not g['rules_ok']
     miss = ok(e.get('/api/consents/missing'))['missing']

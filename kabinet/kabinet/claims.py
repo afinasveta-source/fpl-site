@@ -366,8 +366,7 @@ def link_account(account_id: UUID, body: LinkAccount, request: Request, user=Dep
             raise problem('person_has_login', 409)
         if not conn.execute('SELECT 1 FROM event_participants WHERE user_id=%s AND event_id=%s', (person['id'], ev['id'])).fetchone():
             raise problem('person_not_in_game', 409)
-        if conn.execute('SELECT 1 FROM support_threads WHERE user_id=%s LIMIT 1', (acc['id'],)).fetchone():
-            raise problem('account_has_support', 409)
+        moved_support = move_support(conn, acc['id'], person['id'])
         # пустой аккаунт закрыть: вход (email, пароль, Telegram) освобождается для записи из бота
         conn.execute('UPDATE auth_sessions SET revoked_at=%s WHERE user_id=%s AND revoked_at IS NULL', (now, acc['id']))
         # закрытый аккаунт не может быть публичным (проверка базы lr_users_deleted_not_public)
@@ -388,7 +387,8 @@ SELECT %s, event_id, consent_type, accepted, status, document_version, legal_doc
   'link:' || id::text, recorded_at, metadata || jsonb_build_object('linked_from', %s::text)
 FROM consents WHERE user_id=%s ON CONFLICT (idempotency_key) DO NOTHING''', (person['id'], str(acc['id']), acc['id']))
         audit(conn, user['id'], 'user', person['id'], 'account_linked',
-              {'from_account': str(acc['id']), 'account_name': acc['full_name'], 'bot_name': person['full_name']})
+              {'from_account': str(acc['id']), 'account_name': acc['full_name'], 'bot_name': person['full_name'],
+               'support_threads_moved': moved_support})
         notify(conn, person['id'], 'reg', f"link:{acc['id']}",
                {'title': 'Ваш кабинет соединён с Игрой 01', 'text': 'Итоги туров 1–2 перенесены. Задания следующих туров — здесь.',
                 'route': 'game', 'event_id': str(ev['id'])}, ev['id'])
@@ -404,6 +404,15 @@ class MergeIn(BaseModel):
     model_config = ConfigDict(extra='forbid')
     from_user_id: UUID
     into_user_id: UUID
+
+
+def move_support(conn, from_id, to_id):
+    """Обращения в поддержку закрываемого аккаунта переходят на основную запись вместе с входом (14.10: Дина написала
+    в поддержку до соединения — соединить было нельзя). Обращения о работах закрываемого аккаунта сюда не попадают:
+    у него нет работ (проверяется до вызова)."""
+    conn.execute('''UPDATE support_messages SET author_user_id=%s WHERE author_user_id=%s
+AND support_thread_id IN (SELECT id FROM support_threads WHERE user_id=%s)''', (to_id, from_id, from_id))
+    return conn.execute('UPDATE support_threads SET user_id=%s WHERE user_id=%s', (to_id, from_id)).rowcount
 
 
 def has_works(conn, user_id):
@@ -429,8 +438,7 @@ def merge(body: MergeIn, request: Request, user=Depends(org_user)):
             raise problem('account_not_linkable', 409)
         if has_works(conn, a['id']):
             raise problem('merge_from_has_works', 409)
-        if conn.execute('SELECT 1 FROM support_threads WHERE user_id=%s LIMIT 1', (a['id'],)).fetchone():
-            raise problem('account_has_support', 409)
+        moved_support = move_support(conn, a['id'], b['id'])
         if conn.execute('SELECT 1 FROM auth_sessions WHERE user_id=%s LIMIT 1', (b['id'],)).fetchone():
             raise problem('merge_into_logged_in', 409)    # в основную уже входили — её вход не трогаем
         # участие лишней записи: убрать (заданий без работ — тоже); не выходит — снять с Игры
@@ -462,5 +470,5 @@ SELECT %s, event_id, consent_type, accepted, status, document_version, legal_doc
 FROM consents WHERE user_id=%s ON CONFLICT (idempotency_key) DO NOTHING''', (b['id'], str(a['id']), a['id']))
         audit(conn, user['id'], 'user', b['id'], 'accounts_merged',
               {'from_user': str(a['id']), 'from_name': a['full_name'], 'old_email_dropped': b['email'],
-               'removed_from_games': removed, 'cancelled_in_games': cancelled})
+               'removed_from_games': removed, 'cancelled_in_games': cancelled, 'support_threads_moved': moved_support})
         return {'user_id': str(b['id']), 'full_name': b['full_name'], 'removed': removed, 'cancelled': cancelled}
