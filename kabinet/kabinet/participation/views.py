@@ -71,7 +71,18 @@ def result_view(res, rating=None):
             'published_at': iso(res['published_at']), 'rating': rating}
 
 
-def rounds_view(game, now, conn=None, user_id=None, rules_ok=True):
+def work_photo(game, assignment, root):
+    """Миниатюра сданной работы тура (первое фото действующей версии) — в списке туров и итоге тура;
+    у туров 1–2 Игры 01 — фото из бота (source='migration')."""
+    sub = game.subs.get(assignment['id'])
+    version = game.versions.get(sub['id'], {}).get('latest') if sub else None
+    media = game.media.get(version['id']) if version else None
+    if not media:
+        return None
+    return photo_view(media[0], root) | {'from_bot': version['source'] == 'migration'}
+
+
+def rounds_view(game, now, conn=None, user_id=None, rules_ok=True, root=None):
     out = []
     for rnd in game.rounds:
         items = game.assignments.get(rnd['id'], [])
@@ -90,6 +101,8 @@ def rounds_view(game, now, conn=None, user_id=None, rules_ok=True):
                 entry['can_submit'] = w.open
                 entry['closed_reason'] = w.reason
                 entry['submit_deadline'] = iso(w.deadline)
+                if root is not None:
+                    entry['photo'] = work_photo(game, main, root)
         out.append(entry)
     return out
 
@@ -99,7 +112,7 @@ def version_view(game, version, root):
         return None
     return {'id': str(version['id']), 'version_no': version['version_no'],
             'photos': [photo_view(m, root) for m in game.media.get(version['id'], [])],
-            'link': (version['payload'] or {}).get('link'),
+            'link': (version['payload'] or {}).get('link'), 'source': version['source'],
             'submitted_at': iso(version['submitted_at']), 'saved_at': iso(version['created_at'])}
 
 

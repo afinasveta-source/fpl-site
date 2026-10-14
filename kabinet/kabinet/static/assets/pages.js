@@ -451,6 +451,8 @@
         (res.rating ? '<dt>FPL Rating</dt><dd><b class="num">' + res.rating.after + '</b>' + (res.rating.delta != null ? ' <span class="num">(' + (res.rating.delta > 0 ? '+' : '') + res.rating.delta + ')</span>' : '') + '</dd>' +
           '<dt>Калибровка</dt><dd>' + (res.rating.calibration >= 3 ? 'завершена' : res.rating.calibration + ' из 3') + '</dd>' : '') + '</dl>' +
         '<p class="small muted">Места в туре не показываются — только в итогах Игры.' + (res.rating ? ' Рейтинг учитывает силу соперников и не равен оценке тура.' : '') + '</p></section>' +
+        (r.photo ? '<section class="card"><h2>Ваша работа</h2>' + photoImg(r.photo, 'Ваша работа, тур ' + r.round_no, 'big') +
+          (r.photo.from_bot ? '<p class="small muted">Фото из бота — тур проходил там.</p>' : '') + '</section>' : '') +
         '<div class="row">' + (idx > 0 && g.rounds[idx - 1].result ? '<button class="btn ghost" type="button" data-href="/games/' + id + '/rounds/' + g.rounds[idx - 1].round_no + '">← Итог тура ' + g.rounds[idx - 1].round_no + '</button>' : '') +
         (nextR && nextR.result ? '<button class="btn ghost" type="button" data-href="/games/' + id + '/rounds/' + nextR.round_no + '">Итог тура ' + nextR.round_no + ' →</button>' : '') +
         '<button class="btn sec" type="button" data-href="/games/' + id + '">Все туры Игры</button>' +
@@ -500,14 +502,15 @@
 
   function sentView(t, base, editHref) {
     var s = t.submitted, w = t.window, r = t.round, outside = t.me.mode === 'outside', form = t.form || { link: 'optional', photo: 'required' };
-    var status = s.is_on_time === false ? 'Сдана после срока тура' : 'Сдана';
+    var bot = s.source === 'migration';   // туры 1–2 Игры 01: фото работы перенесено из бота
+    var status = bot ? 'Сдана в боте' : s.is_on_time === false ? 'Сдана после срока тура' : 'Сдана';
     var h = '<div class="done-head"><span class="ok-ic" aria-hidden="true">✓</span><h1>Работа к туру ' + r.round_no + ' сдана</h1></div>' +
       sourceBlock(t) +
       '<section class="card"><span class="eyebrow">' + esc(t.event.title) + ' · Тур ' + r.round_no + (outside ? ' · вне конкурса' : '') + '</span>' +
       (s.photos.length ? s.photos.map(function (p, i) { return photoImg(p, 'Ваша работа' + (s.photos.length > 1 ? ', фото ' + (i + 1) : '')); }).join('') : '') +
       '<dl class="kv"><dt>Статус</dt><dd>' + status + '</dd>' +
       (form.link !== 'none' ? '<dt>Ссылка на публикацию</dt><dd>' + (s.link ? '<a href="' + esc(s.link) + '" target="_blank" rel="noopener noreferrer">' + esc(s.link) + '</a>' : 'Не добавлена') + '</dd>' : '') +
-      '<dt>Сдана</dt><dd>' + esc(K.date(s.submitted_at)) + ' МСК' + (s.version_no > 1 ? ' · версия ' + s.version_no : '') + '</dd>' +
+      (bot ? '' : '<dt>Сдана</dt><dd>' + esc(K.date(s.submitted_at)) + ' МСК' + (s.version_no > 1 ? ' · версия ' + s.version_no : '') + '</dd>') +
       (w.open ? '<dt>Изменить можно до</dt><dd>' + esc(K.date(w.deadline)) + ' МСК' + (outside ? ' (конец Игры)' : '') + '</dd>' : '<dt>Изменения</dt><dd>Срок сдачи завершился</dd>') +
       (!outside && r.judging_deadline && !t.result ? '<dt>Итог тура</dt><dd>' + esc(K.date(r.judging_deadline)) + ' МСК</dd>' : '') + '</dl>' +
       (w.open ? '<p>' + (outside ? 'Пока не закончилась Игра, фото и ссылку можно менять. В диплом пойдёт последняя сданная версия. Работы вне конкурса не оценивают.' :

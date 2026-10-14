@@ -23,11 +23,13 @@ from kabinet.judging import routes as judging_routes
 from kabinet.results import routes as results_routes
 from kabinet.org import participants as org_participants, support as org_support, home as org_home
 from kabinet import reviews, claims
-from kabinet.org import bot_import as org_bot_import
+from kabinet.org import bot_import as org_bot_import, bot_photos as org_bot_photos
 
 # Версия схемы базы (server/db/schema), под которую написан кабинет. Новее — можно, старее — нельзя.
 SCHEMA_REQUIRED = 11  # 011 — эстафета с проверкой организатора (13.10)
-CSP = ("default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; "
+# img-src: кроме своих — фото работ из бота прямо с источника (предпросмотр «Фото работ из бота» у организатора, 14.10)
+CSP = ("default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; "
+       "img-src 'self' data: blob: https://files.salebot.pro https://*.userapi.com https://*.vkuserphoto.ru; media-src 'self' blob:; "
        "connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'")
 
 
@@ -108,7 +110,7 @@ def create_app(settings=None, mailer=None, clock=None):
     app.include_router(web_router)
     app.include_router(participant_router)
     app.include_router(account_router)
-    for module in (org_home, org_games, org_rounds, org_documents, org_people, org_participants, org_support, org_bot_import):
+    for module in (org_home, org_games, org_rounds, org_documents, org_people, org_participants, org_support, org_bot_import, org_bot_photos):
         app.include_router(module.router)
     app.include_router(org_support.public)
     app.include_router(reviews.public)

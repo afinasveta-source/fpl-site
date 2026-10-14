@@ -381,16 +381,17 @@
     h += '<section class="card"><h2>Туры</h2>' + (x.rounds.length ? x.rounds.map(function (r) {
       var src = { personal: 'личный срок', assignment: 'срок её лиги', round: 'общий срок тура' }[r.deadline_source] || '';
       var s = r.submitted;
-      var botRow = r.from_bot && !s;
+      var botRow = r.from_bot && !s, botPhoto = !!(s && s.source === 'migration');   // фото работы из бота (перенесено организатором)
       return '<div class="round-row"><div class="between"><h3>Тур ' + r.round_no + ' · ' + esc(r.title) + '</h3>' +
-        (botRow ? pill('Прошёл в боте', 'plain') : r.opened ? O.st(O.WORK, r.work) : pill('Не открыт', 'plain')) + '</div>' +
+        (botRow || botPhoto ? pill('Прошёл в боте', 'plain') : r.opened ? O.st(O.WORK, r.work) : pill('Не открыт', 'plain')) + '</div>' +
         (r.result ? '<p><b>Итог тура: ' + esc(String(r.result.score != null ? r.result.score : '—')) + ' баллов</b>' +
           (r.result.advanced === true ? ' · прошла дальше' : r.result.advanced === false ? ' · не прошла отбор' : '') + (r.from_bot ? ' <span class="small muted">(из бота)</span>' : '') + '</p>'
           : botRow ? '<p class="small muted">Итога из бота нет — работу можно сдать в кабинете вне конкурса.</p>' : '') +
-        (botRow ? '' : '<p class="small muted">Срок: ' + esc(O.when(r.deadline)) + (src ? ' (' + src + ')' : '') + (r.personal ? ' · причина: ' + esc(r.personal.reason || '—') : '') + '</p>') +
+        (botRow || botPhoto ? '' : '<p class="small muted">Срок: ' + esc(O.when(r.deadline)) + (src ? ' (' + src + ')' : '') + (r.personal ? ' · причина: ' + esc(r.personal.reason || '—') : '') + '</p>') +
         (s ? '<div class="thumbs">' + s.photos.map(function (ph) {
           return '<a href="' + esc(ph.view_url) + '" target="_blank" rel="noopener"><img src="' + esc(ph.thumb_url) + '" alt="Фото работы, тур ' + r.round_no + '" loading="lazy"></a>';
-        }).join('') + '</div><p class="small muted">Сдана ' + esc(O.when(s.submitted_at)) + (s.is_on_time ? '' : ' · после срока') + (s.version_no > 1 ? ' · версия ' + s.version_no : '') +
+        }).join('') + '</div><p class="small muted">' + (botPhoto ? 'Фото работы из бота' + (s.version_no > 1 ? ' · исправлено, версия ' + s.version_no : '') :
+          'Сдана ' + esc(O.when(s.submitted_at)) + (s.is_on_time ? '' : ' · после срока') + (s.version_no > 1 ? ' · версия ' + s.version_no : '')) +
           (s.link ? ' · <a href="' + esc(s.link) + '" target="_blank" rel="noopener nofollow">ссылка</a>' : '') + '</p>' : '') +
         (live && r.opened && !s && !r.from_bot ? '<button class="btn sec small" type="button" data-act="partDeadline" data-r="' + r.round_id + '">' + (r.personal ? 'Изменить личный срок' : 'Продлить срок') + '</button>' : '') + '</div>';
     }).join('') : '<p class="muted">Туры ещё не опубликованы.</p>') + '</section>';

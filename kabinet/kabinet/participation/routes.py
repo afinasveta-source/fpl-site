@@ -210,9 +210,9 @@ AND idempotency_key <> %s LIMIT 1""", (user['id'], f"reg:{ep['id']}:publication"
 
 # ---------- Мои Игры ----------
 
-def game_summary(conn, game, now, user_id):
+def game_summary(conn, game, now, user_id, root=None):
     ok = G.rules_ok(conn, user_id, now)
-    rounds = V.rounds_view(game, now, rules_ok=ok)
+    rounds = V.rounds_view(game, now, rules_ok=ok, root=root)
     flags = R.game_flags(game.event, game.mode, game.rounds, game.assignments, game.on_time_ids(), game.by_end_ids(),
                          game.pas, now, more_rounds_planned=len(game.all_round_nos) > len(game.rounds))
     from kabinet.results import service as RS
@@ -232,7 +232,7 @@ WHERE p.user_id=%s AND p.registration_status<>'cancelled' AND e.status<>'draft' 
         for event_id in ids:
             game = G.load(conn, event_id, user['id'], lock=True)
             G.sync_late(conn, game, now)
-            out.append(game_summary(conn, game, now, user['id']))
+            out.append(game_summary(conn, game, now, user['id'], root(request)))
     return {'games': out}
 
 
@@ -244,7 +244,7 @@ def my_game(event_id: UUID, request: Request, user=Depends(browser_user)):
         if game.ep is None:
             raise HTTPException(404, 'not_participating')
         G.sync_late(conn, game, now)
-        return game_summary(conn, game, now, user['id'])
+        return game_summary(conn, game, now, user['id'], root(request))
 
 
 @router.post('/games/{event_id}/outside', dependencies=[Depends(same_origin)])
@@ -255,7 +255,7 @@ def outside(event_id: UUID, request: Request, user=Depends(browser_user)):
         if game.ep is None:
             raise HTTPException(404, 'not_participating')
         G.choose_outside(conn, game, user['id'], now)
-        return game_summary(conn, game, now, user['id'])
+        return game_summary(conn, game, now, user['id'], root(request))
 
 
 # ---------- Задание и работа ----------

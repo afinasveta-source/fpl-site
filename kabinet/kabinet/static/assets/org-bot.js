@@ -1,7 +1,8 @@
 /* Кабинет организатора: Игра 01 из бота (решения 13.10, вечер).
    «Перенос из бота» — таблица туров 1–2 (CSV) → предпросмотр → перенос.
    «Заявки» — участницы Игры 01 оставляют заявку по общей ссылке /kabinet/game01; организатор находит её в перенесённом списке
-   и нажимает «Это она» — у записи из бота появляется вход. */
+   и нажимает «Это она» — у записи из бота появляется вход.
+   «Фото работ из бота» — восстановленные адреса фото туров 1–2 → просмотр → перенос отмеченных (14.10). */
 (function () {
   'use strict';
   var K = window.K, O = K.org, esc = K.esc, pill = K.pill;
@@ -87,7 +88,9 @@
     }
     if (IMP.done) h += '<div class="note ok"><b>Перенесено: ' + IMP.done.rows + ' участниц.</b> Дальше — «Заявки»: участницы оставляют их по ссылке <b>facepaintingleague.com/kabinet/game01</b>. ' +
       '<button class="lnk" type="button" data-href="/org/claims">Открыть заявки</button> · <button class="lnk" type="button" data-href="/org/games/' + IMP.done.event_id + '">Открыть Игру</button></div>';
+    h += photosCard(IMP.state);
     K.page(h, [['Обзор', '/org'], ['Перенос из бота']]);
+    photosBind();
     var inp = document.getElementById('imp-file');
     inp.addEventListener('change', function () {
       var f = inp.files[0]; if (!f) return;
@@ -110,6 +113,190 @@
     O.confirm({ title: 'Перенести ' + p.rows + ' участниц?', text: 'Игра 01 продолжится в кабинете. Повторный перенос ничего не дублирует.', ok: 'Перенести',
       path: '/api/org/import/game01/apply', body: function () { return { csv: IMP.text, sha256: p.sha256 }; },
       done: function (d) { IMP.done = d; IMP.preview = null; K.toast('Перенесено'); O.refreshCounts(); loadImport(); } });
+  };
+
+  /* ---------- Фото работ из бота (14.10) ----------
+     Адреса фото туров 1–2 восстановлены по ID участника SaleBot; часть фото тура 2 — догадки. Организатор вставляет список,
+     смотрит фото (прямо с источника, сервер ничего не качает), снимает отметки с сомнительных и переносит отмеченные —
+     пачками по 5. Повторный перенос безопасен: уже перенесённое пропускается, новый адрес — исправление (новая версия). */
+  var BP = { text: '', rows: null, counts: null, errors: [], results: {}, checked: {}, running: false, stop: false, prog: null };
+  var BP_PATH = '/api/org/import/game01/photos';
+  var BP_STATUS = {
+    ok: ['Можно перенести', 'ok'], replace: ['Заменит фото из бота', 'warn'], same: ['Уже перенесено', 'plain'],
+    has_own: ['Сдала работу в кабинете сама — не трогаем', 'plain'], unknown_cid: ['Нет такого ID среди перенесённых', 'bad'],
+    not_in_game: ['Нет в Игре 01', 'bad'], bad_url: ['Адрес не подходит: нужен https с SaleBot или ВК', 'bad'],
+    duplicate: ['Повтор: тот же ID и тур выше в списке', 'bad'], bad_round: ['Тур — 1 или 2', 'bad'], no_task: ['У тура нет задания в кабинете', 'bad']
+  };
+  var BP_REASON = {
+    http_404: 'фото по адресу нет (404)', http_403: 'источник не отдаёт фото (403)', http_410: 'фото удалено (410)', not_image: 'по адресу не фото',
+    unsupported_format: 'формат не JPG, PNG или WebP', too_large: 'файл больше 25 МБ', too_many_pixels: 'фото слишком большое в пикселях',
+    timeout: 'источник не ответил', network: 'нет связи с источником', tls: 'ошибка защищённого соединения', bad_redirect: 'источник перенаправил на чужой адрес',
+    bad_url: 'адрес не подходит', empty: 'пустой файл', storage_full: 'на сервере кончилось место', error: 'ошибка на сервере — повторите',
+    same: 'уже перенесено', same_file: 'то же фото — адрес обновлён', has_own: 'сдала работу сама', later: 'в очереди'
+  };
+  var BP_PICK = { ok: 1, replace: 1 };
+  function bpReason(r) { return BP_REASON[r] || (/^http_\d+$/.test(r || '') ? 'ошибка источника (' + r.slice(5) + ')' : (BP_STATUS[r] ? BP_STATUS[r][0] : r || '')); }
+
+  /* Список: JSON-массив [{cid, round, url, note}] или строки «cid;round;url;note» (можно через табуляцию — из таблицы). */
+  function bpParse(text) {
+    var t = (text || '').replace(/^﻿/, '').trim(), items = [], errors = [];
+    if (!t) return { items: items, errors: [{ line: 0, problem: 'Список пустой.' }] };
+    if (t.charAt(0) === '[') {
+      var arr;
+      try { arr = JSON.parse(t); } catch (e) { return { items: [], errors: [{ line: 0, problem: 'Не получилось прочитать JSON: ' + e.message }] }; }
+      if (!Array.isArray(arr)) return { items: [], errors: [{ line: 0, problem: 'Нужен JSON-массив.' }] };
+      arr.forEach(function (x, i) {
+        if (!x || typeof x !== 'object') { errors.push({ line: i + 1, problem: 'Элемент не объект' }); return; }
+        var cid = x.cid != null ? x.cid : x.id, rd = x.round != null ? x.round : x.tour;
+        if (cid == null || !x.url) { errors.push({ line: i + 1, problem: 'Нет cid или url' }); return; }
+        items.push({ cid: String(cid).trim(), round: parseInt(rd, 10) || 0, url: String(x.url).trim(), note: x.note ? String(x.note).slice(0, 300) : null });
+      });
+    } else {
+      t.split(/\r?\n/).forEach(function (line, i) {
+        var l = line.trim();
+        if (!l || l.charAt(0) === '#') return;
+        var f = (l.indexOf('\t') >= 0 ? l.split('\t') : l.split(';')).map(function (x) { return x.trim(); });
+        if (!items.length && !errors.length && !/^\d+$/.test(f[0]) && !/^https?:/i.test(f[2] || '')) return;   // строка заголовка
+        if (f.length < 3 || !f[2]) { errors.push({ line: i + 1, problem: 'Нужно «ID;тур;адрес;примечание»' }); return; }
+        var m = /\d+/.exec(f[1]);
+        items.push({ cid: f[0], round: m ? parseInt(m[0], 10) : 0, url: f[2], note: f.slice(3).join('; ').slice(0, 300) || null });
+      });
+    }
+    if (items.length > 500) { errors.push({ line: 0, problem: 'Больше 500 строк — разделите список на части.' }); items = items.slice(0, 500); }
+    return { items: items, errors: errors };
+  }
+
+  function photosCard(st) {
+    if (!st || !st.moved) return '';
+    return '<section class="card" id="bp" data-nodraft><h2>Фото работ из бота</h2>' +
+      '<p class="small muted">Вставьте список фото туров 1–2: JSON-массив <code>[{"cid":"…","round":1,"url":"https://…","note":"…"}]</code> или строки ' +
+      '<code>ID участника;тур;адрес фото;примечание</code>. Нажмите «Проверить» — фото покажутся прямо с SaleBot и ВК. Снимите отметки с сомнительных ' +
+      '(особенно догадок тура 2) и перенесите отмеченные. Повторный перенос безопасен; новый адрес у уже перенесённого — исправление.</p>' +
+      '<div class="field"><label for="bp-text">Список фото</label><textarea class="input" id="bp-text" rows="8" spellcheck="false" autocomplete="off">' + esc(BP.text) + '</textarea></div>' +
+      '<div class="row"><button class="btn sec" type="button" data-act="bpPreview">Проверить</button></div><div id="bp-box" class="stack"></div></section>';
+  }
+  function photosBind() {
+    var ta = document.getElementById('bp-text');
+    if (!ta) return;
+    ta.addEventListener('input', function () { BP.text = ta.value; });
+    bpDraw();
+  }
+  function bpSelected() {
+    return (BP.rows || []).filter(function (r) { return BP_PICK[r.status] && BP.checked[r.index]; });
+  }
+  function bpResult(r) {
+    var x = BP.results[r.index];
+    if (!x) return '';
+    if (x.result === 'done') return pill('Перенесено' + (x.version_no > 1 ? ' · версия ' + x.version_no : ''), 'ok');
+    if (x.result === 'failed') return pill('Не перенесено: ' + bpReason(x.reason), 'bad');
+    if (x.result === 'pending') return pill('В очереди', 'plain');
+    return pill('Пропущено: ' + bpReason(x.reason), 'plain');
+  }
+  function bpRow(r) {
+    var st = BP_STATUS[r.status] || [r.status, 'plain'], pick = !!BP_PICK[r.status], x = BP.results[r.index];
+    var ph = r.url && r.status !== 'bad_url' ? '<a href="' + esc(r.url) + '" target="_blank" rel="noopener noreferrer"><img class="bp-ph" src="' + esc(r.url) + '" alt="Фото из бота: ' +
+      esc(r.name || r.cid) + ', тур ' + r.round + '" loading="lazy" referrerpolicy="no-referrer"></a>' : '<span class="small muted">—</span>';
+    if (x && x.photo) ph += '<a href="' + esc(x.photo.view_url) + '" target="_blank" rel="noopener"><img class="bp-ph bp-cur" src="' + esc(x.photo.thumb_url) + '" alt="Сохранённое фото" loading="lazy"></a>';
+    else if (r.current && r.status === 'replace') ph += '<span class="small muted">Сейчас:</span><a href="' + esc(r.current.view_url) + '" target="_blank" rel="noopener"><img class="bp-ph bp-cur" src="' +
+      esc(r.current.thumb_url) + '" alt="Фото, перенесённое раньше" loading="lazy"></a>';
+    return '<tr><td data-label="Перенести"><input type="checkbox" data-act="bpCheck" data-i="' + r.index + '" aria-label="Перенести фото ' + esc(r.name || r.cid) + ', тур ' + r.round + '"' +
+      (pick ? (BP.checked[r.index] ? ' checked' : '') : ' disabled') + (BP.running ? ' disabled' : '') + '></td>' +
+      '<td data-label="Фото"><div class="bp-phs">' + ph + '</div></td>' +
+      '<th scope="row"><b>' + esc(r.name || 'Нет в базе') + '</b><span class="small muted">ID ' + esc(r.cid) + '</span></th>' +
+      '<td data-label="Лига"><div>' + esc(LG[r.league] || '—') + (r.mode ? '<span class="small muted">' + esc((O.MODE[r.mode] || [r.mode])[0]) + '</span>' : '') + '</div></td>' +
+      '<td data-label="Тур"><div>' + esc(String(r.round)) + (r.has_result ? '<span class="small muted">итог ' + esc(String(r.score)) + '</span>' : r.name ? '<span class="small muted">без итога</span>' : '') + '</div></td>' +
+      '<td data-label="Примечание">' + esc(r.note || '') + '</td>' +
+      '<td data-label="Статус"><div class="bp-st">' + pill(st[0], st[1]) + bpResult(r) + '</div></td></tr>';
+  }
+  function bpDraw() {
+    var box = document.getElementById('bp-box');
+    if (!box) return;
+    var h = '';
+    if (BP.errors.length) h += '<div class="note bad small"><b>Строки, которые не прочитались (' + BP.errors.length + '):</b><ul>' + BP.errors.slice(0, 50).map(function (e) {
+      return '<li>' + (e.line ? 'Строка ' + e.line + ': ' : '') + esc(e.problem) + '</li>'; }).join('') + '</ul></div>';
+    if (BP.rows) {
+      var n = bpSelected().length, c = BP.counts || {};
+      h += '<p class="small">Строк: <b>' + BP.rows.length + '</b>' + Object.keys(c).map(function (k) { return ' · ' + esc((BP_STATUS[k] || [k])[0]) + ': ' + c[k]; }).join('') + '</p>';
+      if (BP.prog) h += '<div class="note ' + (BP.running ? 'info' : BP.prog.failed ? 'warn' : 'ok') + ' small" role="status"><b>Перенесено ' + BP.prog.done + ' из ' + BP.prog.total + ', ошибок ' + BP.prog.failed + '</b>' +
+        (BP.running ? ' · идёт перенос, не закрывайте страницу' : BP.prog.failed ? ' · ошибочные остались отмеченными — можно повторить' : '') + '</div>';
+      h += '<div class="row"><button class="btn ghost small" type="button" data-act="bpAll" data-x="1"' + (BP.running ? ' disabled' : '') + '>Отметить все</button>' +
+        '<button class="btn ghost small" type="button" data-act="bpAll" data-x="0"' + (BP.running ? ' disabled' : '') + '>Снять все</button></div>' +
+        '<div class="table-wrap"><table class="otable ptable bp-table"><thead><tr><th>Перенести</th><th>Фото</th><th>Участница</th><th>Лига</th><th>Тур</th><th>Примечание</th><th>Статус</th></tr></thead><tbody>' +
+        BP.rows.map(bpRow).join('') + '</tbody></table></div>' +
+        '<div class="row">' + (BP.running ? '<button class="btn sec" type="button" data-act="bpStop">Остановить</button>' :
+          '<button class="btn" type="button" data-act="bpApply" id="bp-go"' + (n ? '' : ' disabled') + '>Перенести отмеченные (' + n + ')</button>') + '</div>';
+    }
+    box.innerHTML = h;
+    // фото, которое не открылось у источника, видно сразу
+    Array.prototype.forEach.call(box.querySelectorAll('img.bp-ph:not(.bp-cur)'), function (img) {
+      img.addEventListener('error', function () { var a = img.parentNode; a.outerHTML = '<span class="pill bad">Фото не открылось</span>'; });
+    });
+  }
+  function bpCount() {
+    var b = document.getElementById('bp-go'), n = bpSelected().length;
+    if (b) { b.textContent = 'Перенести отмеченные (' + n + ')'; b.disabled = !n; }
+  }
+  K.actions.bpPreview = function (b) {
+    var ta = document.getElementById('bp-text');
+    BP.text = ta ? ta.value : BP.text;
+    var p = bpParse(BP.text);
+    BP.errors = p.errors; BP.rows = null; BP.results = {}; BP.prog = null; BP.checked = {};
+    if (!p.items.length) { bpDraw(); return; }
+    b.disabled = true;
+    K.api('POST', BP_PATH + '/preview', { items: p.items }).then(function (r) {
+      b.disabled = false;
+      if (!r.ok) { K.toast(O.text(r.detail) || K.errorText(r)); bpDraw(); return; }
+      BP.rows = r.data.items.map(function (x, i) { return Object.assign({}, x, { note: p.items[i].note || x.note }); });
+      BP.counts = r.data.counts;
+      BP.rows.forEach(function (x) { if (BP_PICK[x.status]) BP.checked[x.index] = true; });
+      bpDraw();
+    });
+  };
+  K.actions.bpCheck = function (b) { BP.checked[b.getAttribute('data-i')] = b.checked; bpCount(); };
+  K.actions.bpAll = function (b) {
+    var on = b.getAttribute('data-x') === '1';
+    (BP.rows || []).forEach(function (r) { if (BP_PICK[r.status]) BP.checked[r.index] = on; });
+    bpDraw();
+  };
+  K.actions.bpStop = function () { BP.stop = true; K.toast('Остановится после текущей пачки'); };
+  K.actions.bpApply = function () {
+    var queue = bpSelected().map(function (r) { return r.index; });
+    if (!queue.length || BP.running) return;
+    BP.running = true; BP.stop = false;
+    BP.prog = { total: queue.length, done: 0, failed: 0, skipped: 0 };
+    queue.forEach(function (i) { delete BP.results[i]; });
+    bpDraw();
+    function finish(text) {
+      BP.running = false; bpDraw();
+      K.toast(text || ('Перенесено ' + BP.prog.done + ' из ' + BP.prog.total + (BP.prog.failed ? ', ошибок ' + BP.prog.failed : '')));
+    }
+    function step() {
+      if (!queue.length) { finish(); return; }
+      if (BP.stop) { finish('Остановлено: перенесено ' + BP.prog.done + ' из ' + BP.prog.total); return; }
+      var idx = queue.splice(0, 5), rows = idx.map(function (i) { return BP.rows[i]; });
+      var items = rows.map(function (r) { return { cid: r.cid, round: r.round, url: r.url, note: r.note || null }; });
+      // долгий запрос (сервер сам скачивает фото): ждём до 5 минут, а не 30 секунд
+      K.api('POST', BP_PATH + '/apply', undefined, { body: JSON.stringify({ items: items }), type: 'application/json' }).then(function (res) {
+        if (!res.ok) { finish((O.text(res.detail) || K.errorText(res)) + ' Перенос остановлен — нажмите ещё раз, перенесённое не повторится.'); return; }
+        var again = [];
+        res.data.items.forEach(function (x) {
+          var i = idx[x.index], r = BP.rows[i];
+          BP.results[i] = x;
+          if (x.result === 'pending') { again.push(i); return; }
+          if (x.result === 'done' || (x.result === 'skipped' && (x.reason === 'same' || x.reason === 'same_file'))) {
+            BP.prog.done++; r.status = 'same'; BP.checked[i] = false;
+          } else if (x.result === 'failed') {
+            BP.prog.failed++;
+          } else {
+            BP.prog.skipped++; if (x.reason && BP_STATUS[x.reason]) { r.status = x.reason; BP.checked[i] = false; }
+          }
+        });
+        queue = again.concat(queue);
+        bpDraw();
+        step();
+      });
+    }
+    step();
   };
 
   /* ---------- Тур-эстафета: проверка и отправка исходников ---------- */
