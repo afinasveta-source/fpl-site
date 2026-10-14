@@ -895,7 +895,7 @@
       if (d.top.length) {
         h += '<section class="stack gal-sec"><h2>Лучшие работы</h2>' + GAL_LEAGUES.map(function (l) {
           var part = d.top.map(function (it, i) { return [it, i]; }).filter(function (x) { return (x[0].league || 'none') === l; });
-          return part.length ? '<h3 class="gal-lg">' + esc(K.topWork(l === 'none' ? null : l)) + '</h3><div class="gal-grid">' + part.map(function (x) { return galTile(x[0], 'top', x[1]); }).join('') + '</div>' : '';
+          return part.length ? '<h3 class="gal-lg">' + esc(K.topWork(l === 'none' ? null : l)) + '</h3><div class="gal-grid gal-top">' + part.map(function (x) { return galTile(x[0], 'top', x[1]); }).join('') + '</div>' : '';
         }).join('') + '</section>';
       }
       var all = galAll(), keys = GAL_LEAGUES.filter(function (l) { return d.leagues[l]; });
