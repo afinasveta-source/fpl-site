@@ -214,3 +214,52 @@ WHERE r.event_id=%s''', (eid,))}
     w = ok(a.get(f"/api/games/{eid}/tasks/{tasks[1]['id']}"))['window']
     assert not w['open'] and w['reason'] == 'done_in_bot'
     assert ok(c.get('/api/org/import/game01'))['undo_blockers'] == ['participants_logged_in']
+
+
+def test_self_registered_player_is_linked_to_bot_record(app, seed, clock):
+    """14.10: участница из бота завела кабинет через «Впервые в лиге?» — задвоение. Организатор соединяет вход
+    с записью из бота; новые такие регистрации отправляются на заявку."""
+    clock.set(h())
+    with app.state.db.transaction() as conn:
+        add_docs(conn)
+    c = org(app, seed)
+    _, res = do_import(c)
+    eid = res['event_id']
+    # до переноса так зарегистрироваться можно было: заведём аккаунт напрямую, как это сделал сайт
+    s = TestClient(app)
+    r = s.post('/web-auth/register', headers=ORIGIN, json={'email': 'elena@example.com', 'password': PASSWORD,
+                                                           'full_name': 'Кузнецова Елена Сергеевна'})
+    assert r.status_code == 409 and r.json()['detail'] == 'game01_player'     # теперь — на заявку
+    r = s.post('/web-auth/register', headers=ORIGIN, json={'email': 'elena@example.com', 'password': PASSWORD,
+                                                           'full_name': 'Елена К.'})
+    assert r.status_code == 201, r.text                                          # имя не узнали — завела (как было на сервере)
+    new = TestClient(app)
+    ok(new.post('/web-auth/register', headers=ORIGIN, json={'email': 'newbie@example.com', 'password': PASSWORD,
+                                                            'full_name': 'Новенькая Вера Павловна'}), 201)
+    acc = ok(c.get('/api/org/claims/accounts'))['items']
+    assert {a['email'] for a in acc} == {'elena@example.com', 'newbie@example.com'}
+    elena = next(a for a in acc if a['email'] == 'elena@example.com')
+    with app.state.db.transaction() as conn:
+        bot = conn.execute("SELECT id FROM users WHERE full_name='Кузнецова Елена Сергеевна'").fetchone()['id']
+        conn.execute("INSERT INTO consents(user_id,consent_type,accepted,status,channel,idempotency_key) VALUES (%s,'marketing',true,'accepted','web','t-mk')",
+                     (elena['user_id'],))
+    ok(c.post(f"/api/org/claims/accounts/{elena['user_id']}/link", headers=ORIGIN, json={'user_id': str(bot)}))
+    assert c.post(f"/api/org/claims/accounts/{elena['user_id']}/link", headers=ORIGIN,
+                  json={'user_id': str(bot)}).json()['detail'] == 'account_not_linkable'
+    # старая сессия закрыта, вход тем же email и паролем — уже на записи из бота с итогами туров 1–2
+    assert s.get(f'/api/games/{eid}').status_code == 401
+    e = TestClient(app)
+    ok(e.post('/web-auth/login', headers=ORIGIN, json={'email': 'elena@example.com', 'password': PASSWORD}))
+    g = ok(e.get(f'/api/games/{eid}'))
+    assert g['me']['league'] == 'silver'
+    with app.state.db.transaction() as conn:
+        u = conn.execute('SELECT * FROM users WHERE id=%s', (bot,)).fetchone()
+        assert u['account_status'] == 'active' and u['email'] == 'elena@example.com'
+        old = conn.execute('SELECT * FROM users WHERE id=%s', (elena['user_id'],)).fetchone()
+        assert old['account_status'] == 'deleted' and old['email'] is None and old['deleted_at'] is not None
+        assert conn.execute("SELECT count(*) AS n FROM consents WHERE user_id=%s AND consent_type='marketing'", (bot,)).fetchone()['n'] == 1
+    left = ok(c.get('/api/org/claims/accounts'))['items']
+    assert [a['email'] for a in left] == ['newbie@example.com']
+    # новичка с запись из бота, у которой уже есть вход, не соединить
+    assert c.post(f"/api/org/claims/accounts/{left[0]['user_id']}/link", headers=ORIGIN,
+                  json={'user_id': str(bot)}).json()['detail'] == 'person_has_login'

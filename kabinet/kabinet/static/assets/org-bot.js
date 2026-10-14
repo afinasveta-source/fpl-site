@@ -22,7 +22,8 @@
     game_has_works: 'Отменить нельзя: в Игре уже есть сданные работы или судейство.', rounds_published: 'Отменить нельзя: тур 3 или следующий уже опубликован.' });
   O.addText({ cabinet_rating_started: 'Кабинет уже начислил рейтинг за туры Игры 01 — перенос повторить нельзя.', preview_first: 'Сначала нажмите «Проверить» — переносится ровно то, что вы видели.', table_has_errors: 'В таблице есть ошибки — исправьте их и проверьте снова.',
     claim_decided: 'Заявку уже рассмотрели.', person_has_login: 'У этой записи уже есть вход — выберите другую.',
-    person_not_in_game: 'Этой участницы нет в Игре.', email_taken: 'Этот email уже у другого аккаунта.' });
+    person_not_in_game: 'Этой участницы нет в Игре.', email_taken: 'Этот email уже у другого аккаунта.',
+    account_not_linkable: 'Этот аккаунт уже в Игре или у него есть роль — привязать нельзя.', account_has_support: 'У аккаунта есть обращения в поддержку — напишите Claude, привяжем вручную.' });
 
   /* ---------- Перенос из бота ---------- */
   var IMP = { text: null, name: null, preview: null };
@@ -164,19 +165,34 @@
   /* ---------- Заявки участниц из бота ---------- */
   O.on(/^\/org\/claims$/, function () {
     var status = K.query().get('status') || 'pending';
-    K.load(['/api/org/claims?status=' + status], function (d) { drawClaims(d, status); }, [['Обзор', '/org'], ['Заявки']]);
+    K.load(['/api/org/claims?status=' + status, '/api/org/claims/accounts'], function (d, acc) { drawClaims(d, status, acc); }, [['Обзор', '/org'], ['Заявки']]);
   });
 
   function who(p) {
     return esc(p.full_name) + ' · ' + (LG[p.league] || 'без лиги') + (p.in_competition ? '' : ' · вне конкурса');
   }
-  function drawClaims(d, status) {
+  function drawClaims(d, status, acc) {
     var h = '<h1>Заявки на вход' + (d.game ? ' · ' + esc(d.game) : '') + '</h1>' +
       '<p class="small muted">Участницы из бота оставляют заявку по ссылке <b>facepaintingleague.com/kabinet/game01</b>. Найдите её в перенесённом списке и нажмите «Это она» — ' +
       'у её записи появится вход (email и пароль из заявки), она войдёт и увидит свои итоги туров 1–2. Без входа ещё: ' + d.free + '.</p>' +
       '<nav class="row tabs">' + [['pending', 'Ждут'], ['all', 'Все']].map(function (t) {
         return '<button class="btn ' + (t[0] === status ? '' : 'sec') + ' small" type="button" data-href="/org/claims' + (t[0] === 'pending' ? '' : '?status=all') + '">' + t[1] + '</button>'; }).join('') +
       '<button class="btn ghost small" type="button" data-href="/org/import">Перенос из бота</button></nav>';
+    var accs = (acc && acc.items) || [];
+    if (accs.length) {
+      // Завели кабинет сами («Впервые в лиге?»), а не по заявке Игры 01: итоги туров 1–2 остались на записи из бота.
+      h += '<section class="card"><h2>Зарегистрировались сами · ' + accs.length + '</h2><p class="small muted">Эти люди завели кабинет через «Впервые в лиге?», а не по заявке Игры 01. ' +
+        'Если это участница из бота — нажмите «Это она»: её вход переедет на запись из бота (с итогами туров 1–2), а пустой аккаунт закроется. Новичков не трогайте.</p>' +
+        accs.map(function (a) {
+          return '<div class="stack claim" data-s="g6"><div class="between"><b>' + esc(a.full_name || '—') + '</b><span class="small muted">' + esc(a.email) + ' · ' + esc(O.when(a.created_at)) + '</span></div>' +
+            (a.suggestions.length ? a.suggestions.map(function (p) {
+              return '<div class="between"><span>' + who(p) + ' <span class="small muted">· ID ' + esc(p.bot_id || '—') + '</span></span>' +
+                '<button class="btn small" type="button" data-act="clLink" data-a="' + a.user_id + '" data-u="' + p.user_id + '" data-n="' + esc(p.full_name) + '" data-e="' + esc(a.email) + '">Это она</button></div>';
+            }).join('') : '<p class="small muted">Похожих в списке Игры нет — поищите вручную.</p>') +
+            '<form class="search" data-find-acc="' + a.user_id + '" data-e="' + esc(a.email) + '"><label class="sr" for="ac-q-' + a.user_id + '">Поиск</label><input class="input" id="ac-q-' + a.user_id + '" type="search" maxlength="100" placeholder="Фамилия или ID SaleBot">' +
+            '<button class="btn sec small" type="submit">Найти</button></form><div class="stack" id="ac-found-' + a.user_id + '"></div></div>';
+        }).join('<hr>') + '</section>';
+    }
     if (!d.items.length) h += '<div class="note">' + (status === 'pending' ? 'Новых заявок нет.' : 'Заявок нет.') + '</div>';
     h += d.items.map(function (c) {
       var x = '<section class="card claim" data-no="' + c.no + '"><div class="between"><h2>№ ' + c.no + ' · ' + esc(c.full_name) + '</h2>' +
@@ -197,6 +213,19 @@
       return x + '</section>';
     }).join('');
     K.page(h, [['Обзор', '/org'], ['Заявки']]);
+    Array.prototype.forEach.call(document.querySelectorAll('form[data-find-acc]'), function (f) {
+      f.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var id = f.getAttribute('data-find-acc'), em = f.getAttribute('data-e'), q = f.querySelector('input').value.trim(), box = document.getElementById('ac-found-' + id);
+        K.api('GET', '/api/org/claims/people?q=' + encodeURIComponent(q)).then(function (r) {
+          if (!r.ok) { box.innerHTML = '<p class="small">' + esc(K.errorText(r)) + '</p>'; return; }
+          box.innerHTML = r.data.items.length ? r.data.items.map(function (p) {
+            return '<div class="between"><span>' + who(p) + ' <span class="small muted">· ID ' + esc(p.bot_id || '—') + '</span></span>' +
+              '<button class="btn small" type="button" data-act="clLink" data-a="' + id + '" data-u="' + p.user_id + '" data-n="' + esc(p.full_name) + '" data-e="' + esc(em) + '">Это она</button></div>';
+          }).join('') : '<p class="small muted">Никого без входа не нашлось.</p>';
+        });
+      });
+    });
     Array.prototype.forEach.call(document.querySelectorAll('form[data-find]'), function (f) {
       f.addEventListener('submit', function (e) {
         e.preventDefault();
@@ -227,6 +256,12 @@
     O.confirm({ title: 'Открыть вход для заявки № ' + no + '?', text: 'Запись «' + b.getAttribute('data-n') + '» получит email и пароль из заявки. Отменить это можно только через поддержку.',
       ok: 'Это она', path: '/api/org/claims/' + no + '/approve', body: function () { return { user_id: b.getAttribute('data-u') }; },
       done: function () { K.toast('Вход открыт'); O.refreshCounts(); K.route(); } });
+  };
+  K.actions.clLink = function (b) {
+    O.confirm({ title: 'Соединить с записью «' + b.getAttribute('data-n') + '»?',
+      text: 'Вход ' + b.getAttribute('data-e') + ' переедет на запись из бота: участница войдёт тем же email и паролем и увидит свои итоги туров 1–2. Пустой аккаунт закроется. Отменить — только через поддержку.',
+      ok: 'Соединить', path: '/api/org/claims/accounts/' + b.getAttribute('data-a') + '/link', body: function () { return { user_id: b.getAttribute('data-u') }; },
+      done: function () { K.toast('Соединено — вход на записи из бота'); O.refreshCounts(); K.route(); } });
   };
   K.actions.clReject = function (b) {
     var no = b.getAttribute('data-no');

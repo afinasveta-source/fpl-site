@@ -127,6 +127,13 @@ def register_account(body: Signup, request: Request, response: Response, auth=De
         existing = conn.execute('SELECT account_status FROM users WHERE lower(email)=%s', (body.email,)).fetchone()
         if existing:
             raise HTTPException(409, 'email_invited' if existing['account_status'] == 'imported' else 'email_taken')
+        # Участница Игры 01 из бота заводит новый кабинет вместо заявки — её итоги туров 1–2 остались бы на записи из бота
+        # (задвоение, 14.10). Похожие ФИО в перенесённом списке → отправляем на страницу заявки.
+        from kabinet import claims as CL
+        ev = CL.moved_event(conn)
+        if ev and len(CL.words(body.full_name)) >= 2 and any(CL.similarity(body.full_name, p['full_name']) >= 0.9
+                                                              for p in CL.free_people(conn, ev['id'])):
+            raise HTTPException(409, 'game01_player')
         user = conn.execute("""INSERT INTO users(email,password_hash,email_verified_at,account_status,full_name)
 VALUES (%s,%s,now(),'active',%s) RETURNING id""", (body.email, encoded, body.full_name)).fetchone()
         conn.execute("INSERT INTO user_roles(user_id,role) VALUES (%s,'participant')", (user['id'],))

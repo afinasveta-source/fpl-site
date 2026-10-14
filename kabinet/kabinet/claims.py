@@ -304,3 +304,82 @@ password_hash='-', decision_note=%s WHERE id=%s''', (person['id'], user['id'], n
                 'text': 'Вы в Игре 01 вне конкурса. Работы всех туров, включая 1 и 2, можно сдать до конца Игры.',
                 'route': 'game', 'event_id': str(c['event_id'])}, c['event_id'])
         return claim_view(conn.execute('SELECT * FROM account_claims WHERE id=%s', (c['id'],)).fetchone())
+
+
+# ---------- Зарегистрировались сами, а не по заявке Игры 01 (14.10) ----------
+# Участница из бота нашла на входе «Впервые в лиге? Заведите кабинет» и завела пустой аккаунт: её итоги туров 1–2
+# остались на записи из бота, а вход — на новой. Организатор привязывает вход к записи из бота: email и пароль
+# переезжают на неё, пустой аккаунт закрывается. Согласия копируются (их нельзя переносить — только дописывать).
+
+def self_registered(conn, account_id=None):
+    """Активные аккаунты, заведённые самой участницей, без единой Игры и без ролей кроме участницы."""
+    return conn.execute('''SELECT u.* FROM users u
+WHERE u.account_status='active' AND u.deleted_at IS NULL AND (%(id)s::uuid IS NULL OR u.id=%(id)s::uuid)
+AND EXISTS (SELECT 1 FROM audit_log a WHERE a.entity_id=u.id AND a.action='self_registered')
+AND NOT EXISTS (SELECT 1 FROM event_participants p WHERE p.user_id=u.id)
+AND NOT EXISTS (SELECT 1 FROM user_roles r WHERE r.user_id=u.id AND r.role<>'participant')
+ORDER BY u.created_at DESC LIMIT 200''', {'id': account_id}).fetchall()
+
+
+@org.get('/accounts')
+def accounts(request: Request, user=Depends(org_user)):
+    with db(request).transaction() as conn:
+        ev = moved_event(conn)
+        people = free_people(conn, ev['id']) if ev else []
+        out = []
+        for a in self_registered(conn):
+            ranked = sorted(((similarity(a['full_name'], p['full_name']), p) for p in people), key=lambda x: -x[0])
+            out.append({'user_id': str(a['id']), 'full_name': a['full_name'], 'email': a['email'], 'created_at': iso(a['created_at']),
+                        'suggestions': [person_view(p, s) for s, p in ranked[:3] if s >= 0.5]})
+        # сначала те, кого похоже узнали в списке Игры
+        out.sort(key=lambda x: -(x['suggestions'][0]['score'] if x['suggestions'] else 0))
+        return {'items': out}
+
+
+class LinkAccount(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    user_id: UUID
+
+
+@org.post('/accounts/{account_id}/link', dependencies=WRITE)
+def link_account(account_id: UUID, body: LinkAccount, request: Request, user=Depends(org_user)):
+    now = now_of(request)
+    with db(request).transaction() as conn:
+        locked_admin(conn, user)
+        ev = moved_event(conn)
+        if not ev:
+            raise problem('not_moved', 409)
+        acc = self_registered(conn, account_id)
+        if not acc:
+            raise problem('account_not_linkable', 409)
+        acc = conn.execute('SELECT * FROM users WHERE id=%s FOR UPDATE', (account_id,)).fetchone()
+        person = conn.execute('SELECT * FROM users WHERE id=%s FOR UPDATE', (body.user_id,)).fetchone()
+        if not person or person['account_status'] != 'imported' or person['email'] is not None or person['deleted_at'] is not None:
+            raise problem('person_has_login', 409)
+        if not conn.execute('SELECT 1 FROM event_participants WHERE user_id=%s AND event_id=%s', (person['id'], ev['id'])).fetchone():
+            raise problem('person_not_in_game', 409)
+        if conn.execute('SELECT 1 FROM support_threads WHERE user_id=%s LIMIT 1', (acc['id'],)).fetchone():
+            raise problem('account_has_support', 409)
+        # пустой аккаунт закрыть: вход (email, пароль, Telegram) освобождается для записи из бота
+        conn.execute('UPDATE auth_sessions SET revoked_at=%s WHERE user_id=%s AND revoked_at IS NULL', (now, acc['id']))
+        conn.execute('''UPDATE users SET email=NULL, password_hash=NULL, telegram_id=NULL, account_status='deleted', deleted_at=%s
+WHERE id=%s''', (now, acc['id']))
+        conn.execute("DELETE FROM user_roles WHERE user_id=%s", (acc['id'],))
+        display = (acc['display_name'] or '').strip() or (person['display_name'] or '').strip() or R.name_for_site(person['full_name'])
+        conn.execute('''UPDATE users SET email=%s, password_hash=%s, email_verified_at=coalesce(%s, %s), account_status='active',
+telegram_id=coalesce(telegram_id, %s), country_code=coalesce(country_code, %s), city=coalesce(city, %s), display_name=%s,
+public_works=true, public_social=true, public_rating=true WHERE id=%s''',
+                     (acc['email'], acc['password_hash'], acc['email_verified_at'], now, acc['telegram_id'], acc['country_code'],
+                      acc['city'], display, person['id']))
+        conn.execute("INSERT INTO user_roles(user_id,role) VALUES (%s,'participant') ON CONFLICT DO NOTHING", (person['id'],))
+        conn.execute('''INSERT INTO consents(user_id,event_id,consent_type,accepted,status,document_version,legal_document_id,channel,
+button_text,idempotency_key,recorded_at,metadata)
+SELECT %s, event_id, consent_type, accepted, status, document_version, legal_document_id, channel, button_text,
+  'link:' || id::text, recorded_at, metadata || jsonb_build_object('linked_from', %s::text)
+FROM consents WHERE user_id=%s ON CONFLICT (idempotency_key) DO NOTHING''', (person['id'], str(acc['id']), acc['id']))
+        audit(conn, user['id'], 'user', person['id'], 'account_linked',
+              {'from_account': str(acc['id']), 'account_name': acc['full_name'], 'bot_name': person['full_name']})
+        notify(conn, person['id'], 'reg', f"link:{acc['id']}",
+               {'title': 'Ваш кабинет соединён с Игрой 01', 'text': 'Итоги туров 1–2 перенесены. Задания следующих туров — здесь.',
+                'route': 'game', 'event_id': str(ev['id'])}, ev['id'])
+        return {'user_id': str(person['id']), 'full_name': person['full_name']}
