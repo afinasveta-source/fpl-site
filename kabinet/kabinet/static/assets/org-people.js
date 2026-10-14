@@ -31,30 +31,54 @@
     if (f) f.addEventListener('submit', function (e) { e.preventDefault(); apply(f.querySelector('input').value.trim()); });
   };
   var withCounts = function () { if (!K.state.orgCounts) O.refreshCounts(); };
+  /* Фильтры списков (17.10): статус участия и лига; выбранное — в адресе (?status=…&league=…), «Назад» и обновление их не теряют. */
+  var GROUPS = [['in', 'В конкурсе'], ['outside', 'Вне конкурса'], ['out', 'Выбыли']];
+  var LGS = [['gold', 'Gold'], ['silver', 'Silver'], ['bronze', 'Bronze'], ['none', 'Без лиги']];
+  var filterRow = function (label, items, cur, base, extra) {
+    return tabs(items, cur, base, extra).replace('<nav class="row tabs" aria-label="Фильтр">', '<nav class="row tabs" aria-label="' + esc(label) + '"><span class="lbl">' + esc(label) + '</span>');
+  };
+  var sum = function (o) { return Object.keys(o || {}).reduce(function (a, k) { return a + (o[k] || 0); }, 0); };
+  var shownLine = function (shown, total, what) {
+    return '<p class="small muted" aria-live="polite">' + (shown === total ? 'Показано: ' + shown : 'Показано: ' + shown + ' из ' + total) + (what ? ' ' + what : '') + '</p>';
+  };
 
   /* ---------- Люди ---------- */
   O.on(/^\/org\/people$/, function () {
     var q = K.query(), term = q.get('q') || '', kind = q.get('kind') || 'all', offset = +(q.get('offset') || 0);
+    var league = q.get('league') || '', status = q.get('status') || '';
     if (!KIND.some(function (k) { return k[0] === kind; })) kind = 'all';
-    K.load(['/api/org/people' + qs({ q: term, kind: kind, offset: offset || '', limit: 50 })], function (d) {
+    if (!GROUPS.some(function (g) { return g[0] === status; })) status = '';
+    if (!LGS.some(function (g) { return g[0] === league; })) league = '';
+    K.load(['/api/org/people' + qs({ q: term, kind: kind, league: league, status: status, offset: offset || '', limit: 50 })], function (d) {
       withCounts();
+      var keep = { q: term, kind: kind === 'all' ? '' : kind, league: league, status: status }, page = function (o) { return '/org/people' + qs(Object.assign({}, keep, o)); };
       var h = '<div class="between"><h1>Люди</h1><button class="btn" type="button" data-act="newPerson">Добавить человека</button></div>' +
         '<p class="small muted">Все, у кого есть аккаунт: участницы, судьи, команда. Здесь же — ссылки для входа.</p>' +
         searchForm('f-people', term, 'ФИО, имя, email, город или Telegram ID') +
-        tabs(KIND.map(function (k) { return [k[0], k[1], { kind: k[0] === 'all' ? '' : k[0] }, d.counts[k[0]]]; }), kind, '/org/people', { q: term });
+        '<div class="filters">' + tabs(KIND.map(function (k) { return [k[0], k[1], { kind: k[0] === 'all' ? '' : k[0] }, d.counts[k[0]]]; }), kind, '/org/people', { q: term, league: league, status: status });
+      if (d.game) {
+        // Лига и статус есть только у участниц Игры — берём текущую Игру (ту, что сверху в «Играх и турах»).
+        h += filterRow('Статус', [['', 'Все', { status: '' }]].concat(GROUPS.map(function (g) { return [g[0], g[1], { status: g[0] }, d.status_counts[g[0]] || 0]; })),
+          status, '/org/people', { q: term, kind: keep.kind, league: league }) +
+          filterRow('Лига', [['', 'Все', { league: '' }]].concat(LGS.map(function (g) { return [g[0], g[1], { league: g[0] }, d.league_counts[g[0]] || 0]; })),
+            league, '/org/people', { q: term, kind: keep.kind, status: status }) + '</div>' +
+          '<p class="small muted">Лига и статус — в Игре «' + esc(d.game.title) + '». С этими фильтрами в списке только её участницы.</p>';
+      } else h += '</div>';
       if (kind === 'not_activated') h += '<div class="note small">Эти люди ещё не входили в кабинет (например, перенесены из бота). Откройте карточку и создайте ссылку-приглашение — перешлите её человеку сами.</div>';
-      h += d.people.length ? '<section class="card"><div class="list">' + d.people.map(function (p) {
-        var sub = [p.email || 'без email', p.city, p.roles.filter(function (r) { return r !== 'participant'; }).map(function (r) { return ROLE[r]; }).join(', '), p.games ? 'Игр: ' + p.games : ''].filter(Boolean).join(' · ');
-        return li(esc(p.name || 'Без имени'), esc(sub), O.st(ACCOUNT, p.account_status), '/org/people/' + p.id);
-      }).join('') + '</div></section>' : '<div class="note">Никого не нашлось.</div>';
       var total = d.counts[kind];
+      if (d.people.length) h += shownLine(total > d.people.length ? (offset + 1) + '–' + (offset + d.people.length) : d.people.length, total);
+      h += d.people.length ? '<section class="card"><div class="list">' + d.people.map(function (p) {
+        var g = p.game ? [p.game.league ? LEAGUE[p.game.league] : '', O.MODE[p.game.mode] ? O.MODE[p.game.mode][0].toLowerCase() : ''].filter(Boolean).join(', ') : '';
+        var sub = [p.email || 'без email', p.city, p.roles.filter(function (r) { return r !== 'participant'; }).map(function (r) { return ROLE[r]; }).join(', '), g, p.games ? 'Игр: ' + p.games : ''].filter(Boolean).join(' · ');
+        return li(esc(p.name || 'Без имени'), esc(sub), O.st(ACCOUNT, p.account_status), '/org/people/' + p.id);
+      }).join('') + '</div></section>' : '<div class="note">Никого не нашлось.' + (league || status || term || kind !== 'all' ? ' <button class="lnk" type="button" data-href="/org/people">Сбросить фильтры</button>' : '') + '</div>';
       if (offset || total > offset + d.people.length) {
-        h += '<div class="row">' + (offset ? '<button class="btn sec" type="button" data-href="/org/people' + esc(qs({ q: term, kind: kind === 'all' ? '' : kind, offset: Math.max(0, offset - 50) || '' })) + '">← Предыдущие</button>' : '') +
+        h += '<div class="row">' + (offset ? '<button class="btn sec" type="button" data-href="' + esc(page({ offset: Math.max(0, offset - 50) || '' })) + '">← Предыдущие</button>' : '') +
           '<span class="muted small">' + (offset + 1) + '–' + (offset + d.people.length) + ' из ' + total + '</span>' +
-          (total > offset + d.people.length ? '<button class="btn sec" type="button" data-href="/org/people' + esc(qs({ q: term, kind: kind === 'all' ? '' : kind, offset: offset + 50 })) + '">Следующие →</button>' : '') + '</div>';
+          (total > offset + d.people.length ? '<button class="btn sec" type="button" data-href="' + esc(page({ offset: offset + 50 })) + '">Следующие →</button>' : '') + '</div>';
       }
       K.page(h, [['Обзор', '/org'], ['Люди']]);
-      bindSearch('f-people', function (v) { K.go('/org/people' + qs({ q: v, kind: kind === 'all' ? '' : kind })); });
+      bindSearch('f-people', function (v) { K.go(page({ q: v })); });
     }, [['Обзор', '/org'], ['Люди']]);
   });
   function personFields(p) {
@@ -234,22 +258,23 @@
   /* ---------- Участницы Игры ---------- */
   var CELL = { sent: '✓ сдана', sent_late: '✓ после срока', missed: '✕ не сдана', draft: 'черновик', none: 'ещё нет', plan: '' };
   O.on(/^\/org\/games\/([0-9a-f-]{36})\/people$/, function (id) {
-    var q = K.query(), term = q.get('q') || '', mode = q.get('mode') || '', league = q.get('league') || '';
-    K.load(['/api/org/events/' + id + '/participants' + qs({ q: term, mode: mode, league: league })], function (d) {
+    var q = K.query(), term = q.get('q') || '', mode = q.get('mode') || '', league = q.get('league') || '', status = q.get('status') || '';
+    if (!GROUPS.some(function (g) { return g[0] === status; })) status = '';
+    if (!LGS.some(function (g) { return g[0] === league; })) league = '';
+    K.load(['/api/org/events/' + id + '/participants' + qs({ q: term, mode: mode, league: league, status: status })], function (d) {
       var base = '/org/games/' + id + '/people', crumbs = [['Игры и туры', '/org/games'], [d.event.title, '/org/games/' + id], ['Участницы']];
       var canLeagues = d.total && ['registration', 'active', 'finished'].indexOf(d.event.status) >= 0;
       var h = '<div class="stack" data-s="g6"><span class="eyebrow">' + esc(d.event.title) + '</span><div class="between"><h1>Участницы · ' + d.total + '</h1>' +
         (canLeagues ? '<button class="btn sec small" type="button" data-href="/org/games/' + id + '/leagues">Расставить лиги</button>' : '') + '</div></div>' +
         searchForm('f-parts', term, 'ФИО, имя, email или город') +
-        tabs([['', 'Все', { mode: '' }, d.total]].concat(Object.keys(O.MODE).filter(function (k) { return d.counts[k]; }).map(function (k) {
-          return [k, O.MODE[k][0], { mode: k }, d.counts[k]];
-        })), mode, base, { q: term, league: league });
-      var lg = Object.keys(d.leagues);
-      if (lg.length > 1) h += tabs([['', 'Все лиги', { league: '' }]].concat(['bronze', 'silver', 'gold', 'none'].filter(function (k) { return d.leagues[k]; }).map(function (k) {
-        return [k, k === 'none' ? 'Без лиги' : LEAGUE[k], { league: k }, d.leagues[k]];
-      })), league, base, { q: term, mode: mode });
+        '<div class="filters">' + filterRow('Статус', [['', 'Все', { status: '' }, d.league_total]].concat(GROUPS.map(function (g) { return [g[0], g[1], { status: g[0] }, d.groups[g[0]] || 0]; })),
+          mode ? '-' : status, base, { q: term, league: league }) +
+        filterRow('Лига', [['', 'Все', { league: '' }, sum(d.leagues)]].concat(LGS.map(function (g) { return [g[0], g[1], { league: g[0] }, d.leagues[g[0]] || 0]; })),
+          league, base, { q: term, status: status, mode: mode }) + '</div>';
+      if (mode) h += '<div class="note small">Только: <b>' + esc((O.MODE[mode] || [mode])[0]) + '</b>. <button class="lnk" type="button" data-href="' + esc(base + qs({ q: term, league: league })) + '">Показать всех</button></div>';
+      if (d.participants.length) h += shownLine(d.shown, d.total);
       if (d.current_round) h += '<p class="small muted">Сейчас тур ' + d.current_round + '. «✕ не сдана» — срок прошёл, а работы нет; «ещё нет» — срок не прошёл.</p>';
-      if (!d.participants.length) h += '<div class="note">' + (d.total ? 'Никого не нашлось.' : 'В Игру пока никто не записался.') + '</div>';
+      if (!d.participants.length) h += '<div class="note">' + (d.total ? 'Никого не нашлось. <button class="lnk" type="button" data-href="' + base + '">Сбросить фильтры</button>' : 'В Игру пока никто не записался.') + '</div>';
       else {
         h += '<div class="table-wrap"><table class="otable"><thead><tr><th scope="col">Участница</th><th scope="col">Статус</th><th scope="col">Лига</th>' +
           d.rounds.map(function (r) { return '<th scope="col" class="c">Тур ' + r.round_no + '</th>'; }).join('') + '</tr></thead><tbody>' +
@@ -270,7 +295,7 @@
           }).join('') + '</tbody></table></div>';
       }
       K.page(h, crumbs);
-      bindSearch('f-parts', function (v) { K.go(base + qs({ q: v, mode: mode, league: league })); });
+      bindSearch('f-parts', function (v) { K.go(base + qs({ q: v, mode: mode, league: league, status: status })); });
     }, [['Игры и туры', '/org/games'], ['Участницы']]);
   });
 

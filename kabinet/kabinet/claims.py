@@ -121,7 +121,10 @@ def words(name):
 
 def similarity(a, b):
     """Похожесть ФИО по словам (порядок не важен: «Анна Смирнова» = «Смирнова Анна Михайловна»)."""
-    wa, wb = words(a), words(b)
+    return word_similarity(words(a), words(b))
+
+
+def word_similarity(wa, wb):
     if not wa or not wb:
         return 0.0
     common = len(wa & wb)
@@ -323,10 +326,28 @@ def self_registered(conn, account_id=None):
     """Активные аккаунты, заведённые самой участницей, без единой Игры и без ролей кроме участницы."""
     return conn.execute('''SELECT u.* FROM users u
 WHERE u.account_status='active' AND u.deleted_at IS NULL AND (%(id)s::uuid IS NULL OR u.id=%(id)s::uuid)
-AND EXISTS (SELECT 1 FROM audit_log a WHERE a.entity_id=u.id AND a.action='self_registered')
+AND EXISTS (SELECT 1 FROM audit_log a WHERE a.entity_type='user' AND a.entity_id=u.id AND a.action='self_registered')
 AND NOT EXISTS (SELECT 1 FROM event_participants p WHERE p.user_id=u.id)
 AND NOT EXISTS (SELECT 1 FROM user_roles r WHERE r.user_id=u.id AND r.role<>'participant')
 ORDER BY u.created_at DESC LIMIT 200''', {'id': account_id}).fetchall()
+
+
+def accounts_to_link(conn):
+    """Сколько зарегистрировавшихся самих похожи на участницу Игры 01 без входа (есть подсказка «Это она»):
+    их организатору нужно соединить. Новички без похожих ФИО внимания не требуют — в счётчик не входят."""
+    ev = moved_event(conn)
+    if not ev:
+        return 0
+    accs = self_registered(conn)
+    if not accs:
+        return 0
+    people = [words(p['full_name']) for p in free_people(conn, ev['id'])]
+    n = 0
+    for a in accs:
+        wa = words(a['full_name'])
+        if wa and any(wb and word_similarity(wa, wb) >= 0.5 for wb in people):
+            n += 1
+    return n
 
 
 @org.get('/accounts')

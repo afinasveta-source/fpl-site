@@ -146,21 +146,9 @@
     var i = document.getElementById(b.getAttribute('data-for'));
     if (i) { i.select(); O.copy(i.value); }
   };
-  O.refreshCounts = function () {
-    return K.api('GET', '/api/org/home').then(function (r) { if (r.ok) { K.state.orgCounts = r.data.counts; O.paintCounts(); } return r; });
-  };
-  /* Счётчики в меню — без перерисовки страницы (иначе пропали бы обработчики форм и открытое окно). */
-  O.paintCounts = function () {
-    var c = K.state.orgCounts || {};
-    [['/org/support', c.support], ['/org/feedback', c.feedback], ['/org/reviews', c.reviews], ['/org/claims', c.claims]].forEach(function (x) {
-      Array.prototype.forEach.call(document.querySelectorAll('nav.nav [data-href="' + x[0] + '"]'), function (b) {
-        var s = b.querySelector('.cnt');
-        if (!x[1]) { if (s) s.remove(); return; }
-        if (!s) { s = document.createElement('span'); s.className = 'cnt'; b.appendChild(s); }
-        s.textContent = String(x[1]);
-      });
-    });
-  };
+  /* Счётчики «ждёт ответа» в меню — общие для всего кабинета (core.js, K.attention): без перерисовки страницы. */
+  O.refreshCounts = function () { return K.attention.fetch(); };
+  O.paintCounts = function () { K.attention.paint(); };
   /* Страница организатора: без роли — понятный отказ. */
   O.guard = function () {
     if (K.isAdmin()) return true;
@@ -172,7 +160,7 @@
   /* ---------- Обзор ---------- */
   O.on(/^\/org$/, function () {
     K.load(['/api/org/home'], function (d) {
-      K.state.orgCounts = d.counts;
+      K.state.orgCounts = d.counts; K.attention.last = Date.now();   // те же цифры, что в меню (/api/org/attention)
       var c = d.counts, h = '<div class="between"><h1>Обзор лиги</h1><button class="btn" type="button" data-href="/org/games">Игры и туры</button></div>';
       var missing = ['rules', 'publication', 'personal_data'].filter(function (k) { return !d.documents[k]; });
       if (missing.length) {
@@ -180,9 +168,10 @@
           '. Без Правил и согласия на публикацию Игру не опубликовать. <button class="lnk" type="button" data-href="/org/documents">Открыть документы</button></div>';
       }
       var todo = (d.alerts || []).map(function (x) { return li(esc(x.title), esc(x.text), pill('Шаг', 'warn'), x.href); });
-      if (c.support) todo.push(li('Обращения ждут ответа', c.support + ' в поддержке', pill(String(c.support), 'acc'), '/org/support'));
+      if (c.support) todo.push(li('Обращения ждут ответа', 'Последней написала участница', pill(String(c.support), 'acc'), '/org/support'));
       if (c.feedback) todo.push(li('Новые пожелания с сайта', 'Анонимные сообщения', pill(String(c.feedback), 'acc'), '/org/feedback'));
-      if (c.claims) todo.push(li('Заявки на вход из бота', 'Участницы Игры 01 ждут, когда вы откроете им вход', pill(String(c.claims), 'acc'), '/org/claims'));
+      if (c.claims) todo.push(li('Заявки на вход из бота', [c.claims_pending ? 'заявок: ' + c.claims_pending : '', c.accounts ? 'завели кабинет сами, похожи на участницу из бота: ' + c.accounts : ''].filter(Boolean).join(' · ') ||
+        'Участницы Игры 01 ждут, когда вы откроете им вход', pill(String(c.claims), 'acc'), '/org/claims'));
       if (!c.moved_games) todo.push(li('Перенос Игры 01 из бота', 'Загрузите таблицу туров 1–2 — Игра продолжится в кабинете', pill('Шаг', 'warn'), '/org/import'));
       if (c.reviews) todo.push(li('Разборы от судьи', 'Новые заказы и оплаченные — ждут действий', pill(String(c.reviews), 'acc'), '/org/reviews'));
       if (c.not_activated) todo.push(li('Не вошли в кабинет', 'Участницы Игр без входа — отправьте им ссылку', pill(String(c.not_activated), 'warn'), '/org/people?kind=not_activated'));
@@ -204,28 +193,134 @@
     });
   });
 
-  /* ---------- Игры и сезоны ---------- */
+  /* ---------- Игры и туры (17.10) ----------
+     Сверху — текущая Игра большой карточкой: туры по порядку, у каждого — что с ним сейчас и цифры (сдали, после срока,
+     в конкурсе ещё не сдали, итоги, ход судейства). Ниже — сезоны и их Игры. Внизу, свёрнуто, — новая Игра и сезоны. */
+  O.PHASE = { draft: ['Черновик', 'plain'], plan: ['Запланирован', 'info'], open: ['Идёт сдача', 'acc'], closed: ['Приём закрыт · ждёт судейства', 'warn'],
+    judging: ['Судейство', 'acc'], published: ['Итоги опубликованы', 'ok'], bot: ['Прошёл в боте', 'plain'] };
+  var LGN = { gold: 'Gold', silver: 'Silver', bronze: 'Bronze', none: 'Без лиги' };
+  var LG_ORDER = ['gold', 'silver', 'bronze', 'none'];
+  function seasonGameName(e, season) {
+    return [season ? season.name || (season.season_no ? 'Сезон ' + season.season_no : '') : '', e.game_no ? 'Игра ' + ('0' + e.game_no).slice(-2) : ''].filter(Boolean).join(' · ');
+  }
+  function num(n, word) { return '<span class="gn"><b class="num">' + n + '</b> ' + word + '</span>'; }
+  function roundCard(r, eid) {
+    var w = r.works || {}, j = r.judging, lines = [];
+    var dates = r.phase === 'draft' && !r.opens_at ? 'даты не заданы' :
+      [r.opens_at ? 'открытие ' + K.date(r.opens_at) : 'нет даты открытия', r.deadline ? 'срок ' + K.date(r.deadline) : 'нет срока',
+        r.judging_deadline && r.phase !== 'bot' ? 'оценка до ' + K.date(r.judging_deadline) : ''].filter(Boolean).join(' · ') + ' МСК';
+    var lgDates = (r.league_dates || []).map(function (x) {
+      return LGN[x.league] + ': ' + (x.opens_at && x.opens_at !== r.opens_at ? 'открытие ' + K.date(x.opens_at) + ', ' : '') + 'срок ' + K.date(x.deadline);
+    }).join(' · ');
+    var nums = [];
+    if (r.phase === 'bot') {
+      nums.push(num(w.results || 0, 'итогов из бота'), num(w.advanced || 0, 'прошли дальше'), num(w.sent || 0, 'фото в архиве'));
+    } else if (r.phase === 'open' || r.phase === 'closed' || r.phase === 'judging' || r.phase === 'published') {
+      nums.push(num(w.sent || 0, 'сдали'));
+      if (w.late) nums.push(num(w.late, 'после срока'));
+      if (w.missing_in != null && (r.phase === 'open' || r.phase === 'closed')) nums.push(num(w.missing_in, r.phase === 'open' ? 'в конкурсе ещё не сдали' : 'в конкурсе не сдали'));
+      if (r.phase === 'published') nums.push(num(w.results || 0, 'с итогом'), num(w.advanced || 0, 'прошли дальше'));
+    }
+    if (j) {
+      var pct = j.total ? Math.round(j.done / j.total * 100) : 0;
+      lines.push('<div class="rnd-judge"><span class="small">Судейство: ' + j.works + ' работ · оценено ' + j.done + ' из ' + j.total + ' (' + pct + '%)</span>' +
+        '<span class="jbar" aria-hidden="true"><span data-w="' + Math.min(100, Math.round(pct / 5) * 5) + '"></span></span></div>');
+    }
+    var lg = LG_ORDER.filter(function (k) { return r.by_league && r.by_league[k]; });
+    var hasNums = ['open', 'closed', 'judging', 'published', 'bot'].indexOf(r.phase) >= 0;
+    if (hasNums && (lg.length > 1 || (lg.length === 1 && lg[0] !== 'none'))) {
+      lines.push('<dl class="rnd-lg">' + lg.map(function (k) {
+        var x = r.by_league[k], t = [];
+        if (r.phase === 'bot') t.push('итогов ' + x.results, 'прошли ' + x.advanced, 'фото ' + x.sent);
+        else {
+          t.push('сдали ' + x.sent);
+          if (x.late) t.push('после срока ' + x.late);
+          if (x.missing_in != null) t.push('не сдали в конкурсе ' + x.missing_in + ' из ' + x.in_now);
+          if (r.phase === 'published') t.push('итог ' + x.results + ', прошли ' + x.advanced);
+        }
+        if (j) { var s = j.streams.filter(function (st) { return st.league === k; })[0]; if (s) t.push('судейство ' + s.done + '/' + s.total); }
+        return '<dt>' + LGN[k] + '</dt><dd>' + esc(t.join(' · ')) + '</dd>';
+      }).join('') + '</dl>');
+    }
+    // Карточка тура целиком ведёт на страницу тура; с клавиатуры — кнопка-название.
+    return '<div class="rnd' + (r.current ? ' now' : '') + '" data-href="/org/rounds/' + r.id + '"><span class="rnd-no" aria-hidden="true">' + r.round_no + '</span>' +
+      '<div class="rnd-body"><div class="rnd-head"><button class="lnk rnd-link" type="button" data-href="/org/rounds/' + r.id + '">' + roundName(r) + '</button>' +
+      (r.current ? '<span class="small muted">сейчас</span>' : '') + O.st(O.PHASE, r.phase) + '</div>' +
+      (r.task_title && r.task_title !== 'Задание тура ' + r.round_no && r.task_title !== r.title ? '<div class="small muted">' + esc(r.task_title) + '</div>' : '') +
+      '<div class="small">' + esc(dates) + '</div>' + (lgDates ? '<div class="small muted">' + esc(lgDates) + '</div>' : '') +
+      (nums.length ? '<div class="rnd-nums">' + nums.join('') + '</div>' : '') + lines.join('') + '</div></div>';
+  }
+  function currentCard(e) {
+    var p = e.people || {}, base = '/org/games/' + e.id, season = e.season ? { name: e.season } : null;
+    var label = { active: 'Идёт сейчас', registration: 'Скоро · идёт запись', finished: 'Последняя Игра', archived: 'Последняя Игра', draft: 'Готовится' }[e.status] || '';
+    var done = e.rounds.filter(function (r) { return r.phase === 'published' || r.phase === 'bot'; }).length;
+    var h = '<section class="card game-now"><div class="between"><div class="stack" data-s="g4"><span class="eyebrow">' + esc([label, seasonGameName(e, season)].filter(Boolean).join(' · ')) + '</span>' +
+      '<h2>' + esc(e.title) + '</h2><span class="small muted">' + esc([e.starts_at ? K.range(e.starts_at, e.ends_at) : 'даты не заданы', e.rounds.length ? 'туров ' + e.rounds.length + ', прошло ' + done : ''].filter(Boolean).join(' · ')) + '</span></div>' +
+      O.st(O.EVENT, e.status) + '</div>';
+    h += '<div class="stats"><button class="stat-link" type="button" data-href="' + base + '/people"><span>Участниц</span><b class="num">' + p.total + '</b></button>' +
+      [['in', 'В конкурсе'], ['outside', 'Вне конкурса'], ['out', 'Выбыли']].map(function (x) {
+        return '<button class="stat-link" type="button" data-href="' + base + '/people?status=' + x[0] + '"><span>' + x[1] + '</span><b class="num">' + (p[x[0]] || 0) + '</b></button>';
+      }).join('') + '</div>';
+    var lgs = LG_ORDER.filter(function (k) { return p.leagues && p.leagues[k]; });
+    if (lgs.length) {
+      h += '<div class="lg-chips">' + lgs.map(function (k) {
+        var x = p.leagues[k];
+        return '<button class="lg-chip" type="button" data-href="' + base + '/people?league=' + k + '"><b>' + LGN[k] + ' · ' + x.total + '</b><span>' +
+          esc([x['in'] ? 'в конкурсе ' + x['in'] : '', x.outside ? 'вне ' + x.outside : '', x.out ? 'выбыли ' + x.out : ''].filter(Boolean).join(' · ') || '—') + '</span></button>';
+      }).join('') + '</div>';
+    }
+    h += '<div class="row"><button class="btn" type="button" data-href="' + base + '/people">Участницы</button>' +
+      '<button class="btn sec" type="button" data-href="' + base + '/results">' + (e.results_published ? 'Итоги Игры' : e.status === 'finished' ? 'Подвести итоги' : 'Итоги Игры') + '</button>' +
+      '<button class="btn sec" type="button" data-href="' + base + '">Настройки Игры</button></div>';
+    h += '<h3 class="rnd-title">Туры</h3>' + (e.rounds.length ? '<div class="rnds">' + e.rounds.map(function (r) { return roundCard(r, e.id); }).join('') + '</div>' :
+      '<p class="muted">Туров пока нет. <button class="lnk" type="button" data-href="' + base + '">Добавить тур в настройках Игры</button></p>');
+    return h + '</section>';
+  }
+  function gameRow(g) {
+    var p = g.people;
+    return li(esc(g.title) + (g.current ? ' <span class="small muted">· наверху</span>' : ''),
+      esc([g.starts_at ? K.range(g.starts_at, g.ends_at) : 'даты не заданы', 'туров: ' + g.rounds_count + (g.rounds_done ? ' (итоги: ' + g.rounds_done + ')' : ''),
+        'участниц: ' + p.total + (p.total ? ' (в конкурсе ' + p['in'] + ', вне ' + p.outside + (p.out ? ', выбыли ' + p.out : '') + ')' : '')].join(' · ')),
+      O.st(O.EVENT, g.status), '/org/games/' + g.id);
+  }
   O.on(/^\/org\/games$/, function () {
-    K.load(['/api/org/events', '/api/org/seasons'], function (d, s) {
-      var groups = [['active', 'Идут'], ['registration', 'Опубликованы, идёт запись'], ['draft', 'Черновики'], ['finished', 'Завершены']];
-      var h = '<h1>Игры и туры</h1><form class="card" id="f-new-game" novalidate><h2>Новая Игра</h2><div class="grid2">' +
+    K.load(['/api/org/games/overview'], function (d) {
+      var h = '<div class="between"><h1>Игры и туры</h1></div>';
+      h += d.current ? currentCard(d.current) : '<div class="note">Игр пока нет. Создайте первую — внизу страницы, «Новая Игра».</div>';
+      // Сезоны: сезон текущей Игры раскрыт, остальные свёрнуты.
+      var seasons = d.seasons.filter(function (x) { return x.events.length || x.current; }), cur = seasons.filter(function (x) { return x.current; })[0];
+      var others = function (x) { return x.events.filter(function (g) { return !g.current; }); };
+      if (cur) {
+        var rest = others(cur);
+        h += '<section class="card"><h2>' + esc(cur.name) + (cur.season_no && cur.name.indexOf(String(cur.season_no)) < 0 ? ' <span class="small muted">· сезон №' + cur.season_no + '</span>' : '') + '</h2>' +
+          (rest.length ? '<div class="list">' + rest.map(gameRow).join('') + '</div>' : '<p class="small muted">Других Игр в этом сезоне пока нет.</p>') + '</section>';
+      }
+      var closed = seasons.filter(function (x) { return x !== cur; });
+      if (closed.length || d.no_season.length) {
+        h += '<section class="card"><h2>' + (cur ? 'Другие сезоны' : 'Сезоны') + '</h2>' + closed.map(function (x) {
+          return '<details class="more"><summary>' + esc(x.name) + (x.season_no ? ' · №' + x.season_no : '') + ' · Игр: ' + x.events.length + '</summary><div class="list">' + x.events.map(gameRow).join('') + '</div></details>';
+        }).join('') + (d.no_season.length ? '<details class="more"' + (cur || closed.length ? '' : ' open') + '><summary>Без сезона · Игр: ' + d.no_season.length + '</summary><div class="list">' +
+          d.no_season.map(gameRow).join('') + '</div></details>' : '') + '</section>';
+      }
+      h += '<section class="card"><h2>Создать и настроить</h2>' +
+        '<details class="more" id="d-new-game"><summary>＋ Новая Игра</summary><form class="stack" id="f-new-game" novalidate><div class="grid2">' +
         O.txt('ng-title', 'Название', '', ' maxlength="150" placeholder="Игра 02"') +
-        O.sel('ng-season', 'Сезон', [['', 'Без сезона']].concat(s.seasons.map(function (x) { return [x.id, x.name]; })), s.seasons.length ? s.seasons[s.seasons.length - 1].id : '') +
+        O.sel('ng-season', 'Сезон', [['', 'Без сезона']].concat(d.seasons.map(function (x) { return [x.id, x.name]; })), d.seasons.length ? d.seasons[d.seasons.length - 1].id : '') +
         O.sel('ng-type', 'Вид', Object.keys(O.TYPE).map(function (k) { return [k, O.TYPE[k]]; }), 'ranked_game') + '</div>' + O.errBox +
-        '<button class="btn" type="submit">Создать черновик</button><p class="small muted">Черновик видите только вы. Сроки, туры и задания настраиваются внутри Игры.</p></form>';
-      groups.forEach(function (g) {
-        var items = d.events.filter(function (e) { return e.status === g[0] || (g[0] === 'finished' && e.status === 'archived'); });
-        if (!items.length) return;
-        h += '<section class="card"><h2>' + g[1] + '</h2><div class="list">' + items.map(function (e) {
-          return li(esc(e.title), esc([e.season, O.TYPE[e.type], e.starts_at ? K.range(e.starts_at, e.ends_at) : 'даты не заданы', 'туров: ' + e.rounds_count, 'участниц: ' + e.people].filter(Boolean).join(' · ')),
-            O.st(O.EVENT, e.status), '/org/games/' + e.id);
-        }).join('') + '</div></section>';
-      });
-      if (!d.events.length) h += '<div class="note">Игр пока нет — создайте первую.</div>';
-      h += '<section class="card"><h2>Сезоны</h2>' + (s.seasons.length ? '<div class="list">' + s.seasons.map(function (x) {
-        return '<details class="more"><summary>' + esc(x.name) + (x.season_no ? ' · №' + x.season_no : '') + ' · Игр: ' + x.games + '</summary>' + seasonForm(x) + '</details>';
-      }).join('') + '</div>' : '<p class="muted">Сезонов нет.</p>') + '<details class="more"><summary>Добавить сезон</summary>' + seasonForm(null) + '</details></section>';
+        '<button class="btn" type="submit">Создать черновик</button><p class="small muted">Черновик видите только вы. Сроки, туры и задания настраиваются внутри Игры.</p></form></details>' +
+        '<details class="more" id="d-seasons"><summary>Сезоны: добавить или изменить</summary><div class="stack">' +
+        (d.seasons.length ? d.seasons.map(function (x) {
+          return '<details class="more"><summary>' + esc(x.name) + (x.season_no ? ' · №' + x.season_no : '') + ' · Игр: ' + x.games + '</summary>' + seasonForm(x) + '</details>';
+        }).join('') : '<p class="small muted">Сезонов пока нет.</p>') + '<details class="more"><summary>Добавить сезон</summary>' + seasonForm(null) + '</details></div></details></section>';
+      h += '<p class="small muted">Все даты и время — московские (МСК, UTC+3).</p>';
       K.page(h, [['Обзор', '/org'], ['Игры и туры']]);
+      // Если вернули несохранённый ввод (черновик формы) — раскрыть свёрнутый блок, чтобы его было видно.
+      setTimeout(function () {
+        Array.prototype.forEach.call(document.querySelectorAll('#main details'), function (x) {
+          var f = Array.prototype.some.call(x.querySelectorAll('input, select'), function (i) { return i.type !== 'checkbox' && i.value !== i.defaultValue && i.tagName === 'INPUT'; });
+          if (f) x.open = true;
+        });
+      }, 0);
       var f = document.getElementById('f-new-game');
       f.addEventListener('submit', function (e) {
         e.preventDefault();

@@ -18,7 +18,8 @@ from kabinet.auth.security import new_token, token_hash
 from kabinet.participation import game as G
 from kabinet.participation import rules as R
 from .common import WRITE, audit, db, iso, locked_admin, now_of, org_user, person_name, problem
-from .games import clean_text
+from .games import clean_text, current_event
+from .participants import GROUP_OF, LEAGUE_KEYS, STATUS_GROUPS
 
 router = APIRouter(prefix='/api/org', tags=['organizer'])
 ROLES = ('participant', 'judge', 'moderator', 'admin')
@@ -46,22 +47,58 @@ KIND_SQL = {
 }
 
 
+def game_facts(conn, game):
+    """Лига и статус участия каждого человека в текущей Игре: {user_id: (лига или 'none', состояние участия)}."""
+    if not game:
+        return {}
+    return {ep['user_id']: (ep['entry_league'] or 'none', R.participation_mode(ep)) for ep in conn.execute(
+        '''SELECT user_id, entry_league, registration_status, competition_status, elimination_reason FROM event_participants
+WHERE event_id=%s''', (game['id'],))}
+
+
 @router.get('/people')
 def people(request: Request, q: str = Query('', max_length=100), kind: str = Query('all', pattern='^(' + '|'.join(KINDS) + ')$'),
+           league: str = Query('', pattern='^(|' + '|'.join(LEAGUE_KEYS) + ')$'),
+           status: str = Query('', pattern='^(|' + '|'.join(STATUS_GROUPS) + ')$'),
            offset: int = Query(0, ge=0, le=100000), limit: int = Query(50, ge=1, le=200), user=Depends(org_user)):
+    """Список людей. Фильтры лиги и статуса участия — по текущей Игре (games.current_event): лига и статус есть только
+    у её участниц, поэтому любой из этих фильтров оставляет в списке только участниц текущей Игры."""
     term = '%' + q.strip().replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_') + '%'
     search = '''(%(q)s = '%%%%' OR u.full_name ILIKE %(q)s OR u.display_name ILIKE %(q)s OR u.email ILIKE %(q)s
   OR u.city ILIKE %(q)s OR u.telegram_id::text ILIKE %(q)s)'''
     with db(request).transaction() as conn:
+        game = current_event(conn)
+        facts = game_facts(conn, game)
+        args = {'q': term, 'limit': limit, 'offset': offset}
         base = f"FROM users u WHERE u.deleted_at IS NULL AND {search}"
+        # счётчики у кнопок лиги и статуса — среди найденных поиском и выбранным видом (с учётом другого фильтра)
+        found = [r['id'] for r in conn.execute(f'SELECT u.id {base} AND {KIND_SQL[kind]}', args)]
+        league_counts, status_counts = {k: 0 for k in LEAGUE_KEYS}, {k: 0 for k in STATUS_GROUPS}
+        for uid in found:
+            if uid not in facts:
+                continue
+            lg, mode = facts[uid]
+            if not status or GROUP_OF.get(mode) == status:
+                league_counts[lg] += 1
+            if (not league or lg == league) and GROUP_OF.get(mode):
+                status_counts[GROUP_OF[mode]] += 1
+        if league or status:
+            args['ids'] = [uid for uid, (lg, mode) in facts.items()
+                           if (not league or lg == league) and (not status or GROUP_OF.get(mode) == status)]
+            base += ' AND u.id = ANY(%(ids)s::uuid[])'
         rows = conn.execute(f'''SELECT u.*, (SELECT count(*) FROM event_participants p WHERE p.user_id=u.id
   AND p.registration_status<>'cancelled') AS games,
   (SELECT array_agg(role ORDER BY role) FROM user_roles r WHERE r.user_id=u.id) AS roles
 {base} AND {KIND_SQL[kind]} ORDER BY coalesce(u.full_name, u.display_name, u.email) NULLS LAST, u.created_at
-LIMIT %(limit)s OFFSET %(offset)s''', {'q': term, 'limit': limit, 'offset': offset}).fetchall()
-        counts = {k: conn.execute(f'SELECT count(*) AS n {base} AND {KIND_SQL[k]}', {'q': term}).fetchone()['n'] for k in KINDS}
-    return {'people': [person_brief(u, u['roles'] or []) | {'games': u['games']} for u in rows], 'counts': counts,
-            'offset': offset, 'limit': limit}
+LIMIT %(limit)s OFFSET %(offset)s''', args).fetchall()
+        counts = {k: conn.execute(f'SELECT count(*) AS n {base} AND {KIND_SQL[k]}', args).fetchone()['n'] for k in KINDS}
+
+    def in_game(u):
+        f = facts.get(u['id'])
+        return {'league': None if f[0] == 'none' else f[0], 'mode': f[1]} if f else None
+    return {'people': [person_brief(u, u['roles'] or []) | {'games': u['games'], 'game': in_game(u)} for u in rows], 'counts': counts,
+            'offset': offset, 'limit': limit, 'league_counts': league_counts, 'status_counts': status_counts,
+            'game': {'id': str(game['id']), 'title': game['title'], 'status': game['status']} if game else None}
 
 
 def load_person(conn, user_id, lock=False):

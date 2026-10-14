@@ -181,3 +181,36 @@ audio.wide{width:100%;margin-block:8px}
 /* миниатюры работ в карточке участницы — по размеру сетки, а не во всю ширину */
 .round-row .thumbs a{display:block}
 .round-row .thumbs img{display:block;width:100%;aspect-ratio:4/5;object-fit:cover;border-radius:8px}
+/* «Игры и туры» (17.10): текущая Игра, туры с цифрами, сезоны */
+.game-now{gap:14px}
+.game-now h2{margin:0;font-size:22px}
+.rnd-title{margin:4px 0 0;font-size:16px}
+.rnds{display:grid;gap:10px}
+.rnd{display:grid;grid-template-columns:40px minmax(0,1fr);gap:12px;padding:12px;border-radius:12px;background:var(--sunk);cursor:pointer;min-width:0}
+.rnd:hover{outline:1.5px solid var(--line)}
+.rnd.now{background:var(--accent-soft)}
+.rnd-no{width:40px;height:40px;border-radius:10px;background:var(--surface);display:grid;place-items:center;font:600 15px var(--f-display)}
+.rnd.now .rnd-no{background:var(--accent);color:#fff}
+.rnd-body{display:grid;gap:4px;min-width:0;overflow-wrap:anywhere}
+.rnd-head{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}
+.rnd-link{font-weight:700;font-size:15px;color:var(--ink);text-align:left}
+.rnd-nums{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:4px}
+.gn{font-size:13px;color:var(--muted)}
+.gn b{font:500 18px/1.1 var(--f-display);color:var(--ink)}
+.rnd-judge{display:grid;gap:4px;margin-top:4px;max-width:420px}
+.rnd-lg{display:grid;grid-template-columns:auto minmax(0,1fr);gap:2px 10px;margin:4px 0 0;font-size:13px}
+.rnd-lg dt{font-weight:700}
+.rnd-lg dd{margin:0;color:var(--muted)}
+.lg-chips{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.lg-chip{all:unset;box-sizing:border-box;cursor:pointer;display:grid;gap:2px;padding:8px 12px;border-radius:10px;border:1.5px solid var(--line)}
+.lg-chip:hover{border-color:var(--accent)} .lg-chip:focus-visible{outline:2px solid var(--accent)}
+.lg-chip span{font-size:12px;color:var(--muted)}
+#f-new-game .btn,.f-season .btn{justify-self:start}
+@media (max-width:760px){#f-new-game .btn{justify-self:stretch}}
+.filters{display:grid;gap:8px}
+.filters .tabs .lbl{font-size:12px;color:var(--muted);font-weight:700;align-self:center;min-width:64px}
+/* Счётчики «ждёт ответа» (17.10): кнопка меню на телефоне, «Кабинет организатора» в «Ещё» */
+.burger{position:relative}
+.burger i{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;border-radius:9px;background:var(--accent);color:#fff;font:700 10px/18px var(--f-body);font-style:normal;padding:0 4px;text-align:center}
+.li .r .cnt{font:700 11px/18px var(--f-body);min-width:20px;text-align:center;border-radius:9px;background:var(--accent);color:#fff;padding:0 6px}
+@media (max-width:520px){.rnd{grid-template-columns:32px minmax(0,1fr);gap:10px;padding:10px}.rnd-no{width:32px;height:32px;font-size:14px}}

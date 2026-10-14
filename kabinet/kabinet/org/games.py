@@ -246,6 +246,13 @@ WHERE pa.assignment_id=%s AND pa.active AND s.deleted_at IS NULL AND s.latest_ve
             'judging_deadline': iso(r['judging_deadline']), 'task_title': task['title'] if task else None, 'sent': sent}
 
 
+def current_event(conn):
+    """«Текущая» Игра для организатора: идущая (самая поздняя по старту), иначе опубликованная с записью,
+    иначе последняя завершённая, иначе последний черновик. Её показывают «Игры и туры» сверху и фильтры «Людей»."""
+    return conn.execute('''SELECT * FROM events ORDER BY CASE status WHEN 'active' THEN 0 WHEN 'registration' THEN 1
+  WHEN 'finished' THEN 2 WHEN 'archived' THEN 3 ELSE 4 END, coalesce(starts_at, created_at) DESC, created_at DESC LIMIT 1''').fetchone()
+
+
 def load_event(conn, event_id, lock=False):
     e = conn.execute('SELECT * FROM events WHERE id=%s' + (' FOR UPDATE' if lock else ''), (event_id,)).fetchone()
     if not e:

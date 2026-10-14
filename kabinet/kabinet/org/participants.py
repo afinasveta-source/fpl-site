@@ -21,6 +21,12 @@ from .games import clean_text, load_event
 
 router = APIRouter(prefix='/api/org', tags=['organizer'])
 MODES = ('in', 'outside', 'out_pending', 'eliminated', 'withdrawn', 'disqualified', 'pending', 'completed')
+# Фильтр «статус участия» в списках организатора (17.10): три понятные группы вместо восьми состояний.
+# «Не прошла отбор · выбирает» — уже не в конкурсе, но в Игре и может сдавать работы для диплома, поэтому «вне конкурса».
+# Ждущие подтверждения и завершившие видны в «Все».
+STATUS_GROUPS = {'in': ('in',), 'outside': ('outside', 'out_pending'), 'out': ('eliminated', 'withdrawn', 'disqualified')}
+GROUP_OF = {m: g for g, modes in STATUS_GROUPS.items() for m in modes}
+LEAGUE_KEYS = ('gold', 'silver', 'bronze', 'none')
 
 
 def work_state(rnd, a, pa, sub, has_draft, now):
@@ -77,7 +83,8 @@ def works_of(conn, ep_ids, task_ids):
 @router.get('/events/{event_id}/participants')
 def participants(event_id: UUID, request: Request, q: str = Query('', max_length=100),
                  mode: str = Query('', pattern='^(|' + '|'.join(MODES) + ')$'),
-                 league: str = Query('', pattern='^(|bronze|silver|gold|none)$'), user=Depends(org_user)):
+                 league: str = Query('', pattern='^(|bronze|silver|gold|none)$'),
+                 status: str = Query('', pattern='^(|in|outside|out)$'), user=Depends(org_user)):
     now = now_of(request)
     with db(request).transaction() as conn:
         e = load_event(conn, event_id)
@@ -99,12 +106,26 @@ WHERE legal_document_id=%s ORDER BY user_id, recorded_at DESC, id DESC''', (rule
     current = next((r for r in reversed(rounds) if R.round_opened_any(r, variants.get(mains[r['id']]['id']) if r['id'] in mains else [], now)), None)
     term = q.strip().lower()
     out, counts, leagues = [], {}, {}
+    # Счётчики у кнопок фильтра — с учётом поиска и другого фильтра: «Gold · 12» при выбранном «Вне конкурса»
+    # значит «12 из Gold вне конкурса» (сколько покажется, если нажать).
+    groups = {k: 0 for k in STATUS_GROUPS}
+    shown_total = 0
     for p in rows:
         m = R.participation_mode(p)
-        counts[m] = counts.get(m, 0) + 1
-        leagues[p['entry_league'] or 'none'] = leagues.get(p['entry_league'] or 'none', 0) + 1
+        lg = p['entry_league'] or 'none'
         hay = ' '.join(str(p[k] or '') for k in ('full_name', 'display_name', 'email', 'city')).lower()
-        if (term and term not in hay) or (mode and m != mode) or (league and (p['entry_league'] or 'none') != league):
+        if term and term not in hay:
+            continue
+        mode_ok = (not mode or m == mode) and (not status or GROUP_OF.get(m) == status)
+        league_ok = not league or lg == league
+        if league_ok:
+            counts[m] = counts.get(m, 0) + 1
+            if GROUP_OF.get(m):
+                groups[GROUP_OF[m]] += 1
+            shown_total += 1
+        if mode_ok:
+            leagues[lg] = leagues.get(lg, 0) + 1
+        if not (mode_ok and league_ok):
             continue
         cells = []
         for r in rounds:
@@ -127,7 +148,8 @@ WHERE legal_document_id=%s ORDER BY user_id, recorded_at DESC, id DESC''', (rule
     return {'event': {'id': str(e['id']), 'title': e['title'], 'status': e['status']},
             'current_round': current['round_no'] if current else None,
             'rounds': [{'id': str(r['id']), 'round_no': r['round_no'], 'title': r['title']} for r in rounds],
-            'participants': out, 'counts': counts, 'leagues': leagues, 'total': len(rows)}
+            'participants': out, 'counts': counts, 'leagues': leagues, 'groups': groups, 'total': len(rows),
+            'league_total': shown_total, 'shown': len(out)}
 
 
 def load_ep(conn, ep_id, lock=False):

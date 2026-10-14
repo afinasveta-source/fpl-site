@@ -262,8 +262,69 @@
     if (s.menu) { var x = app.querySelector('.drawer .x'); if (x) x.focus(); }
 
     setTimeout(K.drafts.restore, 0);   // после того, как страница навесит свои обработчики
+    ATT.sync();
   };
   K.rerender = function () { K.page(K.last.body, K.last.crumbs); };
+
+  /* ---------- Что ждёт организатора: счётчики сами обновляются (17.10) ----------
+     В кабинете организатора страница раз в минуту (и сразу, когда вкладка снова на экране) спрашивает /api/org/attention —
+     несколько простых счётов — и обновляет только счётчики: в меню, на кнопке меню на телефоне и в заголовке вкладки «(3) Кабинет FPL».
+     Содержимое страницы не перерисовывается: введённое в формах не теряется. Вне /org опрос останавливается; администратору
+     в кабинете участника счётчик показывается на ссылке «Кабинет организатора» (обновляется при переходах, не чаще раза в минуту). */
+  var ATT = K.attention = { every: 60000, timer: null, last: 0, busy: null, title: document.title };
+  var ATT_LINKS = [['/org/support', 'support'], ['/org/feedback', 'feedback'], ['/org/reviews', 'reviews'], ['/org/claims', 'claims']];
+  function attBadge(el, n, tag, cls) {
+    var b = el.querySelector(':scope > ' + tag + (cls ? '.' + cls : ''));
+    if (!n) { if (b) b.remove(); return; }
+    if (!b) { b = document.createElement(tag); if (cls) b.className = cls; el.appendChild(b); }
+    b.textContent = String(n);
+  }
+  ATT.total = function () {
+    var c = K.state.orgCounts || {};
+    return c.total != null ? c.total : (c.support || 0) + (c.feedback || 0) + (c.reviews || 0) + (c.claims || 0);
+  };
+  ATT.paint = function () {
+    var c = K.state.orgCounts || {}, admin = K.isAdmin(), org = admin && K.inOrg(), total = admin && K.state.orgCounts ? ATT.total() : 0;
+    var each = function (sel, fn) { Array.prototype.forEach.call(app.querySelectorAll(sel), fn); };
+    ATT_LINKS.forEach(function (x) { each('nav.nav [data-href="' + x[0] + '"]', function (b) { attBadge(b, org ? c[x[1]] : 0, 'span', 'cnt'); }); });
+    each('nav.nav [data-href="/org"]', function (b) { attBadge(b, org ? 0 : total, 'span', 'cnt'); });   // «Кабинет организатора» у участника
+    each('.sheet [data-href="/org"] .r', function (r) { attBadge(r, total, 'span', 'cnt'); });
+    each('.tabbar [data-act="more"]', function (b) { attBadge(b, total, 'span', 'cnt'); });
+    each('.hdr .burger', function (b) {
+      attBadge(b, org ? total : 0, 'i');
+      b.setAttribute('aria-label', 'Открыть меню' + (org && total ? ', ждут ответа: ' + total : ''));
+    });
+    document.title = org && total ? '(' + total + ') ' + ATT.title : ATT.title;
+  };
+  ATT.fetch = function () {
+    if (!K.isAdmin()) return Promise.resolve(null);
+    if (ATT.busy) return ATT.busy;
+    ATT.busy = K.api('GET', '/api/org/attention').then(function (r) {
+      ATT.busy = null;
+      if (r.ok) { ATT.last = Date.now(); K.state.orgCounts = Object.assign({}, K.state.orgCounts || {}, r.data); }
+      ATT.paint();
+      return r;
+    });
+    return ATT.busy;
+  };
+  ATT.stop = function () { if (ATT.timer) { clearInterval(ATT.timer); ATT.timer = null; } };
+  ATT.tick = function () {
+    if (!K.isAdmin() || !K.inOrg()) { ATT.stop(); ATT.paint(); return; }
+    if (document.visibilityState !== 'hidden') ATT.fetch();
+  };
+  /* После каждой отрисовки страницы: включить или остановить опрос, освежить устаревшие цифры и расставить счётчики. */
+  ATT.sync = function () {
+    var on = K.isAdmin() && K.inOrg();
+    if (on && !ATT.timer) ATT.timer = setInterval(ATT.tick, ATT.every);
+    if (!on) ATT.stop();
+    if (K.isAdmin() && Date.now() - ATT.last >= ATT.every) ATT.fetch(); else ATT.paint();
+  };
+  function attWake() {
+    if (document.visibilityState === 'hidden' || !K.isAdmin()) return;
+    if (K.inOrg() ? Date.now() - ATT.last > 5000 : Date.now() - ATT.last >= ATT.every) ATT.fetch();
+  }
+  document.addEventListener('visibilitychange', attWake);
+  window.addEventListener('focus', attWake);
   /* ---------- Черновики полей (решение 14.10) ----------
      Что человек ввёл и ещё не сохранил, не стирается: ни при ошибке и перерисовке страницы, ни при открытии меню,
      ни после повторного входа. Хранится только в этой вкладке (sessionStorage). Пароли и файлы не хранятся.
@@ -426,7 +487,9 @@
   // Сайт лиги — на том же адресе (facepaintingleague.com), кабинет — его раздел /kabinet/: вход при переходе не теряется
   K.actions.toSite = function () { location.href = '/ru/'; };
   K.actions.logout = function () {
-    K.api('POST', '/web-auth/logout').then(function () { K.state.me = null; K.state.menu = false; K.state.more = false; K.go('/'); });
+    K.api('POST', '/web-auth/logout').then(function () {
+      K.state.me = null; K.state.menu = false; K.state.more = false; K.state.orgCounts = null; ATT.last = 0; ATT.stop(); document.title = ATT.title; K.go('/');
+    });
   };
   K.actions.showpw = function (b) { var i = b.parentNode.querySelector('input'); var s = i.type === 'password'; i.type = s ? 'text' : 'password'; b.textContent = s ? 'Скрыть' : 'Показать'; };
 
