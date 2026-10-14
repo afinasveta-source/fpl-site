@@ -165,7 +165,7 @@ textarea.input{min-height:110px; resize:vertical}
 .tour .no{width:44px; height:44px; border-radius:10px; background:var(--sunk); display:grid; place-items:center; font:600 15px var(--f-display)}
 .tour.now .no{background:var(--accent); color:#fff}
 .photo{aspect-ratio:4/5; max-width:100%; border-radius:10px; background:linear-gradient(150deg,var(--sunk),var(--line)); display:grid; place-items:center; color:var(--muted); font-size:13px; overflow:hidden; position:relative}
-.photo img{width:100%; height:100%; object-fit:cover}
+.photo img{width:100%; height:100%; object-fit:contain}
 .photo .tag{position:absolute; left:8px; top:8px}
 .thumbs{display:grid; grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:10px}
 .drop{border:2px dashed var(--line); border-radius:12px; padding:22px; text-align:center; display:grid; gap:8px; justify-items:center; cursor:pointer}

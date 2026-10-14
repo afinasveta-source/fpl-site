@@ -180,7 +180,7 @@ audio.wide{width:100%;margin-block:8px}
 .bp-table td,.bp-table th{min-width:0}
 /* миниатюры работ в карточке участницы — по размеру сетки, а не во всю ширину */
 .round-row .thumbs a{display:block}
-.round-row .thumbs img{display:block;width:100%;aspect-ratio:4/5;object-fit:cover;border-radius:8px}
+.round-row .thumbs img{display:block;width:100%;aspect-ratio:4/5;object-fit:contain;background:var(--sunk);border-radius:8px}
 /* «Игры и туры» (17.10): текущая Игра, туры с цифрами, сезоны */
 .game-now{gap:14px}
 .game-now h2{margin:0;font-size:22px}
