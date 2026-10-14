@@ -119,6 +119,14 @@
       h += '<div class="note bad small">Аккаунт приостановлен: войти нельзя, ссылки не работают.</div>';
     }
     h += '</section>';
+    /* дубль: две записи одного человека (14.10) — вход этой переносится на другую, эта закрывается */
+    if (p.account_status === 'active' && !p.me && p.roles.every(function (r) { return r === 'participant'; })) {
+      h += '<section class="card"><h2>Это дубль?</h2><p class="small muted">Если у человека две записи (например, две заявки с разными email): найдите основную — ' +
+        'обычно запись из бота с итогами туров 1–2 — и перенесите вход туда. Эта запись закроется, её участие в Игре уберётся. ' +
+        'Можно, только если здесь нет работ, а в основную ещё никто не входил.</p>' +
+        '<form class="search" id="f-dup"><label class="sr" for="dup-q">Поиск основной записи</label><input class="input" id="dup-q" type="search" maxlength="100" placeholder="Фамилия" value="' + esc((p.full_name || p.name || '').split(/\s+/)[0] || '') + '">' +
+        '<button class="btn sec small" type="submit">Найти</button></form><div class="stack" id="dup-found"></div></section>';
+    }
     /* данные */
     h += '<form class="card" id="f-person" novalidate><h2>Данные</h2>' + personFields(p) + O.errBox + '<button class="btn" type="submit">Сохранить</button></form>';
     /* Игры */
@@ -155,6 +163,19 @@
     }
     h += '<p class="small muted">Аккаунт создан ' + esc(K.dateY(p.created_at)) + (p.telegram_id ? ' · Telegram ID ' + esc(p.telegram_id) : '') + '</p>';
     K.page(h, crumbs);
+    var fd = document.getElementById('f-dup');
+    if (fd) fd.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var box = document.getElementById('dup-found');
+      K.api('GET', '/api/org/people?q=' + encodeURIComponent(document.getElementById('dup-q').value.trim())).then(function (r) {
+        if (!r.ok) { box.innerHTML = '<p class="small">' + esc(K.errorText(r)) + '</p>'; return; }
+        var list = r.data.people.filter(function (x) { return x.id !== p.id; });
+        box.innerHTML = list.length ? list.map(function (x) {
+          return '<div class="between"><span>' + esc(x.full_name || x.name || '—') + ' <span class="small muted">· ' + esc(x.email || 'без входа') + ' · Игр: ' + x.games + '</span></span>' +
+            '<button class="btn small" type="button" data-act="dupMerge" data-to="' + x.id + '" data-n="' + esc(x.full_name || x.name || '') + '">Перенести вход сюда</button></div>';
+        }).join('') : '<p class="small muted">Никого не нашлось.</p>';
+      });
+    });
     var f = document.getElementById('f-person');
     f.addEventListener('submit', function (e) {
       e.preventDefault();
@@ -164,6 +185,13 @@
       O.send('PATCH', '/api/org/people/' + p.id, body, f, function (d) { K.toast('Сохранено'); drawPerson(d); });
     });
   }
+  K.actions.dupMerge = function (b) {
+    var p = O.person, to = b.getAttribute('data-to');
+    O.confirm({ title: 'Перенести вход на «' + b.getAttribute('data-n') + '»?',
+      text: 'Человек будет входить в ту запись тем же email ' + (p.email || '') + ' и паролем. Эта запись закроется, её участие в Игре уберётся. Отменить — только через поддержку.',
+      ok: 'Перенести', path: '/api/org/claims/merge', body: function () { return { from_user_id: p.id, into_user_id: to }; },
+      done: function () { K.toast('Вход перенесён'); K.go('/org/people/' + to); } });
+  };
   K.actions.makeLink = function (b) {
     var p = O.person, kind = b.getAttribute('data-k');
     b.disabled = true;

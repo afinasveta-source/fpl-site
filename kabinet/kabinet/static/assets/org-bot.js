@@ -23,7 +23,9 @@
   O.addText({ cabinet_rating_started: 'Кабинет уже начислил рейтинг за туры Игры 01 — перенос повторить нельзя.', preview_first: 'Сначала нажмите «Проверить» — переносится ровно то, что вы видели.', table_has_errors: 'В таблице есть ошибки — исправьте их и проверьте снова.',
     claim_decided: 'Заявку уже рассмотрели.', person_has_login: 'У этой записи уже есть вход — выберите другую.',
     person_not_in_game: 'Этой участницы нет в Игре.', email_taken: 'Этот email уже у другого аккаунта.',
-    account_not_linkable: 'Этот аккаунт уже в Игре или у него есть роль — привязать нельзя.', account_has_support: 'У аккаунта есть обращения в поддержку — напишите Claude, привяжем вручную.' });
+    account_not_linkable: 'Этот аккаунт уже в Игре или у него есть роль — привязать нельзя.', account_has_support: 'У аккаунта есть обращения в поддержку — напишите Claude, привяжем вручную.',
+    same_person: 'Это та же запись.', merge_from_no_login: 'У этой записи нет входа — переносить нечего.', merge_from_has_works: 'В этой записи уже есть работы или итоги — перенос вручную, напишите Claude.',
+    merge_into_logged_in: 'В основную запись уже входили — у неё свой вход. Напишите Claude, решим вручную.' });
 
   /* ---------- Перенос из бота ---------- */
   var IMP = { text: null, name: null, preview: null };
@@ -201,6 +203,9 @@
         (c.contact ? '<dt>Telegram / VK</dt><dd>' + esc(c.contact) + '</dd>' : '') + '<dt>Заявка</dt><dd>' + esc(O.when(c.created_at)) + '</dd>' +
         (c.decision_note ? '<dt>Причина</dt><dd>' + esc(c.decision_note) + '</dd>' : '') + '</dl>';
       if (c.status === 'pending') {
+        if (c.same_name && c.same_name.length) x += '<div class="note warn small"><b>Похоже, это повторная заявка.</b> Вход уже открыт по ' + c.same_name.map(function (d) {
+          return 'заявке № ' + d.no + ' (' + esc(d.email) + ')'; }).join(', ') + '. Если это тот же человек и он не может войти — скорее всего, опечатка в email: ' +
+          'отклоните эту заявку и откройте его запись в «Людях» (там «Это дубль?» / ссылка для нового пароля).</div>';
         x += (c.suggestions && c.suggestions.length ? '<p class="small"><b>Похожие в списке Игры:</b></p><div class="stack">' + c.suggestions.map(function (p) {
           return '<div class="between"><span>' + who(p) + ' <span class="small muted">· ID ' + esc(p.bot_id || '—') + '</span></span>' +
             '<button class="btn small" type="button" data-act="clApprove" data-no="' + c.no + '" data-u="' + p.user_id + '" data-n="' + esc(p.full_name) + '">Это она</button></div>';

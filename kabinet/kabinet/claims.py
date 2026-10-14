@@ -159,8 +159,16 @@ def claims(request: Request, status: str = Query('pending', pattern='^(pending|a
         people = free_people(conn, ev['id']) if ev else []
         q = 'SELECT * FROM account_claims' + (" WHERE status='pending'" if status == 'pending' else '') + ' ORDER BY created_at DESC LIMIT 500'
         items = conn.execute(q).fetchall()
-        return {'game': ev['title'] if ev else None, 'free': len(people),
-                'items': [claim_view(c, people if c['status'] == 'pending' else None) for c in items]}
+        decided = conn.execute("SELECT claim_no, full_name, email, decision_note FROM account_claims WHERE status='approved'").fetchall()
+        out = []
+        for c in items:
+            v = claim_view(c, people if c['status'] == 'pending' else None)
+            if c['status'] == 'pending':
+                # тот же человек уже получил вход по другой заявке (14.10: Антонова с двумя email)
+                v['same_name'] = [{'no': d['claim_no'], 'email': d['email'], 'note': d['decision_note']} for d in decided
+                                  if similarity(c['full_name'], d['full_name']) >= 0.9][:3]
+            out.append(v)
+        return {'game': ev['title'] if ev else None, 'free': len(people), 'items': out}
 
 
 @org.get('/people')
@@ -385,3 +393,74 @@ FROM consents WHERE user_id=%s ON CONFLICT (idempotency_key) DO NOTHING''', (per
                {'title': 'Ваш кабинет соединён с Игрой 01', 'text': 'Итоги туров 1–2 перенесены. Задания следующих туров — здесь.',
                 'route': 'game', 'event_id': str(ev['id'])}, ev['id'])
         return {'user_id': str(person['id']), 'full_name': person['full_name']}
+
+
+# ---------- Две записи одного человека (14.10, Антонова) ----------
+# Две заявки с разными email: одна «Это она» (запись из бота с итогами), другая — «вне конкурса» (новый вход).
+# Человек входит во вторую. Организатор переносит вход (email, пароль) на запись из бота; лишняя запись закрывается,
+# её участие в Игре удаляется. Только если в лишней записи нет работ и итогов, а в основную ещё никто не входил.
+
+class MergeIn(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    from_user_id: UUID
+    into_user_id: UUID
+
+
+def has_works(conn, user_id):
+    return conn.execute('''SELECT 1 FROM event_participants p WHERE p.user_id=%s AND (
+  EXISTS (SELECT 1 FROM submissions s WHERE s.event_participant_id=p.id)
+  OR EXISTS (SELECT 1 FROM round_results r WHERE r.event_participant_id=p.id)) LIMIT 1''', (user_id,)).fetchone() is not None
+
+
+@org.post('/merge', dependencies=WRITE)
+def merge(body: MergeIn, request: Request, user=Depends(org_user)):
+    now = now_of(request)
+    if body.from_user_id == body.into_user_id:
+        raise problem('same_person', 409)
+    with db(request).transaction() as conn:
+        locked_admin(conn, user)
+        a = conn.execute('SELECT * FROM users WHERE id=%s AND deleted_at IS NULL FOR UPDATE', (body.from_user_id,)).fetchone()
+        b = conn.execute('SELECT * FROM users WHERE id=%s AND deleted_at IS NULL FOR UPDATE', (body.into_user_id,)).fetchone()
+        if not a or not b:
+            raise HTTPException(404, 'Not found')
+        if a['account_status'] != 'active' or not a['email']:
+            raise problem('merge_from_no_login', 409)
+        if conn.execute("SELECT 1 FROM user_roles WHERE user_id=%s AND role<>'participant'", (a['id'],)).fetchone():
+            raise problem('account_not_linkable', 409)
+        if has_works(conn, a['id']):
+            raise problem('merge_from_has_works', 409)
+        if conn.execute('SELECT 1 FROM support_threads WHERE user_id=%s LIMIT 1', (a['id'],)).fetchone():
+            raise problem('account_has_support', 409)
+        if conn.execute('SELECT 1 FROM auth_sessions WHERE user_id=%s LIMIT 1', (b['id'],)).fetchone():
+            raise problem('merge_into_logged_in', 409)    # в основную уже входили — её вход не трогаем
+        # участие лишней записи: убрать (заданий без работ — тоже); не выходит — снять с Игры
+        removed, cancelled = [], []
+        for ep in conn.execute('SELECT * FROM event_participants WHERE user_id=%s', (a['id'],)).fetchall():
+            conn.execute('SAVEPOINT merge_ep')
+            try:
+                conn.execute('DELETE FROM participant_assignments WHERE event_participant_id=%s', (ep['id'],))
+                conn.execute('DELETE FROM event_participants WHERE id=%s', (ep['id'],))
+                conn.execute('RELEASE SAVEPOINT merge_ep')
+                removed.append(str(ep['event_id']))
+            except psycopg.errors.IntegrityError:
+                conn.execute('ROLLBACK TO SAVEPOINT merge_ep')
+                conn.execute("UPDATE event_participants SET registration_status='cancelled' WHERE id=%s", (ep['id'],))
+                cancelled.append(str(ep['event_id']))
+        conn.execute('UPDATE auth_sessions SET revoked_at=%s WHERE user_id=%s AND revoked_at IS NULL', (now, a['id']))
+        conn.execute('''UPDATE users SET email=NULL, password_hash=NULL, telegram_id=NULL, account_status='deleted', deleted_at=%s,
+public_profile=false, public_city=false, public_contacts=false, public_works=false, public_rating=false, public_social=false
+WHERE id=%s''', (now, a['id']))
+        conn.execute('DELETE FROM user_roles WHERE user_id=%s', (a['id'],))
+        conn.execute('''UPDATE users SET email=%s, password_hash=%s, email_verified_at=coalesce(%s, %s), account_status='active',
+telegram_id=coalesce(telegram_id, %s), country_code=coalesce(%s, country_code), city=coalesce(%s, city) WHERE id=%s''',
+                     (a['email'], a['password_hash'], a['email_verified_at'], now, a['telegram_id'], a['country_code'], a['city'], b['id']))
+        conn.execute("INSERT INTO user_roles(user_id,role) VALUES (%s,'participant') ON CONFLICT DO NOTHING", (b['id'],))
+        conn.execute('''INSERT INTO consents(user_id,event_id,consent_type,accepted,status,document_version,legal_document_id,channel,
+button_text,idempotency_key,recorded_at,metadata)
+SELECT %s, event_id, consent_type, accepted, status, document_version, legal_document_id, channel, button_text,
+  'merge:' || id::text, recorded_at, metadata || jsonb_build_object('merged_from', %s::text)
+FROM consents WHERE user_id=%s ON CONFLICT (idempotency_key) DO NOTHING''', (b['id'], str(a['id']), a['id']))
+        audit(conn, user['id'], 'user', b['id'], 'accounts_merged',
+              {'from_user': str(a['id']), 'from_name': a['full_name'], 'old_email_dropped': b['email'],
+               'removed_from_games': removed, 'cancelled_in_games': cancelled})
+        return {'user_id': str(b['id']), 'full_name': b['full_name'], 'removed': removed, 'cancelled': cancelled}

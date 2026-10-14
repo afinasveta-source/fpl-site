@@ -280,3 +280,44 @@ def test_self_registered_player_is_linked_to_bot_record(app, seed, clock):
     # новичка с запись из бота, у которой уже есть вход, не соединить
     assert c.post(f"/api/org/claims/accounts/{left[0]['user_id']}/link", headers=ORIGIN,
                   json={'user_id': str(bot)}).json()['detail'] == 'person_has_login'
+
+
+def test_two_claims_same_person_merge_login_into_bot_record(app, seed, clock):
+    """14.10 (Антонова): две заявки с разными email — одну соединили с записью из бота, вторую добавили вне конкурса,
+    человек входит во вторую. Вход переносится на запись из бота, лишняя запись закрывается и уходит из Игры."""
+    clock.set(h())
+    with app.state.db.transaction() as conn:
+        add_docs(conn)
+    c = org(app, seed)
+    _, res = do_import(c)
+    eid = res['event_id']
+    no1 = ok(claim(app, full_name='Петрова Мария', email='typo@example.com'), 201)['claim_no']
+    bot = ok(c.get('/api/org/claims'))['items'][0]['suggestions'][0]['user_id']
+    ok(c.post(f'/api/org/claims/{no1}/approve', headers=ORIGIN, json={'user_id': bot}))
+    no2 = ok(claim(app, full_name='Петрова Мария', email='real@example.com'), 201)['claim_no']
+    assert ok(c.get('/api/org/claims'))['items'][0]['same_name'] == [{'no': no1, 'email': 'typo@example.com', 'note': None}]
+    ok(c.post(f'/api/org/claims/{no2}/add-outside', headers=ORIGIN, json={}))
+    p = TestClient(app)
+    ok(p.post('/web-auth/login', headers=ORIGIN, json={'email': 'real@example.com', 'password': PASSWORD}))
+    with app.state.db.transaction() as conn:
+        dup = str(conn.execute("SELECT id FROM users WHERE email='real@example.com'").fetchone()['id'])
+        conn.execute('UPDATE users SET public_works=true, public_social=true WHERE id=%s', (dup,))
+    # в основную запись уже входили бы — нельзя; сначала проверим запреты
+    assert c.post('/api/org/claims/merge', headers=ORIGIN, json={'from_user_id': dup, 'into_user_id': dup}).json()['detail'] == 'same_person'
+    ok(c.post('/api/org/claims/merge', headers=ORIGIN, json={'from_user_id': dup, 'into_user_id': bot}))
+    assert p.get(f'/api/games/{eid}').status_code == 401
+    q = TestClient(app)
+    ok(q.post('/web-auth/login', headers=ORIGIN, json={'email': 'real@example.com', 'password': PASSWORD}))
+    g = ok(q.get(f'/api/games/{eid}'))
+    assert g['me']['mode'] == 'in' and g['me']['league'] == 'gold'
+    with app.state.db.transaction() as conn:
+        assert conn.execute('SELECT count(*) AS n FROM event_participants WHERE user_id=%s', (dup,)).fetchone()['n'] == 0
+        u = conn.execute('SELECT * FROM users WHERE id=%s', (dup,)).fetchone()
+        assert u['account_status'] == 'deleted' and u['email'] is None
+    # теперь в основную входили — второй перенос в неё запрещён
+    other = ok(claim(app, full_name='Сидорова Ольга', email='olga@example.com'), 201)['claim_no']
+    ok(c.post(f'/api/org/claims/{other}/add-outside', headers=ORIGIN, json={}))
+    with app.state.db.transaction() as conn:
+        olga = str(conn.execute("SELECT id FROM users WHERE email='olga@example.com'").fetchone()['id'])
+    assert c.post('/api/org/claims/merge', headers=ORIGIN,
+                  json={'from_user_id': olga, 'into_user_id': bot}).json()['detail'] == 'merge_into_logged_in'
