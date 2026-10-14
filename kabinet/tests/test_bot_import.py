@@ -227,14 +227,14 @@ def test_self_registered_player_is_linked_to_bot_record(app, seed, clock):
     eid = res['event_id']
     # до переноса так зарегистрироваться можно было: заведём аккаунт напрямую, как это сделал сайт
     s = TestClient(app)
-    r = s.post('/web-auth/register', headers=ORIGIN, json={'email': 'elena@example.com', 'password': PASSWORD,
+    r = s.post('/web-auth/register', headers=ORIGIN, json={'accept_personal_data': True, 'confirm_adult': True, 'email': 'elena@example.com', 'password': PASSWORD,
                                                            'full_name': 'Кузнецова Елена Сергеевна'})
     assert r.status_code == 409 and r.json()['detail'] == 'game01_player'     # теперь — на заявку
-    r = s.post('/web-auth/register', headers=ORIGIN, json={'email': 'elena@example.com', 'password': PASSWORD,
+    r = s.post('/web-auth/register', headers=ORIGIN, json={'accept_personal_data': True, 'confirm_adult': True, 'email': 'elena@example.com', 'password': PASSWORD,
                                                            'full_name': 'Елена К.'})
     assert r.status_code == 201, r.text                                          # имя не узнали — завела (как было на сервере)
     new = TestClient(app)
-    ok(new.post('/web-auth/register', headers=ORIGIN, json={'email': 'newbie@example.com', 'password': PASSWORD,
+    ok(new.post('/web-auth/register', headers=ORIGIN, json={'accept_personal_data': True, 'confirm_adult': True, 'email': 'newbie@example.com', 'password': PASSWORD,
                                                             'full_name': 'Новенькая Вера Павловна'}), 201)
     acc = ok(c.get('/api/org/claims/accounts'))['items']
     assert {a['email'] for a in acc} == {'elena@example.com', 'newbie@example.com'}
@@ -242,6 +242,9 @@ def test_self_registered_player_is_linked_to_bot_record(app, seed, clock):
     with app.state.db.transaction() as conn:
         bot = conn.execute("SELECT id FROM users WHERE full_name='Кузнецова Елена Сергеевна'").fetchone()['id']
         conn.execute("INSERT INTO consents(user_id,consent_type,accepted,status,channel,idempotency_key) VALUES (%s,'marketing',true,'accepted','web','t-mk')",
+                     (elena['user_id'],))
+        # как на сервере: у самостоятельного аккаунта была включена публичность (из-за неё падало соединение 14.10)
+        conn.execute('UPDATE users SET public_works=true, public_social=true, public_rating=true, public_city=true WHERE id=%s',
                      (elena['user_id'],))
     ok(c.post(f"/api/org/claims/accounts/{elena['user_id']}/link", headers=ORIGIN, json={'user_id': str(bot)}))
     assert c.post(f"/api/org/claims/accounts/{elena['user_id']}/link", headers=ORIGIN,
@@ -252,6 +255,15 @@ def test_self_registered_player_is_linked_to_bot_record(app, seed, clock):
     ok(e.post('/web-auth/login', headers=ORIGIN, json={'email': 'elena@example.com', 'password': PASSWORD}))
     g = ok(e.get(f'/api/games/{eid}'))
     assert g['me']['league'] == 'silver'
+    # согласий из кабинета у неё нет (в боте давала) — сдавать нельзя, пока не примет документы одним экраном
+    assert not g['rules_ok']
+    miss = ok(e.get('/api/consents/missing'))['missing']
+    assert {d['doc_type'] for d in miss} == {'rules', 'publication'}      # обработку данных приняла при регистрации
+    assert e.post('/api/consents/missing', headers=ORIGIN, json={'accept': ['rules']}).json()['detail'] == 'consents_required'
+    assert e.post('/api/consents/missing', headers=ORIGIN,
+                  json={'accept': ['rules', 'publication']}).json()['detail'] == 'adult_required'
+    ok(e.post('/api/consents/missing', headers=ORIGIN, json={'accept': ['rules', 'publication'], 'confirm_adult': True}))
+    assert ok(e.get(f'/api/games/{eid}'))['rules_ok'] and ok(e.get('/api/consents/missing'))['missing'] == []
     with app.state.db.transaction() as conn:
         u = conn.execute('SELECT * FROM users WHERE id=%s', (bot,)).fetchone()
         assert u['account_status'] == 'active' and u['email'] == 'elena@example.com'

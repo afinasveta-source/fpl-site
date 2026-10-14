@@ -74,8 +74,8 @@
         '<div class="row"><button class="btn" type="button" data-act="chooseOutside" data-id="' + g.event.id + '">Участвовать вне конкурса</button></div>';
     }
     if (act.kind === 'rules') {
-      return '<h2>Правила обновились</h2><p class="muted">Чтобы сдавать работы, примите новую редакцию Правил.</p>' +
-        '<div class="row"><button class="btn" type="button" data-href="/profile/consents">Посмотреть и принять</button></div>';
+      return '<h2>Подтвердите документы</h2><p class="muted">Чтобы сдавать работы, примите Правила и согласия — это один экран.</p>' +
+        '<div class="row"><button class="btn" type="button" data-act="docsGate">Посмотреть и принять</button></div>';
     }
     if (act.kind === 'missed') {
       return '<h2>Срок сдачи тура ' + r.round_no + ' прошёл</h2><p class="muted">Работа не сдана. Продолжить Игру можно вне конкурса — с открытия следующего тура.</p>';
@@ -295,6 +295,41 @@
     var to = b.getAttribute('data-to'); if (to) K.go(to);
   };
 
+  /* Документы, без которых нельзя сдавать работы (14.10): Правила, обработка данных, публикация + «мне есть 18 лет».
+     Нужны тем, у кого в кабинете нет согласий (участницы из бота с самостоятельно заведённым кабинетом) и после новой редакции Правил. */
+  var DOC_LABEL = { rules: 'Принимаю Правила лиги', personal_data: 'Даю согласие на обработку персональных данных',
+    publication: 'Даю согласие на публикацию моих работ на сайте и в соцсетях лиги' };
+  K.actions.docsGate = function (b) {
+    if (b) b.disabled = true;
+    K.api('GET', '/api/consents/missing').then(function (r) {
+      if (b) b.disabled = false;
+      if (!r.ok) { K.toast(K.errorText(r)); return; }
+      var miss = r.data.missing;
+      if (!miss.length) { K.toast('Всё уже принято'); K.route(); return; }
+      showModal('<h2 id="mT">Подтвердите документы</h2><p class="small muted">Без этого сдавать работы нельзя. Каждый документ можно открыть и прочитать.</p>' +
+        '<form id="f-docs" class="stack" novalidate>' + miss.map(function (d) {
+          return '<label class="chk"><input type="checkbox" name="doc" value="' + esc(d.doc_type) + '"> <span>' + esc(DOC_LABEL[d.doc_type] || d.title) +
+            ' (редакция ' + esc(d.version) + ')</span></label><details class="doc-inline"><summary>Прочитать</summary><div class="small" data-s="pre">' + esc(d.body || '') + '</div></details>';
+        }).join('') + '<label class="chk"><input type="checkbox" id="d-adult"> <span>Мне есть 18 лет</span></label>' +
+        '<p class="form-err" role="alert" tabindex="-1" hidden></p><div class="row"><button class="btn" type="submit">Принять и продолжить</button>' +
+        '<button class="btn ghost" type="button" data-act="closeModal">Позже</button></div></form>');
+      var f = document.getElementById('f-docs');
+      f.addEventListener('submit', function (e) {
+        e.preventDefault(); K.formError(f, '');
+        var acc = Array.prototype.filter.call(f.querySelectorAll('input[name=doc]'), function (x) { return x.checked; }).map(function (x) { return x.value; });
+        if (acc.length < miss.length) { K.formError(f, 'Отметьте все документы — без них сдавать работы нельзя.'); return; }
+        if (!document.getElementById('d-adult').checked) { K.formError(f, 'Участие — с 18 лет.'); return; }
+        K.busy(f, true);
+        K.api('POST', '/api/consents/missing', { accept: acc, confirm_adult: true }).then(function (res) {
+          K.busy(f, false);
+          if (!res.ok) { K.formError(f, K.errorText(res)); return; }
+          var m = f.closest('.modal'); if (m) m.remove(); K.onEscape = null;
+          K.toast('Готово — можно сдавать работы'); K.route();
+        });
+      });
+    });
+  };
+
   /* ---------- Мои Игры ---------- */
   function gameLine(g) {
     var act = nextAction(g), r = act.round, me = g.me;
@@ -447,7 +482,7 @@
       deadline_passed: ['Срок сдачи прошёл', 'Приём завершился ' + K.date(w.deadline) + ' МСК. ' + (me && me.mode === 'in' ? 'После срока работа в конкурс не идёт. С открытия следующего тура вы продолжите Игру вне конкурса — тогда же можно будет сдать и эту работу: она нужна для диплома.' : '')],
       game_over: ['Приём работ закрыт', 'Игра завершена или закончился срок всех работ.'],
       choose_first: ['Сначала выберите, как продолжить', 'В отбор вы не прошли. Можно продолжить Игру вне конкурса: те же задания, работы не судят.'],
-      rules: ['Сначала примите новые Правила', 'Вышла новая редакция Правил. До её принятия сдать или заменить работу нельзя.'],
+      rules: ['Сначала подтвердите документы', 'Чтобы сдать или заменить работу, примите действующие Правила и согласия — это один экран.'],
       withdrawn: ['Вы вышли из Игры', 'Сдача закрыта. Передумали — напишите организатору.'],
       eliminated: ['Сдача закрыта', 'Вопросы по участию — организатору.'],
       not_participating: ['Участие ещё не подтверждено', 'Задание станет доступно, когда участие будет оформлено.'],
@@ -457,7 +492,7 @@
       no_source: ['Исходник ещё не выдан', 'В этом туре вы работаете по работе участницы другой лиги. Исходник выдаётся после её срока сдачи — если его всё ещё нет, напишите организатору.']
     }[w.reason] || ['Сдача закрыта', ''];
     var btn = w.reason === 'choose_first' ? '<button class="btn" type="button" data-act="chooseOutside" data-id="' + t.event.id + '">Участвовать вне конкурса</button>' :
-      w.reason === 'rules' ? '<button class="btn" type="button" data-href="/profile/consents">Посмотреть и принять</button>' : '';
+      w.reason === 'rules' ? '<button class="btn" type="button" data-act="docsGate">Посмотреть и принять</button>' : '';
     return '<section class="card"><span class="eyebrow">' + esc(t.event.title) + ' · Тур ' + r.round_no + '</span><h2>' + esc(msg[0]) + '</h2><p>' + esc(msg[1]) + '</p>' +
       '<div class="row">' + btn + '<button class="btn sec" type="button" data-href="' + base + '">К моей Игре</button>' +
       '<button class="btn ghost" type="button" data-href="/support/new?event=' + t.event.id + '&round=' + r.round_no + '">Сообщить о проблеме</button></div></section>';

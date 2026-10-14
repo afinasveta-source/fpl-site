@@ -362,7 +362,9 @@ def link_account(account_id: UUID, body: LinkAccount, request: Request, user=Dep
             raise problem('account_has_support', 409)
         # пустой аккаунт закрыть: вход (email, пароль, Telegram) освобождается для записи из бота
         conn.execute('UPDATE auth_sessions SET revoked_at=%s WHERE user_id=%s AND revoked_at IS NULL', (now, acc['id']))
-        conn.execute('''UPDATE users SET email=NULL, password_hash=NULL, telegram_id=NULL, account_status='deleted', deleted_at=%s
+        # закрытый аккаунт не может быть публичным (проверка базы lr_users_deleted_not_public)
+        conn.execute('''UPDATE users SET email=NULL, password_hash=NULL, telegram_id=NULL, account_status='deleted', deleted_at=%s,
+public_profile=false, public_city=false, public_contacts=false, public_works=false, public_rating=false, public_social=false
 WHERE id=%s''', (now, acc['id']))
         conn.execute("DELETE FROM user_roles WHERE user_id=%s", (acc['id'],))
         display = (acc['display_name'] or '').strip() or (person['display_name'] or '').strip() or R.name_for_site(person['full_name'])

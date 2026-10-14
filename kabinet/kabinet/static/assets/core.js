@@ -48,7 +48,7 @@
     consents_required: 'Отметьте оба пункта: Правила и согласие на публикацию.', adult_required: 'Участвовать в Играх можно с 18 лет — отметьте пункт «Мне есть 18 лет».', personal_data_required: 'Нужно согласие на обработку персональных данных.',
     place_required: 'Укажите страну и город.', judge_of_game: 'Вы судья этой Игры — участвовать в ней нельзя.', contact_organizer: 'Запись отменена. Напишите организатору.',
     game01_player: 'Похоже, вы уже играете в Игре 01 — тогда не заводите новый кабинет, а заполните заявку: facepaintingleague.com/kabinet/game01. Так сохранятся ваши итоги туров 1–2.',
-    deadline_passed: 'Срок сдачи прошёл.', game_over: 'Приём работ закрыт.', not_open: 'Тур ещё не открыт.', rules: 'Сначала примите новые Правила.',
+    deadline_passed: 'Срок сдачи прошёл.', game_over: 'Приём работ закрыт.', not_open: 'Тур ещё не открыт.', rules: 'Сначала подтвердите документы: Правила и согласия.',
     choose_first: 'Сначала выберите, как продолжить.', withdrawn: 'Вы вышли из Игры.', eliminated: 'Сдача работ закрыта.', not_participating: 'Вы не участвуете в этой Игре.',
     task_not_ready: 'Задание ещё готовится. Загляните позже.', draft_changed: 'Работа изменилась в другом окне. Обновите страницу.',
     photo_required: 'Добавьте фото работы.', link_required: 'Добавьте ссылку на публикацию.', too_many_photos: 'Слишком много фото для этого задания.',
@@ -517,6 +517,8 @@
       field('email', 'Email', 'email', 'autocomplete="username" required') +
       field('password', 'Пароль', 'password', 'autocomplete="new-password" required minlength="' + minLen() + '" maxlength="128"') +
       field('password2', 'Пароль ещё раз', 'password', 'autocomplete="new-password" required maxlength="128"') +
+      '<label class="chk"><input type="checkbox" id="s-pd"> <span>Даю согласие на обработку персональных данных — <a href="/ru/privacy.html" target="_blank" rel="noopener">политика конфиденциальности</a></span></label>' +
+      '<label class="chk"><input type="checkbox" id="s-adult"> <span>Мне есть 18 лет</span></label>' +
       '<p class="form-err" role="alert" tabindex="-1" hidden></p><button class="btn wide" type="submit">Зарегистрироваться</button>' +
       '<button class="btn ghost" type="button" id="back">У меня уже есть кабинет</button></form>');
     var f = document.getElementById('f-signup');
@@ -526,8 +528,11 @@
       if (!f.full_name.value.trim() || !f.email.value.trim()) { K.formError(f, 'Заполните имя и email.'); return; }
       if (f.password.value.length < minLen() || f.password.value.length > 128) { K.formError(f, 'Пароль должен содержать от ' + minLen() + ' до 128 символов.'); return; }
       if (f.password.value !== f.password2.value) { K.formError(f, 'Пароли не совпадают.'); return; }
+      if (!document.getElementById('s-pd').checked) { K.formError(f, 'Нужно согласие на обработку персональных данных — без него кабинет не завести.'); return; }
+      if (!document.getElementById('s-adult').checked) { K.formError(f, 'Участие — с 18 лет.'); return; }
       K.busy(f, true);
-      K.api('POST', '/web-auth/register', { full_name: f.full_name.value.trim(), email: f.email.value.trim(), password: f.password.value }).then(function (res) {
+      K.api('POST', '/web-auth/register', { full_name: f.full_name.value.trim(), email: f.email.value.trim(), password: f.password.value,
+        accept_personal_data: true, confirm_adult: true }).then(function (res) {
         K.busy(f, false);
         if (!res.ok) { K.formError(f, res.detail && REASONS[res.detail] ? REASONS[res.detail] : authError(res)); return; }
         K.state.me = res.data; K.toast('Кабинет создан. Добро пожаловать!');

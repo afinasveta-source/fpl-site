@@ -96,7 +96,7 @@ def make_people(w):
         person = {'i': i, 'email': email, 'name': name, 'skill': rng.gauss(0, 1), 'scen': set()}
         if i % 7 == 0:   # сама
             h = Http(w.app, w.p, f'p{i}')
-            if h.post('/web-auth/register', {'email': email, 'password': PASSWORD, 'full_name': name}, expect=201) is None:
+            if h.post('/web-auth/register', {'accept_personal_data': True, 'confirm_adult': True, 'email': email, 'password': PASSWORD, 'full_name': name}, expect=201) is None:
                 continue
             person['client'] = h
             person['scen'].add('self_signup')

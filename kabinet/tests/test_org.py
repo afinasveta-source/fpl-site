@@ -465,19 +465,19 @@ def test_org_pages_served(client):
 
 def test_self_signup(app, seed):
     guest = TestClient(app)
-    me = ok(guest.post('/web-auth/register', headers=ORIGIN, json={'email': 'New@Example.com', 'password': PASSWORD,
+    me = ok(guest.post('/web-auth/register', headers=ORIGIN, json={'accept_personal_data': True, 'confirm_adult': True, 'email': 'New@Example.com', 'password': PASSWORD,
                                                                    'full_name': ' Мария Иванова '}), 201)
     assert me['email'] == 'new@example.com' and me['roles'] == ['participant'] and me['full_name'] == 'Мария Иванова'
     assert ok(guest.get('/web-auth/me'))['id'] == me['id']
     other = TestClient(app)
-    assert other.post('/web-auth/register', headers=ORIGIN, json={'email': 'new@example.com', 'password': PASSWORD,
+    assert other.post('/web-auth/register', headers=ORIGIN, json={'accept_personal_data': True, 'confirm_adult': True, 'email': 'new@example.com', 'password': PASSWORD,
                                                                   'full_name': 'X'}).json()['detail'] == 'email_taken'
     c = org(app, seed)
     bot = ok(c.post('/api/org/people', headers=ORIGIN, json={'full_name': 'Из бота', 'email': 'bot@example.com'}), 201)
-    assert other.post('/web-auth/register', headers=ORIGIN, json={'email': 'bot@example.com', 'password': PASSWORD,
+    assert other.post('/web-auth/register', headers=ORIGIN, json={'accept_personal_data': True, 'confirm_adult': True, 'email': 'bot@example.com', 'password': PASSWORD,
                                                                   'full_name': 'X'}).json()['detail'] == 'email_invited'
-    assert other.post('/web-auth/register', json={'email': 'z@example.com', 'password': PASSWORD, 'full_name': 'Z'}).status_code == 403
-    assert other.post('/web-auth/register', headers=ORIGIN, json={'email': 'z@example.com', 'password': 'short',
+    assert other.post('/web-auth/register', json={'accept_personal_data': True, 'confirm_adult': True, 'email': 'z@example.com', 'password': PASSWORD, 'full_name': 'Z'}).status_code == 403
+    assert other.post('/web-auth/register', headers=ORIGIN, json={'accept_personal_data': True, 'confirm_adult': True, 'email': 'z@example.com', 'password': 'short',
                                                                   'full_name': 'Z'}).status_code == 422
     assert bot['account_status'] == 'imported'
 

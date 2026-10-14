@@ -280,6 +280,42 @@ def accept(body: Accept, request: Request, user=Depends(browser_user)):
     return {'accepted': True}
 
 
+@router.get('/consents/missing')
+def consents_missing(request: Request, user=Depends(browser_user)):
+    """Документы, которые нужно принять, чтобы сдавать работы (один экран вместо трёх)."""
+    with db(request).transaction() as conn:
+        docs = G.missing_documents(conn, user['id'], now_of(request))
+        return {'missing': [{'doc_type': d['doc_type'], 'id': str(d['id']), 'version': d['version'], 'title': d['title'],
+                             'body': d['body']} for d in docs]}
+
+
+class AcceptMissing(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    accept: list[str] = Field(default_factory=list, max_length=3)
+    confirm_adult: bool = False
+
+
+@router.post('/consents/missing', dependencies=[Depends(same_origin)])
+def accept_missing(body: AcceptMissing, request: Request, user=Depends(browser_user)):
+    with db(request).transaction() as conn:
+        conn.execute('SELECT 1 FROM users WHERE id=%s FOR UPDATE', (user['id'],))
+        now = now_of(request)
+        docs = G.missing_documents(conn, user['id'], now)
+        if any(d['doc_type'] not in body.accept for d in docs):
+            raise HTTPException(422, 'consents_required')
+        if docs and not body.confirm_adult:
+            raise HTTPException(422, 'adult_required')
+        for d in docs:
+            conn.execute('''INSERT INTO consents(user_id,consent_type,accepted,status,document_version,legal_document_id,channel,button_text,metadata)
+VALUES (%s,%s,true,'accepted',%s,%s,'web',%s,%s)''', (user['id'], d['doc_type'], d['version'], d['id'], 'Принять и продолжить Игру',
+                                                  G.Jsonb({"adult_confirmed": True})))
+            G.audit(conn, user['id'], 'consent', d['id'], 'consent_accepted', {'type': d['doc_type'], 'version': d['version']})
+            if d['doc_type'] == 'publication':
+                # первое согласие на публикацию — работы видны (как при записи на Игру); дальше человек управляет сам
+                conn.execute('UPDATE users SET public_works=true, public_social=true, public_rating=true WHERE id=%s', (user['id'],))
+        return {'accepted': [d['doc_type'] for d in docs]}
+
+
 # ---------- Публичность ----------
 
 def publication_state(conn, user_id):

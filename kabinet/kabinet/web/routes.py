@@ -104,6 +104,8 @@ class Signup(EmailInput):
     model_config = ConfigDict(extra='forbid')
     password: str = Field(min_length=PASSWORD_MIN, max_length=128)
     full_name: str = Field(min_length=1, max_length=200)
+    accept_personal_data: bool = False   # решение 14.10: согласие на обработку данных и 18+ — уже при заведении кабинета
+    confirm_adult: bool = False
 
     @field_validator('full_name')
     @classmethod
@@ -121,6 +123,10 @@ def register_account(body: Signup, request: Request, response: Response, auth=De
     settings = request.app.state.settings
     if not settings.signup_enabled:
         raise HTTPException(404, 'Not found')
+    if not body.accept_personal_data:
+        raise HTTPException(422, 'personal_data_required')
+    if not body.confirm_adult:
+        raise HTTPException(422, 'adult_required')
     auth.throttle('signup', client_ip(request), limit=settings.signup_limit)
     encoded = password_hasher.hash(body.password)
     with auth.db.transaction() as conn:
@@ -139,6 +145,12 @@ VALUES (%s,%s,now(),'active',%s) RETURNING id""", (body.email, encoded, body.ful
         conn.execute("INSERT INTO user_roles(user_id,role) VALUES (%s,'participant')", (user['id'],))
         conn.execute("INSERT INTO audit_log(actor_user_id,entity_type,entity_id,action) VALUES (%s,'user',%s,'self_registered')",
                      (user['id'], user['id']))
+        from kabinet.participation import game as G
+        pd = G.current_document(conn, 'personal_data', request.app.state.clock())
+        if pd is not None:
+            conn.execute('''INSERT INTO consents(user_id,consent_type,accepted,status,document_version,legal_document_id,channel,button_text,metadata)
+VALUES (%s,'personal_data',true,'accepted',%s,%s,'web','Зарегистрироваться',%s)''', (user['id'], pd['version'], pd['id'],
+                                                                                G.Jsonb({'adult_confirmed': True})))
     session = auth.login(body.email, body.password, client_ip(request))
     old = request.cookies.get(cookie_name(request))
     if old:

@@ -139,9 +139,32 @@ ORDER BY recorded_at DESC, id DESC LIMIT 1''', (user_id, document_id)).fetchone(
     return bool(row and row['status'] == 'accepted')
 
 
+def missing_documents(conn, user_id, now):
+    """Чего не хватает, чтобы сдавать работы (решение 14.10): действующие Правила; согласие на обработку данных (последнее —
+    «принято», не отозвано); согласие на публикацию — хоть раз данное (отзыв скрывает работы, но не закрывает Игру).
+    Нужно тем, у кого согласий в кабинете нет: участницы из бота, соединённые с самостоятельно заведённым кабинетом."""
+    out = []
+    for kind in ('rules', 'personal_data', 'publication'):
+        doc = current_document(conn, kind, now)
+        if doc is None:
+            continue
+        if kind == 'rules':
+            ok = accepted(conn, user_id, doc['id'])
+        elif kind == 'personal_data':
+            last = conn.execute("""SELECT status FROM consents WHERE user_id=%s AND consent_type='personal_data'
+ORDER BY recorded_at DESC, id DESC LIMIT 1""", (user_id,)).fetchone()
+            ok = bool(last and last['status'] == 'accepted')
+        else:
+            ok = conn.execute("""SELECT 1 FROM consents WHERE user_id=%s AND consent_type='publication' AND status='accepted'
+LIMIT 1""", (user_id,)).fetchone() is not None
+        if not ok:
+            out.append(doc)
+    return out
+
+
 def rules_ok(conn, user_id, now):
-    doc = rules_document(conn, now)
-    return doc is None or accepted(conn, user_id, doc['id'])
+    """Можно сдавать работы: все нужные документы приняты (имя осталось с тех пор, когда проверялись только Правила)."""
+    return not missing_documents(conn, user_id, now)
 
 
 def notify(conn, user_id, kind, key, payload, event_id=None, round_id=None):
