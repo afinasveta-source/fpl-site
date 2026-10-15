@@ -30,7 +30,7 @@
     season_no_taken: 'Сезон с таким номером уже есть.', season_dates: 'Конец сезона должен быть позже начала.',
     wrong_status: 'Статус уже изменился. Обновите страницу.', has_participants: 'В Игру уже записались — снять с публикации или удалить нельзя.', not_draft: 'Удалить можно только черновик.',
     relay_opens_before_source_deadline: 'Эстафета: вторая лига должна открываться не раньше срока сдачи первой — иначе исходников ещё нет. Поставьте лиге-получателю своё открытие задания.',
-    relay_dates_missing: 'Эстафета: у обеих лиг должны быть дата открытия и срок сдачи.', relay_started: 'Исходники уже розданы — эстафету не поменять.',
+    relay_dates_missing: 'Эстафета: у обеих лиг должны быть дата открытия и срок сдачи.', relay_started: 'Исходники уже розданы — эстафету не поменять.', relay_released: 'Исходники уже отправлены — число лучших не поменять.',
     league_locked_judging: 'Лигу сейчас не поменять: в туре идёт судейство этой лиги. После публикации итогов тура — можно.',
     work_outside_started_pool: 'Работа участницы относится к лиге, которую уже судят, но в её пуле работы нет (лигу поменяли?). Напишите в поддержку кабинета.',
     relay_second_open: 'Второй лиге задание уже открылось — эстафету не поменять.', relay_open_now: 'В туре-эстафете лиги открываются по своим датам — «Открыть сейчас» недоступно.',
@@ -644,7 +644,9 @@
   }
   // Тур-эстафета: вторая лига работает по работам первой (исходники раздаются после срока первой лиги).
   function relayCard(r, ro) {
-    var rl = r.relay, locked = ro || (rl && (rl.started || rl.second_open));
+    var rl = r.relay, locked = ro || (rl && (rl.started || rl.second_open || rl.early_judging === 'running' || rl.early_judging === 'done'));
+    // число лучших можно менять до отправки исходников (15.10)
+    var topOpen = !ro && rl && rl.mode === 'top' && !rl.released;
     var name = function (l) { return (O.LEAGUES.filter(function (x) { return x[0] === l; })[0] || [l, l])[1]; };
     var h = '<form class="card" id="f-relay" novalidate><h2>Эстафета между лигами</h2>' +
       '<p class="small muted">Первая лига делает работу, а после её срока каждой участнице второй лиги случайно выдаётся работа первой — как исходник ' +
@@ -654,7 +656,7 @@
       '<div class="grid2">' + O.sel('rl-from', 'Делает первой (исходники)', O.LEAGUES, rl ? rl.from : 'gold', locked ? ' disabled' : '') +
       O.sel('rl-to', 'Получает исходники', O.LEAGUES, rl ? rl.to : 'silver', locked ? ' disabled' : '') + '</div>' +
       '<div class="grid2">' + O.sel('rl-mode', 'Какие работы раздавать', [['all', 'Все работы в конкурсе'], ['top', 'Лучшие по судейству первой лиги']], rl ? rl.mode : 'all', locked ? ' disabled' : '') +
-      O.txt('rl-top', 'Сколько лучших', rl && rl.top_n ? rl.top_n : 10, ' type="number" min="1" max="100" inputmode="numeric"' + (locked ? ' disabled' : ''), 'Для «лучших»: первую лигу судят раньше, равные на границе входят все.') + '</div>';
+      O.txt('rl-top', 'Сколько лучших', rl && rl.top_n ? rl.top_n : 10, ' type="number" min="1" max="100" inputmode="numeric"' + (locked && !topOpen ? ' disabled' : ''), 'Для «лучших»: первую лигу судят раньше, равные на границе входят все. Число можно менять до отправки исходников.') + '</div>';
     if (rl) {
       var st = rl.released ? 'Отправлены участницам ' + O.when(rl.released_at) : rl.ready ? (rl.started ? 'Черновик готов — проверьте и отправьте' : 'Можно готовить раздачу') :
         rl.mode === 'top' ? (rl.early_judging === 'running' ? 'Идёт судейство первой лиги — раздача после него' : 'После срока первой лиги начните её судейство (страница «Судейство тура»)') :
@@ -665,9 +667,10 @@
           (rl.waiting ? ' · без исходника ' + rl.waiting + (rl.released ? ' (получат при открытии задания)' : '') : '') + '</dd>' : '') + '</dl>';
       if (rl.ready || rl.started) h += '<div class="row"><button class="btn' + (rl.released ? ' sec' : '') + '" type="button" data-href="/org/rounds/' + r.id + '/relay">' +
         (rl.released ? 'Посмотреть раздачу' : 'Проверить и отправить исходники') + '</button></div>';
-      if (rl.started) h += '<p class="small muted">Раздача уже готовилась — настройку эстафеты не поменять.</p>';
+      if (locked && topOpen) h += '<p class="small muted">Лиги и вид эстафеты уже не поменять. Число лучших работ — можно, пока исходники не отправлены' + (rl.started ? ': черновик раздачи пересоберётся.' : '.') + '</p>';
+      else if (rl.started) h += '<p class="small muted">Раздача уже готовилась — настройку эстафеты не поменять.</p>';
     }
-    return h + O.errBox + (locked ? '' : '<button class="btn" type="submit">Сохранить</button>') + '</form>';
+    return h + O.errBox + (locked && !topOpen ? '' : '<button class="btn" type="submit">Сохранить</button>') + '</form>';
   }
   K.actions.toggleLeague = function (el) {
     var box = el.closest('.league-box');

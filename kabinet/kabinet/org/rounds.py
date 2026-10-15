@@ -606,6 +606,21 @@ def put_relay(round_id: UUID, body: RelayIn, request: Request, user=Depends(org_
         if e['status'] in ('finished', 'archived'):
             raise problem('game_finished', 409)
         ov = relay.overview(conn, r, now)
+        cur = relay.relay_of(r) or {}
+        # 15.10 (решение организатора): число лучших работ-исходников можно менять до «Отправить исходники» —
+        # даже когда судейство первой лиги идёт, вторая лига уже открыта или черновик раздачи готов: лучших отбирают при отправке.
+        if (body.source is not None and cur and body.source == cur.get('from') and body.target == cur.get('to')
+                and cur.get('sources') == 'top' and (body.mode or 'top') == 'top' and body.top_n
+                and body.top_n != cur.get('top_n')):
+            if relay.released(r):
+                raise problem('relay_released', 409)
+            settings = dict(r['settings'] or {})
+            settings['relay'] = {**settings['relay'], 'top_n': body.top_n}
+            r = conn.execute('UPDATE rounds SET settings=%s WHERE id=%s RETURNING *', (Jsonb(settings), round_id)).fetchone()
+            if ov and ov['started']:
+                relay.reshuffle(conn, r, now)       # черновик раздачи пересобирается под новое число
+            audit(conn, user['id'], 'round', round_id, 'relay_top_n_changed', {'from': cur.get('top_n'), 'to': body.top_n})
+            return round_detail(conn, r, now)
         if ov and ov['started']:
             raise problem('relay_started', 409)
         target = body.target or (relay.relay_of(r) or {}).get('to')

@@ -226,6 +226,11 @@ def test_top_mode_judge_first_league_then_release_best(app, seed, clock):
     assert not v['started'] and [s['league'] for s in v['streams']] == ['gold']
     assert ok(c.get(url))['status'] == 'scheduled'                # тур открыт — Silver ещё будет сдавать
     assert c.post(url + '/relay/prepare', headers=ORIGIN).json()['detail'] == 'relay_not_ready'   # голосов ещё нет
+    # 15.10: число лучших можно менять, пока идёт судейство Gold (лиги и вид эстафеты — нет)
+    rl = {'source': 'gold', 'target': 'silver', 'mode': 'top'}
+    assert ok(c.put(url + '/relay', headers=ORIGIN, json=rl | {'top_n': 3}))['relay']['top_n'] == 3
+    assert c.put(url + '/relay', headers=ORIGIN, json=rl | {'mode': 'all', 'top_n': 3}).json()['detail'] == 'judging_started'
+    ok(c.put(url + '/relay', headers=ORIGIN, json=rl | {'top_n': 2}))
     # судья голосует: сила — по номеру участницы (g1 сильнее всех)
     jc = js[0][1]
     st = next(s for s in ok(jc.get('/api/judging'))['streams'] if s['league'] == 'gold')
@@ -247,8 +252,14 @@ JOIN users u ON u.id=p.user_id WHERE t.evaluation_stream_id=%s''', (st['id'],))}
     d = ok(c.get(url + '/relay'))
     assert d['overview']['mode'] == 'top' and d['overview']['early_judging'] == 'done'
     assert 2 <= d['overview']['sources'] <= 3                    # топ-2 (+ равные на границе)
+    # черновик готов — число лучших ещё можно поменять, раздача пересобирается
+    ok(c.put(url + '/relay', headers=ORIGIN, json=rl | {'top_n': 4}))
+    assert 4 <= ok(c.get(url + '/relay'))['overview']['sources'] <= 5
+    ok(c.put(url + '/relay', headers=ORIGIN, json=rl | {'top_n': 2}))
+    assert 2 <= ok(c.get(url + '/relay'))['overview']['sources'] <= 3
     d = ok(c.post(url + '/relay/release', headers=ORIGIN))
     assert d['overview']['released']
+    assert c.put(url + '/relay', headers=ORIGIN, json=rl | {'top_n': 5}).json()['detail'] == 'relay_released'
     for n in ('s1', 's2', 's3'):
         t = ok(people[n].get(task_url(g, 0)))
         assert t['source'] and t['window']['open']
