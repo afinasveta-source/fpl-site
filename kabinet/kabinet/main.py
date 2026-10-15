@@ -25,6 +25,7 @@ from kabinet.results import routes as results_routes
 from kabinet.org import participants as org_participants, support as org_support, home as org_home, overview as org_overview
 from kabinet import reviews, claims
 from kabinet.org import bot_import as org_bot_import, bot_photos as org_bot_photos
+from kabinet.org import works as org_works
 
 # Версия схемы базы (server/db/schema), под которую написан кабинет. Новее — можно, старее — нельзя.
 SCHEMA_REQUIRED = 11  # 011 — эстафета с проверкой организатора (13.10)
@@ -112,7 +113,7 @@ def create_app(settings=None, mailer=None, clock=None):
     app.include_router(participant_router)
     app.include_router(account_router)
     app.include_router(gallery_router)
-    for module in (org_home, org_overview, org_games, org_rounds, org_documents, org_people, org_participants, org_support, org_bot_import, org_bot_photos):
+    for module in (org_home, org_overview, org_games, org_rounds, org_documents, org_people, org_participants, org_support, org_bot_import, org_bot_photos, org_works):
         app.include_router(module.router)
     app.include_router(org_support.public)
     app.include_router(reviews.public)

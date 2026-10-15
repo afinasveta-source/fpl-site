@@ -395,7 +395,7 @@
   });
   var LOG = { org_outside: 'Переведена вне конкурса', org_return: 'Возвращена в конкурс', org_withdraw: 'Выведена из Игры', org_restore: 'Участие возвращено',
     org_disqualify: 'Дисквалифицирована', org_undisqualify: 'Дисквалификация отменена', league_set: 'Лига изменена', deadline_extended: 'Продлён срок', deadline_reset: 'Личный срок снят',
-    registered: 'Записалась', chose_outside: 'Сама выбрала «вне конкурса»', late_to_outside: 'Пропущен срок — вне конкурса', withdrew: 'Сама вышла из Игры' };
+    registered: 'Записалась', org_work_uploaded: 'Работа загружена организатором', chose_outside: 'Сама выбрала «вне конкурса»', late_to_outside: 'Пропущен срок — вне конкурса', withdrew: 'Сама вышла из Игры' };
   /* FPL Rating (17.10): текущий, калибровка и изменение за каждый тур этой Игры. Это не очки FPL — очки копятся отдельно
      (за итог Игры и TOP WORK) и на рейтинг не влияют. */
   O.ratingLabel = function (rating, status, calibration) {
@@ -454,9 +454,11 @@
           return '<a href="' + esc(ph.view_url) + '" target="_blank" rel="noopener"><img src="' + esc(ph.thumb_url) + '" alt="Фото работы, тур ' + r.round_no + '" loading="lazy"></a>';
         }).join('') + '</div><p class="small muted">' + (imported ? 'Фото работы из бота' + (s.version_no > 1 ? ' · исправлено, версия ' + s.version_no : '') :
           botPhoto ? 'Фото загрузила участница ' + esc(O.when(s.submitted_at)) + (s.version_no > 1 ? ' · версия ' + s.version_no : '') :
-          'Сдана ' + esc(O.when(s.submitted_at)) + (s.is_on_time ? '' : ' · после срока') + (s.version_no > 1 ? ' · версия ' + s.version_no : '')) +
+          'Сдана ' + esc(O.when(s.submitted_at)) + (s.source === 'admin' ? ' · загрузил организатор' + (s.is_on_time ? ', засчитана в срок' : '') : '') +
+          (s.is_on_time ? '' : ' · после срока') + (s.version_no > 1 ? ' · версия ' + s.version_no : '')) +
           (s.link ? ' · <a href="' + esc(s.link) + '" target="_blank" rel="noopener nofollow">ссылка</a>' : '') + '</p>' : '') +
-        (live && r.opened && !s && !r.from_bot ? '<button class="btn sec small" type="button" data-act="partDeadline" data-r="' + r.round_id + '">' + (r.personal ? 'Изменить личный срок' : 'Продлить срок') + '</button>' : '') + '</div>';
+        (live && r.opened && !s && !r.from_bot ? '<button class="btn sec small" type="button" data-act="partDeadline" data-r="' + r.round_id + '">' + (r.personal ? 'Изменить личный срок' : 'Продлить срок') + '</button>' : '') +
+        (r.can_upload ? '<button class="btn sec small" type="button" data-act="partWork" data-r="' + r.round_id + '">' + (s ? 'Заменить работу за участницу' : 'Загрузить работу за участницу') + '</button>' : '') + '</div>';
     }).join('') : '<p class="muted">Туры ещё не опубликованы.</p>') + '</section>';
     h += '<section class="card"><h2>Журнал</h2>' + (x.log.length ? '<ul class="log">' + x.log.map(function (l) {
       var extra = l.data && l.data.round_no ? ' · тур ' + l.data.round_no : '';
@@ -499,6 +501,46 @@
       var reason = f.querySelector('#dl-reason').value.trim();
       if (!reason) { K.formError(f, 'Укажите причину — участница получит уведомление.'); return; }
       O.send('POST', '/api/org/participants/' + x.id + '/deadline', { round_id: r.round_id, deadline: null, reason: reason }, f, done);
+    });
+  };
+
+  /* Работа за участницу (15.10): прислала фото организатору — организатор загружает его в её работу тура.
+     Сначала фото (на участницу), потом работа; «в срок» по умолчанию — работа идёт в конкурс, сверка не переведёт её вне конкурса. */
+  O.addText({ round_published: 'Итоги тура уже опубликованы — работу не загрузить.', bot_round: 'Тур прошёл в боте — фото работы переносится в «Переносе из бота».',
+    not_open: 'Тур ещё не открыт.', task_not_ready: 'Не определено задание её лиги — проверьте лигу и варианты задания.' });
+  K.actions.partWork = function (b) {
+    var x = O.part, r = x.rounds.filter(function (y) { return y.round_id === b.getAttribute('data-r'); })[0];
+    K.showModal('<h2 id="mT">Работа тура ' + r.round_no + ' за участницу</h2><p class="small muted">' + esc(x.person.name || 'Участница') +
+      (r.submitted ? '. Сейчас сдана версия ' + r.submitted.version_no + ' — новая станет действующей.' : '. Работа появится у неё в кабинете, она получит уведомление.') + '</p>' +
+      '<form id="f-work" class="stack" novalidate><div class="field"><label for="w-file">Фото работы</label><input class="input" id="w-file" type="file" accept="image/jpeg,image/png,image/webp">' +
+      '<p class="small muted">JPG, PNG или WebP, до 20 МБ.</p></div>' +
+      '<div class="field"><label for="w-link">Ссылка на публикацию · необязательно</label><input class="input" id="w-link" type="url" inputmode="url" maxlength="500" placeholder="https://…"></div>' +
+      '<label class="chk"><input type="checkbox" id="w-ontime" checked><span>Засчитать как сданную в срок' + (x.mode === 'in' ? '' : ' (вернуть в конкурс, если она вне конкурса из-за этого тура)') + '</span></label>' +
+      '<div class="field"><label for="w-reason">Причина (видна в журнале)</label><textarea class="input" id="w-reason" maxlength="500">Прислала работу организатору</textarea></div>' +
+      O.errBox + '<div class="row"><button class="btn" type="submit">Загрузить</button><button class="btn sec" type="button" data-act="closeModal">Отмена</button></div></form>');
+    var f = document.getElementById('f-work');
+    f.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var file = f.querySelector('#w-file').files[0], reason = f.querySelector('#w-reason').value.trim(), link = f.querySelector('#w-link').value.trim();
+      if (!file) { K.formError(f, 'Выберите фото работы.'); return; }
+      if (['image/jpeg', 'image/png', 'image/webp'].indexOf(file.type) < 0) { K.formError(f, 'Нужно фото JPG, PNG или WebP.'); return; }
+      if (file.size > 20 * 1024 * 1024) { K.formError(f, 'Файл больше 20 МБ.'); return; }
+      if (link && !/^https?:\/\/\S{3,}$/i.test(link)) { K.formError(f, 'Ссылка должна начинаться с https://'); return; }
+      if (!reason) { K.formError(f, 'Укажите причину.'); return; }
+      K.formError(f, ''); K.busy(f, true);
+      K.api('POST', '/api/org/participants/' + x.id + '/upload', undefined, { body: file, type: file.type }).then(function (up) {
+        if (!up.ok) { K.busy(f, false); K.formError(f, O.err(up)); return; }
+
+        K.api('POST', '/api/org/participants/' + x.id + '/rounds/' + r.round_id + '/work',
+          { photos: [up.data.id], link: link || null, on_time: f.querySelector('#w-ontime').checked, reason: reason }).then(function (res) {
+            K.busy(f, false);
+            if (!res.ok) { K.formError(f, res.detail === 'judging_started' ? 'Судейство её лиги в этом туре уже идёт — работа не попала бы к судьям. Загрузить можно только до начала судейства.' : O.err(res)); return; }
+            var d = res.data;
+            f.closest('.modal').remove(); K.onEscape = null;
+            K.toast('Работа тура ' + r.round_no + ' загружена' + (d.uploaded && d.uploaded.restored ? ' — участница снова в конкурсе' : ''));
+            drawParticipant(d);
+          });
+      });
     });
   };
 

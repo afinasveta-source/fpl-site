@@ -195,6 +195,15 @@ WHERE t.user_id=%s AND t.event_id=%s AND t.status='active' ORDER BY t.ledger_seq
                        for t in tx]}
 
 
+def upload_allowed(conn, game, rnd, ep, now):
+    if R.bot_round(rnd) or rnd['status'] == 'published' or not R.round_opened(rnd, now):
+        return False
+    if game.event['status'] not in ('active', 'registration') or game.mode not in (R.IN, R.OUTSIDE, R.OUT_PENDING):
+        return False
+    return conn.execute('''SELECT 1 FROM evaluation_streams WHERE round_id=%s AND active AND (league IS NULL OR league=%s) LIMIT 1''',
+                        (rnd['id'], ep['entry_league'])).fetchone() is None
+
+
 def participant_detail(conn, ep, request, now):
     e = load_event(conn, ep['event_id'])
     u = conn.execute('SELECT * FROM users WHERE id=%s', (ep['user_id'],)).fetchone()
@@ -221,6 +230,8 @@ def participant_detail(conn, ep, request, now):
             'work': work_state(r, a, pa, sub, bool(versions.get('draft')), now),
             'result': scores.get((str(ep['id']), str(r['id']))),
             'from_bot': (r['settings'] or {}).get('source') == 'bot',
+            # загрузить работу за участницу (org/works.py): тур открыт, итоги не опубликованы, судейство её лиги не идёт
+            'can_upload': upload_allowed(conn, game, r, ep, now),
             'submitted': V.version_view(game, latest, root) | {'is_on_time': sub['is_on_time'],
                                                                'first_submitted_at': iso(sub['first_submitted_at'])}
             if latest else None})
