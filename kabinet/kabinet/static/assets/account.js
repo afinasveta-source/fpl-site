@@ -255,6 +255,7 @@
     K.page('<h1>Уведомления</h1><section class="card stack"><h3>Мессенджеры</h3>' + msgCard('telegram', m.telegram, p) + msgCard('vk', m.vk, p) +
       '<p class="small muted">Бот только присылает уведомления — войти в кабинет, сменить пароль или сдать работу через него нельзя. Отключить можно здесь или словом «стоп» в чате.</p>' +
       '<p class="small muted" id="tg-warn"' + (m.telegram.linked || m.vk.linked ? ' hidden' : '') + '>Без мессенджера вы можете пропустить срок сдачи. Сроки всегда видны здесь, в кабинете.</p></section>' +
+      '<section class="card stack" id="push-card"><h3>Уведомления на этом устройстве</h3><div id="push-body"><p class="small muted">Проверяем…</p></div></section>' +
       '<section class="card"><h3>Другие каналы</h3>' + sw('p-email', 'Email', 'Дублирование важных сроков', p.email) +
       '<div class="switch"><div><b>Кабинет</b><div class="small muted">Колокольчик и раздел «Уведомления»</div></div><span class="pill plain always">Всегда</span></div>' +
       '<p class="small muted">Уведомления в кабинете приходят всегда — чтобы вы ничего не пропустили.</p></section>' +
@@ -262,10 +263,99 @@
       '<p class="small muted">Отказ от новостей не отключает сообщения по вашему участию.</p></section>' + backLink(), P.concat([['Уведомления']]));
   }
   function stopPoll() { if (msgPoll) { clearInterval(msgPoll); msgPoll = null; } }
+
+  /* Пуш-уведомления на этом устройстве (17.10): кабинет на экране телефона присылает уведомления как приложение.
+     iPhone/iPad — только после «На экран „Домой“» (iOS 16.4+); Android и компьютер — прямо в браузере. */
+  var PUSH = { sw: null };
+  function ios() { return /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); }
+  function standalone() { return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true; }
+  function keyBytes(b64) {
+    var s = (b64 + '===='.slice((b64.length + 3) % 4)).replace(/-/g, '+').replace(/_/g, '/'), raw = atob(s), out = new Uint8Array(raw.length);
+    for (var i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+    return out;
+  }
+  function swReady() {
+    if (PUSH.sw) return Promise.resolve(PUSH.sw);
+    var root = document.body.getAttribute('data-root') || '';
+    return navigator.serviceWorker.register(root + '/sw.js', { scope: root + '/' }).then(function () { return navigator.serviceWorker.ready; })
+      .then(function (reg) { PUSH.sw = reg; return reg; });
+  }
+  function drawPush(st, sub, note) {
+    var box = document.getElementById('push-body');
+    if (!box) return;
+    var h = '';
+    if (!st.available) h = '<p class="small muted">Пуш-уведомления скоро появятся.</p>';
+    else if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+      h = ios() && !standalone()
+        ? '<p><b>На iPhone уведомления работают, когда кабинет установлен на экран.</b></p><ol class="small push-steps"><li>Откройте кабинет в Safari.</li>' +
+          '<li>Нажмите «Поделиться» <span aria-hidden="true">⬆︎</span> внизу экрана.</li><li>Выберите «На экран „Домой“» → «Добавить».</li>' +
+          '<li>Откройте FPL с экрана «Домой», войдите и вернитесь сюда — появится кнопка «Включить».</li></ol><p class="small muted">Нужна iOS 16.4 или новее.</p>'
+        : '<p class="small muted">Этот браузер не умеет получать уведомления. Подключите Telegram или ВКонтакте выше.</p>';
+    } else if (Notification.permission === 'denied') {
+      h = '<p class="small">Уведомления для кабинета запрещены в настройках ' + (ios() ? 'iPhone: Настройки → Уведомления → FPL.' : 'браузера: значок замка у адреса → Уведомления → Разрешить.') +
+        ' Затем обновите страницу.</p>';
+    } else if (sub) {
+      h = '<div class="between"><span>' + pill('Включены', 'ok') + '</span></div><div class="row"><button class="btn sec small" type="button" data-act="pushTest">Прислать проверочное</button>' +
+        '<button class="btn ghost small" type="button" data-act="pushOff">Выключить на этом устройстве</button></div>';
+    } else {
+      h = '<p class="small muted">Задания, сроки и итоги придут сюда, как из приложения' + (ios() ? '' : ' — даже когда кабинет закрыт') + '.</p>' +
+        '<button class="btn small" type="button" data-act="pushOn">Включить уведомления</button>' +
+        (!ios() && !standalone() ? '<p class="small muted">Совет: добавьте кабинет на экран телефона — через меню браузера «Установить приложение» или «На главный экран».</p>' : '');
+    }
+    if (st.devices && st.devices.length > (sub ? 1 : 0)) h += '<p class="small muted">Уведомления включены на устройствах: ' + st.devices.length + ' (' + esc(st.devices.map(function (d) { return d.device; }).join(', ')) + ').</p>';
+    if (note) h += '<p class="small">' + esc(note) + '</p>';
+    box.innerHTML = h;
+  }
+  function loadPush(note) {
+    K.api('GET', '/api/push').then(function (r) {
+      if (!r.ok) return;
+      PUSH.st = r.data;
+      if (!r.data.available || !('serviceWorker' in navigator) || !('PushManager' in window)) { drawPush(r.data, null, note); return; }
+      swReady().then(function (reg) { return reg.pushManager.getSubscription(); }).then(function (sub) {
+        PUSH.sub = sub;
+        // подписка есть в браузере, но сервер её не знает (например, после переустановки) — сообщить серверу
+        if (sub && !r.data.devices.some(function (d) { return d.endpoint === sub.endpoint; }) && Notification.permission === 'granted') {
+          K.api('POST', '/api/push/subscribe', sub.toJSON()).then(function (x) { drawPush(x.ok ? x.data : r.data, sub, note); });
+          return;
+        }
+        drawPush(r.data, sub, note);
+      }).catch(function () { drawPush(r.data, null, note); });
+    });
+  }
+  K.actions.pushOn = function (b) {
+    b.disabled = true;
+    Notification.requestPermission().then(function (perm) {
+      if (perm !== 'granted') { loadPush(); return; }
+      return swReady().then(function (reg) {
+        return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(PUSH.st.public_key) });
+      }).then(function (sub) {
+        return K.api('POST', '/api/push/subscribe', sub.toJSON()).then(function (r) {
+          if (!r.ok) { K.toast(K.errorText(r)); loadPush(); return; }
+          K.toast('Уведомления включены');
+          loadPush();
+        });
+      });
+    }).catch(function () { b.disabled = false; loadPush('Не получилось включить. Обновите страницу и попробуйте ещё раз.'); });
+  };
+  K.actions.pushOff = function (b) {
+    b.disabled = true;
+    var sub = PUSH.sub;
+    var done = function () { K.toast('Уведомления на этом устройстве выключены'); PUSH.sub = null; loadPush(); };
+    if (!sub) { done(); return; }
+    K.api('POST', '/api/push/unsubscribe', { endpoint: sub.endpoint }).then(function () { return sub.unsubscribe(); }).then(done, done);
+  };
+  K.actions.pushTest = function (b) {
+    b.disabled = true;
+    K.api('POST', '/api/push/test', {}).then(function (r) {
+      b.disabled = false;
+      K.toast(r.ok ? (r.data.sent ? 'Отправлено — уведомление придёт через несколько секунд' : 'Не дошло ни до одного устройства') : K.errorText(r));
+    });
+  };
   K.on(/^\/profile\/notifications$/, function () {
     stopPoll();
     K.load(['/api/messengers', '/api/preferences'], function (m, p) {
       drawNotifications(m, p);
+      loadPush();
       document.getElementById('main').addEventListener('change', function (e) {
         var key = { 'p-tg': 'telegram', 'p-email': 'email', 'p-mkt': 'marketing' }[e.target.id];
         if (!key) return;
@@ -300,7 +390,7 @@
         K.api('GET', '/api/messengers').then(function (s) {
           if (!s.ok || !s.data[k].linked) return;
           stopPoll();
-          K.api('GET', '/api/preferences').then(function (p) { drawNotifications(s.data, p.ok ? p.data : {}); K.toast(MSG[k][0] + ' подключён'); });
+          K.api('GET', '/api/preferences').then(function (p) { drawNotifications(s.data, p.ok ? p.data : {}); loadPush(); K.toast(MSG[k][0] + ' подключён'); });
         });
       }, 3000);
     });
@@ -310,7 +400,7 @@
     b.disabled = true;
     K.api('POST', '/api/messengers/' + k + '/unlink', {}).then(function (r) {
       if (!r.ok) { b.disabled = false; K.toast(K.errorText(r)); return; }
-      K.api('GET', '/api/preferences').then(function (p) { drawNotifications(r.data, p.ok ? p.data : {}); K.toast(MSG[k][0] + ' отключён'); });
+      K.api('GET', '/api/preferences').then(function (p) { drawNotifications(r.data, p.ok ? p.data : {}); loadPush(); K.toast(MSG[k][0] + ' отключён'); });
     });
   };
 

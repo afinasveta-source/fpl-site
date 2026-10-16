@@ -72,6 +72,13 @@ else
 fi
 pg "-c \"GRANT CONNECT ON DATABASE $FPL_DB_NAME TO fpl_kabinet; GRANT USAGE ON SCHEMA public TO fpl_kabinet; GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO fpl_kabinet; GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO fpl_kabinet; ALTER DEFAULT PRIVILEGES FOR ROLE $FPL_DB_USER IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO fpl_kabinet; ALTER DEFAULT PRIVILEGES FOR ROLE $FPL_DB_USER IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO fpl_kabinet\""
 
+# 3б. Ключ пуш-уведомлений (Web Push, 17.10): создаётся один раз, читает только служба кабинета
+PUSHKEY=/etc/fpl-kabinet-push.pem
+if [ ! -s "$PUSHKEY" ]; then
+  ( umask 077; openssl ecparam -name prime256v1 -genkey -noout -out "$PUSHKEY.tmp" && mv "$PUSHKEY.tmp" "$PUSHKEY" )
+  echo "кабинет: ключ пуш-уведомлений создан"
+fi
+chown root:fplkab "$PUSHKEY" && chmod 0640 "$PUSHKEY"
 # 4. Настройки службы
 KEY_SHA=""
 if [ -s /etc/fpl-ingest.env ]; then
@@ -86,6 +93,7 @@ TMP=$(mktemp)
   echo "FPL_FRONTEND_URL=https://$DOMAIN/kabinet"
   echo "FPL_ROOT_PATH=/kabinet"
   echo "FPL_MEDIA_DIR=$MEDIA"
+  echo "FPL_PUSH_KEY_FILE=$PUSHKEY"
   [ -n "$KEY_SHA" ] && echo "FPL_SETUP_KEY_SHA256=$KEY_SHA"
 } > "$TMP"
 if ! cmp -s "$TMP" /etc/fpl-kabinet.env; then

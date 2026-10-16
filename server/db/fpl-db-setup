@@ -2,7 +2,7 @@
 # fpl-db-setup: база PostgreSQL сайта FPL на этом сервере. Повторный запуск безопасен.
 #  - ставит PostgreSQL (только локальные подключения);
 #  - создаёт пользователя fpl_app и базу fpl; пароль генерируется здесь и хранится только в /etc/fpl-db.env (0600);
-#  - применяет схему по порядку 001 → … → 013 и пишет номер в alembic_version (совместимо с backend Codex);
+#  - применяет схему по порядку 001 → … → 014 и пишет номер в alembic_version (совместимо с backend Codex);
 #  - (пере)создаёт публичный слой site_views.sql.
 # Аргумент: папка со schema/ и site_views.sql (по умолчанию /opt/fpl/db).
 set -euo pipefail
@@ -54,22 +54,23 @@ S1="$SRC/schema/001_initial_mvp_schema.sql"; S2="$SRC/schema/002_auth.sql"
 S3="$SRC/schema/003_league_rules.sql"; S4="$SRC/schema/004_rewards_groups.sql"
 S5="$SRC/schema/005_participant_cabinet.sql"; S6="$SRC/schema/006_organizer_cabinet.sql"
 S7="$SRC/schema/007_judging_results.sql"; S8="$SRC/schema/008_review_orders.sql"; S9="$SRC/schema/009_review_judge.sql"
-S10="$SRC/schema/010_relay_claims.sql"; S11="$SRC/schema/011_relay_check.sql"; S12="$SRC/schema/012_feed_keys.sql"; S13="$SRC/schema/013_messengers.sql"
+S10="$SRC/schema/010_relay_claims.sql"; S11="$SRC/schema/011_relay_check.sql"; S12="$SRC/schema/012_feed_keys.sql"; S13="$SRC/schema/013_messengers.sql"; S14="$SRC/schema/014_push.sql"
 case "$current" in
-  "")  step 001 "$S1"; step 002 "$S2"; step 003 "$S3"; step 004 "$S4"; step 005 "$S5"; step 006 "$S6"; step 007 "$S7"; step 008 "$S8"; step 009 "$S9"; step 010 "$S10"; step 011 "$S11"; step 012 "$S12"; step 013 "$S13" ;;
-  001) step 002 "$S2"; step 003 "$S3"; step 004 "$S4"; step 005 "$S5"; step 006 "$S6"; step 007 "$S7"; step 008 "$S8"; step 009 "$S9"; step 010 "$S10"; step 011 "$S11"; step 012 "$S12"; step 013 "$S13" ;;
-  002) step 003 "$S3"; step 004 "$S4"; step 005 "$S5"; step 006 "$S6"; step 007 "$S7"; step 008 "$S8"; step 009 "$S9"; step 010 "$S10"; step 011 "$S11"; step 012 "$S12"; step 013 "$S13" ;;
-  003) step 004 "$S4"; step 005 "$S5"; step 006 "$S6"; step 007 "$S7"; step 008 "$S8"; step 009 "$S9"; step 010 "$S10"; step 011 "$S11"; step 012 "$S12"; step 013 "$S13" ;;
-  004) step 005 "$S5"; step 006 "$S6"; step 007 "$S7"; step 008 "$S8"; step 009 "$S9"; step 010 "$S10"; step 011 "$S11"; step 012 "$S12"; step 013 "$S13" ;;
-  005) step 006 "$S6"; step 007 "$S7"; step 008 "$S8"; step 009 "$S9"; step 010 "$S10"; step 011 "$S11"; step 012 "$S12"; step 013 "$S13" ;;
-  006) step 007 "$S7"; step 008 "$S8"; step 009 "$S9"; step 010 "$S10"; step 011 "$S11"; step 012 "$S12"; step 013 "$S13" ;;
-  007) step 008 "$S8"; step 009 "$S9"; step 010 "$S10"; step 011 "$S11"; step 012 "$S12"; step 013 "$S13" ;;
-  008) step 009 "$S9"; step 010 "$S10"; step 011 "$S11"; step 012 "$S12"; step 013 "$S13" ;;
-  009) step 010 "$S10"; step 011 "$S11"; step 012 "$S12"; step 013 "$S13" ;;
-  010) step 011 "$S11"; step 012 "$S12"; step 013 "$S13" ;;
-  011) step 012 "$S12"; step 013 "$S13" ;;
-  012) step 013 "$S13" ;;
-  013) echo "схема: уже 013" ;;
+  "")  step 001 "$S1"; step 002 "$S2"; step 003 "$S3"; step 004 "$S4"; step 005 "$S5"; step 006 "$S6"; step 007 "$S7"; step 008 "$S8"; step 009 "$S9"; step 010 "$S10"; step 011 "$S11"; step 012 "$S12"; step 013 "$S13"; step 014 "$S14" ;;
+  001) step 002 "$S2"; step 003 "$S3"; step 004 "$S4"; step 005 "$S5"; step 006 "$S6"; step 007 "$S7"; step 008 "$S8"; step 009 "$S9"; step 010 "$S10"; step 011 "$S11"; step 012 "$S12"; step 013 "$S13"; step 014 "$S14" ;;
+  002) step 003 "$S3"; step 004 "$S4"; step 005 "$S5"; step 006 "$S6"; step 007 "$S7"; step 008 "$S8"; step 009 "$S9"; step 010 "$S10"; step 011 "$S11"; step 012 "$S12"; step 013 "$S13"; step 014 "$S14" ;;
+  003) step 004 "$S4"; step 005 "$S5"; step 006 "$S6"; step 007 "$S7"; step 008 "$S8"; step 009 "$S9"; step 010 "$S10"; step 011 "$S11"; step 012 "$S12"; step 013 "$S13"; step 014 "$S14" ;;
+  004) step 005 "$S5"; step 006 "$S6"; step 007 "$S7"; step 008 "$S8"; step 009 "$S9"; step 010 "$S10"; step 011 "$S11"; step 012 "$S12"; step 013 "$S13"; step 014 "$S14" ;;
+  005) step 006 "$S6"; step 007 "$S7"; step 008 "$S8"; step 009 "$S9"; step 010 "$S10"; step 011 "$S11"; step 012 "$S12"; step 013 "$S13"; step 014 "$S14" ;;
+  006) step 007 "$S7"; step 008 "$S8"; step 009 "$S9"; step 010 "$S10"; step 011 "$S11"; step 012 "$S12"; step 013 "$S13"; step 014 "$S14" ;;
+  007) step 008 "$S8"; step 009 "$S9"; step 010 "$S10"; step 011 "$S11"; step 012 "$S12"; step 013 "$S13"; step 014 "$S14" ;;
+  008) step 009 "$S9"; step 010 "$S10"; step 011 "$S11"; step 012 "$S12"; step 013 "$S13"; step 014 "$S14" ;;
+  009) step 010 "$S10"; step 011 "$S11"; step 012 "$S12"; step 013 "$S13"; step 014 "$S14" ;;
+  010) step 011 "$S11"; step 012 "$S12"; step 013 "$S13"; step 014 "$S14" ;;
+  011) step 012 "$S12"; step 013 "$S13"; step 014 "$S14" ;;
+  012) step 013 "$S13"; step 014 "$S14" ;;
+  013) step 014 "$S14" ;;
+  014) echo "схема: уже 014" ;;
   *)   echo "схема: версия $current новее этого пакета — не трогаю" ;;
 esac
 app -f "$SRC/site_views.sql"

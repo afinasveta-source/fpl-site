@@ -23,12 +23,12 @@ from kabinet.org import games as org_games, rounds as org_rounds, documents as o
 from kabinet.judging import routes as judging_routes
 from kabinet.results import routes as results_routes
 from kabinet.org import participants as org_participants, support as org_support, home as org_home, overview as org_overview
-from kabinet import reviews, claims, feed, messengers
+from kabinet import reviews, claims, feed, messengers, push
 from kabinet.org import bot_import as org_bot_import, bot_photos as org_bot_photos, feed_keys as org_feed_keys
 from kabinet.org import works as org_works
 
 # Версия схемы базы (server/db/schema), под которую написан кабинет. Новее — можно, старее — нельзя.
-SCHEMA_REQUIRED = 13  # 013 — уведомления в Telegram и ВКонтакте (16.10)
+SCHEMA_REQUIRED = 14  # 014 — пуш-уведомления (Web Push, 17.10)
 # img-src: кроме своих — фото работ из бота прямо с источника (предпросмотр «Фото работ из бота» у организатора, 14.10)
 CSP = ("default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; "
        "img-src 'self' data: blob: https://files.salebot.pro https://*.userapi.com https://*.vkuserphoto.ru; media-src 'self' blob:; "
@@ -129,6 +129,7 @@ def create_app(settings=None, mailer=None, clock=None):
     app.include_router(messengers.mine)    # уведомления в Telegram / ВКонтакте (16.10)
     app.include_router(messengers.hooks)
     app.include_router(messengers.org)
+    app.include_router(push.router)       # пуш-уведомления (Web Push, 17.10)
     if settings.environment == 'PROD':
         messengers.start_worker(app)       # доставка в мессенджеры в фоне (служба — один процесс)
     app.mount('/assets', StaticFiles(directory=str(STATIC / 'assets')), name='assets')

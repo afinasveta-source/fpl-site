@@ -280,6 +280,27 @@ def update_profile(body: ProfileChange, user=Depends(browser_user), auth=Depends
 # Страницы кабинета: адрес обрабатывает сама страница (core.js); сервер на всех отдаёт один index.html.
 
 
+@router.get('/sw.js', include_in_schema=False)
+def service_worker():
+    """Пуш-уведомления (17.10): работник страницы лежит в корне кабинета — тогда он отвечает за весь /kabinet/."""
+    return Response((STATIC / 'sw.js').read_bytes(), media_type='application/javascript',
+                    headers={'Cache-Control': 'no-cache'})
+
+
+@router.get('/manifest.webmanifest', include_in_schema=False)
+def manifest(request: Request):
+    """Кабинет на экране телефона как приложение (на iPhone без этого пуши не работают)."""
+    root = request.app.state.settings.root_path
+    return JSONResponse({'name': 'Face Painting League — кабинет', 'short_name': 'FPL', 'lang': 'ru',
+                         'start_url': root + '/', 'scope': root + '/', 'display': 'standalone',
+                         'background_color': '#1E1B18', 'theme_color': '#1E1B18',
+                         'icons': [{'src': root + '/assets/icon-192.png', 'sizes': '192x192', 'type': 'image/png'},
+                                   {'src': root + '/assets/icon-512.png', 'sizes': '512x512', 'type': 'image/png'},
+                                   {'src': root + '/assets/icon-maskable-512.png', 'sizes': '512x512', 'type': 'image/png',
+                                    'purpose': 'maskable'}]},
+                        media_type='application/manifest+json')
+
+
 @router.get('/', include_in_schema=False)
 @router.get('/setup', include_in_schema=False)
 @router.get('/games', include_in_schema=False)

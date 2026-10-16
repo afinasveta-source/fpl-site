@@ -24,6 +24,17 @@ from kabinet.main import create_app  # noqa: E402
 from kabinet.auth.mail import MemoryMailer  # noqa: E402
 
 
+def demo_push_key(folder):
+    """Ключ пушей для демо (настоящий сервер создаёт свой в fpl-kabinet-setup)."""
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import ec
+    path = os.path.join(folder, 'push-demo.pem')
+    with open(path, 'wb') as f:
+        f.write(ec.generate_private_key(ec.SECP256R1()).private_bytes(serialization.Encoding.PEM,
+                serialization.PrivateFormat.TraditionalOpenSSL, serialization.NoEncryption()))
+    return path
+
+
 def main(port):
     source = os.environ['FPL_TEST_DSN']
     name = 'fpl_kabinet_demo_test'
@@ -73,7 +84,8 @@ VALUES (%s,'all',%s,%s,%s)''', (a, '{"ru":"%s"}' % rt,
                         login_limit=500, reset_limit=500, _env_file=None,
                         # мессенджеры — выдуманные: кнопки «Подключить» видны, отправка только в память
                         tg_token='1:demo', tg_username='fpl_demo_bot', tg_hook_path='d' * 24, tg_hook_secret='d' * 24,
-                        vk_token='demo', vk_group_id=1, vk_secret='demo', vk_confirmation='demo', messenger_worker=False)
+                        vk_token='demo', vk_group_id=1, vk_secret='demo', vk_confirmation='demo', messenger_worker=False,
+                        push_key_file=demo_push_key(media))
     from kabinet import messengers
     app = create_app(settings, MemoryMailer())
     app.state.messenger_transport = messengers.Memory()

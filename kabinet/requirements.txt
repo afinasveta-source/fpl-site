@@ -9,3 +9,4 @@ pwdlib[argon2]==0.3.1
 argon2-cffi==25.1.0
 email-validator==2.3.0
 pillow==12.3.0
+cryptography==50.0.1   # пуш-уведомления: шифрование и подпись Web Push (17.10)

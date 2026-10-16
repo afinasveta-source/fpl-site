@@ -61,6 +61,9 @@ class Settings(BaseSettings):
     vk_secret: SecretStr | None = None       # секрет Callback API сообщества
     vk_confirmation: str | None = None       # строка подтверждения адреса Callback API
     messenger_worker: bool = True            # доставка в фоне (в тестах доставка вызывается вручную)
+    # Пуш-уведомления (Web Push, 17.10): ключ VAPID создаёт сервер (fpl-kabinet-setup); нет файла — пуши выключены.
+    push_key_file: str | None = None
+    push_subject: str = 'https://facepaintingleague.com'
     # Лента данных для инструмента контента (16.10): запросов в минуту на ключ; как часто писать «последнее использование».
     feed_rate_limit: int = Field(default=120, ge=1, le=10000)
     feed_flush_seconds: int = Field(default=60, ge=0, le=3600)

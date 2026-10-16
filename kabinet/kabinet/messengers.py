@@ -454,17 +454,19 @@ WHERE provider=%s AND external_id=%s''', (t['provider'], t['external_id']))
 
 
 def start_worker(app, every=10):
-    if not app.state.settings.messenger_worker or not enabled(app.state.settings):
+    from kabinet import push
+    if not app.state.settings.messenger_worker or not (enabled(app.state.settings) or push.enabled(app.state.settings)):
         return None
     stop = threading.Event()
 
     def loop():
         while not stop.wait(every):
-            try:
-                while deliver(app) >= BATCH:
-                    pass
-            except Exception:
-                log.exception('messenger delivery failed')
+            for name, fn, batch in (('messenger', deliver, BATCH), ('push', push.deliver, push.BATCH)):
+                try:
+                    while fn(app) >= batch:
+                        pass
+                except Exception:
+                    log.exception('%s delivery failed', name)
     th = threading.Thread(target=loop, name='messenger-delivery', daemon=True)
     th.start()
     app.state.messenger_stop = stop
