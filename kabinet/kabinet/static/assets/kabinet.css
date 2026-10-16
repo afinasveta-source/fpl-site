@@ -242,7 +242,7 @@ audio.wide{width:100%;margin-block:8px}
 .gal-lb figure{margin:0;display:flex;flex-direction:column;align-items:center;gap:10px;max-width:100%;max-height:100%;min-height:0}
 .gal-lb figure img{max-height:calc(100vh - 140px);min-height:0}
 .gal-lb figcaption{color:#fff;font-size:14px;text-align:center}
-.gal-lb figcaption span{opacity:.7;margin-left:6px}
+.gal-lb figcaption span{opacity:.7;font-size:12px}
 .gal-nav{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:64px;border:0;border-radius:10px;background:rgba(255,255,255,.16);color:#fff;font-size:34px;line-height:1;cursor:pointer}
 .gal-nav:hover{background:rgba(255,255,255,.28)}
 .gal-prev{left:8px}.gal-next{right:8px}

@@ -963,7 +963,7 @@
     img.src = it.photo.view_url; img.alt = 'Работа: ' + it.author;
     box.setAttribute('aria-label', 'Работа: ' + it.author);
     box.querySelector('figcaption').innerHTML = '<b>' + esc(it.author) + '</b> · ' + esc(galLeague(it.league)) + (it.top_work ? ' · ' + esc(K.topWork(it.league)) : '') +
-      ' <span>' + (GAL.at + 1) + ' из ' + n + '</span>';
+      '<br><span>фото ' + (GAL.at + 1) + ' из ' + n + ' в галерее</span>';
     Array.prototype.forEach.call(box.querySelectorAll('.gal-nav'), function (x) { x.hidden = n < 2; });
   }
 })();
