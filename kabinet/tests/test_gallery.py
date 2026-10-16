@@ -91,6 +91,11 @@ VALUES (%s,%s,'main','pair','pairwise') RETURNING id''', (game['event'], game['r
     assert media(a, people['x']['photo']).status_code == 404
     assert media(outsider, people['b']['photo']).status_code == 404
     assert media(judge, people['b']['photo']).status_code == 200 and media(other_judge, people['b']['photo']).status_code == 404
+    # 16.10: чужую работу в галерее видят со знаком FPL (и судья вне своего пула); автор — без знака
+    own, seen, judged = (media(x, people['b']['photo'], 'view').content for x in (b, a, judge))
+    assert seen != own and judged == seen and seen[:3] == b'\xff\xd8\xff'
+    assert media(a, people['b']['photo'], 'view').content == seen                       # копия со знаком — одна, из кэша
+    assert media(org, people['b']['photo'], 'view').content == own                      # организатор — без знака
     # чужая Игра — недоступна; судья и организатор — могут
     assert outsider.get(url(game)).status_code == 404 and ok(outsider.get('/api/gallery')) == {'games': [], 'default': None}
     assert len(ok(judge.get(url(game)))['items']) == 3 and len(ok(org.get(url(game)))['items']) == 3

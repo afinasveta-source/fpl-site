@@ -17,6 +17,7 @@ from . import game as G
 from . import rules as R
 from . import views as V
 from . import gallery as GL
+from . import watermark as WM
 from .media import MediaError
 
 router = APIRouter(prefix='/api', tags=['participant'])
@@ -449,4 +450,7 @@ WHERE reviewer_id=%s AND user_id=%s AND status IN ('paid','done') LIMIT 1''', (u
     path = request.app.state.media.path(key)
     if not path.is_file():
         raise HTTPException(404, 'Not found')
+    # чужая работа в галерее или исходник эстафеты — со знаком FPL (свою, организатор, судья и разбор — без знака)
+    if (gallery or source) and row['uploaded_by'] != user['id']:
+        path = WM.path_for(request.app.state.media, key)
     return FileResponse(path, media_type='image/jpeg', headers={'Cache-Control': 'private, max-age=86400'})

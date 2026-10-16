@@ -23,6 +23,8 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import FileResponse
 
+from kabinet.participation import watermark as WM
+
 from kabinet.participation import rules as R
 from kabinet.participation.views import iso
 
@@ -421,4 +423,5 @@ def media(media_id: UUID, request: Request, size: str = Query('view', pattern='^
     path = request.app.state.media.path(store_key) if store_key else None
     if path is None or not path.is_file():
         raise HTTPException(404, 'Not found')
+    path = WM.path_for(request.app.state.media, store_key)     # для соцсетей — со знаком FPL
     return FileResponse(path, media_type='image/jpeg', headers={'Cache-Control': 'private, max-age=86400'})

@@ -136,7 +136,7 @@ curl -sS -H "Authorization: Bearer $FPL_FEED_KEY" "$F/games"
 
 ### `GET /media/{id}?size=view|thumb` — фото работы
 
-Адрес берите из `photos[].url` (с тем же ключом). Оригинал не отдаётся. Фото работы без разрешения автора — `404`.
+Адрес берите из `photos[].url` (с тем же ключом). Оригинал не отдаётся. Фото — со знаком FPL (белый логотип в правом нижнем углу), готово для публикации. Фото работы без разрешения автора — `404`.
 
 ```sh
 curl -sS -H "Authorization: Bearer $FPL_FEED_KEY" -o work.jpg "<photos[0].url>"
