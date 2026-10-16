@@ -266,7 +266,8 @@
       var base = '/org/games/' + id + '/people', crumbs = [['Игры и туры', '/org/games'], [d.event.title, '/org/games/' + id], ['Участницы']];
       var canLeagues = d.total && ['registration', 'active', 'finished'].indexOf(d.event.status) >= 0;
       var h = '<div class="stack" data-s="g6"><span class="eyebrow">' + esc(d.event.title) + '</span><div class="between"><h1>Участницы · ' + d.total + '</h1>' +
-        (canLeagues ? '<button class="btn sec small" type="button" data-href="/org/games/' + id + '/leagues">Расставить лиги</button>' : '') + '</div></div>' +
+        '<div class="row">' + (canLeagues ? '<button class="btn sec small" type="button" data-href="/org/games/' + id + '/leagues">Расставить лиги</button>' : '') +
+        (d.total && ['registration', 'active'].indexOf(d.event.status) >= 0 ? '<button class="btn small" type="button" data-act="orgBroadcast" data-e="' + id + '">Рассылка</button>' : '') + '</div></div></div>' +
         searchForm('f-parts', term, 'ФИО, имя, email или город') +
         '<div class="filters">' + filterRow('Статус', [['', 'Все', { status: '' }, d.league_total]].concat(GROUPS.map(function (g) { return [g[0], g[1], { status: g[0] }, d.groups[g[0]] || 0]; })),
           mode ? '-' : status, base, { q: term, league: league, sort: sort }) +
@@ -290,7 +291,7 @@
           d.participants.map(function (p) {
             return '<tr data-href="/org/participants/' + p.id + '"><th scope="row" data-label="Участница"><button class="lnk" type="button" data-href="/org/participants/' + p.id + '">' + esc(p.name || 'Без имени') + '</button>' +
               '<span class="small muted">' + esc([p.city, p.account_status === 'imported' ? 'не входила в кабинет' : ''].filter(Boolean).join(' · ')) + '</span>' +
-              (p.rules_ok ? '' : '<span class="small">' + pill('Правила не приняты', 'warn') + '</span>') + '</th>' +
+              (p.rules_ok ? '' : '<span class="small">' + pill('Правила не приняты', 'warn') + '</span>') + msgrMarks(p.messengers) + '</th>' +
               '<td data-label="Статус">' + O.st(O.MODE, p.mode) + '</td><td data-label="Лига">' + esc(p.league ? LEAGUE[p.league] : '—') + '</td>' +
               '<td class="c" data-label="FPL Rating"><div>' + (p.rating == null ? '<span class="muted">—</span>' : '<b class="num">' + p.rating + '</b>' +
                 (p.rating_status === 'calibrating' ? '<span class="small muted">калибровка ' + p.calibration + '/3</span>' : '')) + '</div></td>' +
@@ -310,6 +311,64 @@
       bindSearch('f-parts', function (v) { K.go(base + qs({ q: v, mode: mode, league: league, status: status, sort: sort })); });
     }, [['Игры и туры', '/org/games'], ['Участницы']]);
   });
+
+  /* Мессенджеры участницы (16.10): TG / VK — подключён; зачёркнут — бот заблокирован */
+  function msgrMarks(m) {
+    m = m || {};
+    var out = ['telegram', 'vk'].filter(function (k) { return m[k]; }).map(function (k) {
+      var t = k === 'telegram' ? 'TG' : 'VK';
+      return m[k] === 'on' ? '<span class="pill plain" title="Уведомления в ' + (k === 'telegram' ? 'Telegram' : 'ВКонтакте') + '">' + t + '</span>'
+        : '<span class="pill warn" title="Бот заблокирован — сообщения не доходят"><s>' + t + '</s></span>';
+    });
+    return out.length ? ' <span class="small">' + out.join(' ') + '</span>' : '';
+  }
+  O.msgrMarks = msgrMarks;
+
+  /* Рассылка участницам Игры (16.10): в колокольчик кабинета и, у кого подключено, в Telegram / ВКонтакте.
+     Сначала — сколько получат, потом «Отправить» с подтверждением. */
+  var AUD = [['active', 'Все, кто в Игре (в конкурсе и вне конкурса)'], ['in', 'Только в конкурсе'], ['outside', 'Только вне конкурса'], ['all', 'Все записавшиеся, включая выбывших']];
+  K.actions.orgBroadcast = function (b) {
+    var eid = b.getAttribute('data-e');
+    K.showModal('<h2 id="mT">Рассылка участницам</h2><form id="f-bc" class="stack" novalidate>' +
+      O.sel('bc-aud', 'Кому', AUD, 'active') + O.sel('bc-lg', 'Лига', [['', 'Все лиги']].concat(O.LEAGUES).concat([['none', 'Без лиги']]), '') +
+      '<div class="field"><label for="bc-title">Заголовок</label><input class="input" id="bc-title" maxlength="120" placeholder="Например: Тур 3 открывается завтра"></div>' +
+      '<div class="field"><label for="bc-text">Текст</label><textarea class="input" id="bc-text" maxlength="1500" rows="5"></textarea></div>' +
+      '<label class="chk"><input type="checkbox" id="bc-link" checked><span>Кнопка «Открыть в кабинете» — на страницу Игры</span></label>' +
+      '<p class="small muted" id="bc-count">Считаем получателей…</p>' +
+      O.errBox + '<div class="row"><button class="btn" type="submit">Отправить</button><button class="btn sec" type="button" data-act="closeModal">Отмена</button></div></form>');
+    var f = document.getElementById('f-bc'), cnt = document.getElementById('bc-count');
+    function body(send) {
+      var lg = f.querySelector('#bc-lg').value;
+      var x = { title: f.querySelector('#bc-title').value.trim() || '—', text: f.querySelector('#bc-text').value.trim() || '—',
+        audience: f.querySelector('#bc-aud').value, link: f.querySelector('#bc-link').checked ? 'game' : 'none', send: !!send };
+      if (lg) x.league = lg;
+      return x;
+    }
+    function count() {
+      K.api('POST', '/api/org/events/' + eid + '/broadcast', body(false)).then(function (r) {
+        if (!r.ok) { cnt.textContent = O.err(r); return; }
+        var d = r.data, m = d.messengers;
+        cnt.innerHTML = 'Получат: <b>' + d.recipients + '</b> — в кабинете все' + (d.recipients ? ', из них в Telegram ' + m.telegram + ', во ВКонтакте ' + m.vk : '') +
+          (d.channels.length ? '' : '. <span class="muted">Мессенджеры ещё не подключены к кабинету — только колокольчик.</span>');
+      });
+    }
+    f.querySelector('#bc-aud').addEventListener('change', count);
+    f.querySelector('#bc-lg').addEventListener('change', count);
+    count();
+    f.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var x = body(true);
+      if (!f.querySelector('#bc-title').value.trim() || !f.querySelector('#bc-text').value.trim()) { K.formError(f, 'Нужны заголовок и текст.'); return; }
+      if (!window.confirm('Отправить «' + x.title + '»? ' + cnt.textContent)) return;
+      K.formError(f, ''); K.busy(f, true);
+      K.api('POST', '/api/org/events/' + eid + '/broadcast', x).then(function (r) {
+        K.busy(f, false);
+        if (!r.ok) { K.formError(f, r.detail === 'no_recipients' ? 'Под эти условия никто не подходит.' : O.err(r)); return; }
+        f.closest('.modal').remove(); K.onEscape = null;
+        K.toast('Отправлено: ' + r.data.recipients);
+      });
+    });
+  };
 
   /* ---------- Лиги списком ---------- */
   var LG_OPTS = [['', 'Без лиги']].concat(O.LEAGUES);
@@ -395,7 +454,7 @@
   });
   var LOG = { org_outside: 'Переведена вне конкурса', org_return: 'Возвращена в конкурс', org_withdraw: 'Выведена из Игры', org_restore: 'Участие возвращено',
     org_disqualify: 'Дисквалифицирована', org_undisqualify: 'Дисквалификация отменена', league_set: 'Лига изменена', deadline_extended: 'Продлён срок', deadline_reset: 'Личный срок снят',
-    registered: 'Записалась', org_work_uploaded: 'Работа загружена организатором', org_top_work: 'TOP WORK', chose_outside: 'Сама выбрала «вне конкурса»', late_to_outside: 'Пропущен срок — вне конкурса', withdrew: 'Сама вышла из Игры' };
+    registered: 'Записалась', org_work_uploaded: 'Работа загружена организатором', org_top_work: 'TOP WORK', messenger_linked: 'Подключён мессенджер', messenger_unlinked: 'Отключён мессенджер', chose_outside: 'Сама выбрала «вне конкурса»', late_to_outside: 'Пропущен срок — вне конкурса', withdrew: 'Сама вышла из Игры' };
   /* FPL Rating (17.10): текущий, калибровка и изменение за каждый тур этой Игры. Это не очки FPL — очки копятся отдельно
      (за итог Игры и TOP WORK) и на рейтинг не влияют. */
   O.ratingLabel = function (rating, status, calibration) {
@@ -424,7 +483,8 @@
     h += '<section class="card"><dl class="kv"><dt>Лига</dt><dd>' + esc(x.league ? LEAGUE[x.league] : 'не указана') + '</dd><dt>Записалась</dt><dd>' + esc(x.joined_at ? K.dateY(x.joined_at) : '—') + '</dd>' +
       '<dt>Правила</dt><dd>' + (x.rules_ok ? pill('Приняты', 'ok') : pill('Не приняты действующие', 'warn')) + '</dd>' +
       (x.out_of_competition_at ? '<dt>Вне конкурса с</dt><dd>' + esc(K.dateY(x.out_of_competition_at)) + ' · ' + esc(x.out_source === 'admin' ? 'решение организатора' : x.out_source === 'participant' ? 'выбор участницы' : 'пропущен срок') + '</dd>' : '') +
-      '<dt>Аккаунт</dt><dd>' + O.st(ACCOUNT, x.person.account_status) + ' <button class="lnk" type="button" data-href="/org/people/' + x.person.id + '">карточка</button></dd></dl>' +
+      '<dt>Аккаунт</dt><dd>' + O.st(ACCOUNT, x.person.account_status) + ' <button class="lnk" type="button" data-href="/org/people/' + x.person.id + '">карточка</button></dd>' +
+      '<dt>Уведомления</dt><dd>' + (msgrMarks(x.messengers) || '<span class="muted">только кабинет</span>') + '</dd></dl>' +
       ratingBlock(x) +
       (x.missed_round ? '<div class="note warn small">Пропущен срок тура ' + x.missed_round + '. Чтобы вернуть в конкурс, сначала продлите ей срок этого тура.</div>' : '') + '</section>';
     if (live) {

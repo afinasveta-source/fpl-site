@@ -184,17 +184,19 @@ MCHANGED=0
 if ! cmp -s "$TMP" /etc/systemd/system/fpl-kabinet-mail.service; then install -m 0644 "$TMP" /etc/systemd/system/fpl-kabinet-mail.service; MCHANGED=1; fi
 cat > "$TMP" <<EOF
 [Unit]
-Description=FPL kabinet: следить за настройками почты
+Description=FPL kabinet: следить за настройками почты и мессенджеров
 
 [Path]
 PathChanged=/var/lib/fpl/private/mail-smtp.json
+PathChanged=/var/lib/fpl/private/messengers-telegram.json
+PathChanged=/var/lib/fpl/private/messengers-vk.json
 
 [Install]
 WantedBy=multi-user.target
 EOF
 if ! cmp -s "$TMP" /etc/systemd/system/fpl-kabinet-mail.path; then install -m 0644 "$TMP" /etc/systemd/system/fpl-kabinet-mail.path; MCHANGED=1; fi
 rm -f "$TMP"
-if [ "$MCHANGED" = 1 ]; then systemctl daemon-reload; fi
+if [ "$MCHANGED" = 1 ]; then systemctl daemon-reload; systemctl restart fpl-kabinet-mail.path >/dev/null 2>&1 || true; fi
 if [ -x /usr/local/bin/fpl-kabinet-mail ]; then
   systemctl enable --now fpl-kabinet-mail.path >/dev/null 2>&1 || echo "кабинет: слежение за почтой не включилось"
 fi

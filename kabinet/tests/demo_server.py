@@ -70,8 +70,14 @@ VALUES (%s,'all',%s,%s,%s)''', (a, '{"ru":"%s"}' % rt,
         game('Игра 03', 'registration', h(days=25), h(days=20), [('Первый тур', h(days=25), h(days=28))], 3)
     media = tempfile.mkdtemp(prefix='fpl-demo-media-')
     settings = Settings(environment='TEST', database_dsn=dsn, mail_mode='memory', media_dir=media, media_min_free_mb=1,
-                        login_limit=500, reset_limit=500, _env_file=None)
-    uvicorn.run(create_app(settings, MemoryMailer()), host='127.0.0.1', port=port, log_level='warning')
+                        login_limit=500, reset_limit=500, _env_file=None,
+                        # мессенджеры — выдуманные: кнопки «Подключить» видны, отправка только в память
+                        tg_token='1:demo', tg_username='fpl_demo_bot', tg_hook_path='d' * 24, tg_hook_secret='d' * 24,
+                        vk_token='demo', vk_group_id=1, vk_secret='demo', vk_confirmation='demo', messenger_worker=False)
+    from kabinet import messengers
+    app = create_app(settings, MemoryMailer())
+    app.state.messenger_transport = messengers.Memory()
+    uvicorn.run(app, host='127.0.0.1', port=port, log_level='warning')
 
 
 if __name__ == '__main__':

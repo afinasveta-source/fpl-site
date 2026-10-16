@@ -1,5 +1,5 @@
 #!/bin/bash
-# fpl-kabinet-mail: почта кабинета (письма «новый пароль»).
+# fpl-kabinet-mail: почта кабинета (письма «новый пароль») и бот уведомлений (Telegram, ВКонтакте — с 16.10).
 # Доступ к почтовому ящику вводится на закрытой странице /admin/mail.html → приёмник данных проверяет его пробным письмом
 # и сохраняет в /var/lib/fpl/private/mail-smtp.json (0600). Пароль ящика — только на сервере.
 #   fpl-kabinet-mail --lines  — строки настроек почты для /etc/fpl-kabinet.env (без файла — почта выключена);
@@ -28,6 +28,32 @@ PY
   else
     echo "FPL_MAIL_MODE=disabled"
   fi
+  # Бот уведомлений (16.10): Telegram и ВКонтакте — страница /admin/messengers.html. Нет файла — канал выключен.
+  python3 - /var/lib/fpl/private/messengers-telegram.json /var/lib/fpl/private/messengers-vk.json <<'PY'
+import json, os, re, sys
+q = lambda v: '"' + str(v).replace('\\', '\\\\').replace('"', '\\"') + '"'
+tg, vk = sys.argv[1], sys.argv[2]
+try:
+    c = json.load(open(tg, encoding='utf-8')) if os.path.getsize(tg) else {}
+except Exception:
+    c = {}
+if re.match(r'^\d{5,15}:[A-Za-z0-9_-]{30,60}$', c.get('token', '')) and re.match(r'^[A-Za-z0-9_]{3,64}$', c.get('username') or '') \
+        and re.match(r'^[A-Za-z0-9]{20,80}$', c.get('hook_path', '')) and re.match(r'^[A-Za-z0-9]{20,80}$', c.get('hook_secret', '')):
+    print('FPL_TG_TOKEN=' + q(c['token']))
+    print('FPL_TG_USERNAME=' + c['username'])
+    print('FPL_TG_HOOK_PATH=' + c['hook_path'])
+    print('FPL_TG_HOOK_SECRET=' + c['hook_secret'])
+try:
+    v = json.load(open(vk, encoding='utf-8')) if os.path.getsize(vk) else {}
+except Exception:
+    v = {}
+if str(v.get('group_id', '')).isdigit() and re.match(r'^[A-Za-z0-9._-]{40,400}$', v.get('token', '')) \
+        and re.match(r'^[0-9a-f]{32}$', v.get('secret', '')) and re.match(r'^[A-Za-z0-9]{4,40}$', v.get('confirmation', '')):
+    print('FPL_VK_TOKEN=' + q(v['token']))
+    print('FPL_VK_GROUP_ID=' + str(v['group_id']))
+    print('FPL_VK_SECRET=' + v['secret'])
+    print('FPL_VK_CONFIRMATION=' + v['confirmation'])
+PY
 }
 
 case "${1:-}" in
@@ -35,12 +61,12 @@ case "${1:-}" in
   --apply)
     [ -f "$ENVF" ] || { echo "нет $ENVF — кабинет не установлен"; exit 0; }
     TMP=$(mktemp)
-    grep -v -E '^FPL_(MAIL_MODE|MAIL_FROM|SMTP_HOST|SMTP_PORT|SMTP_USERNAME|SMTP_PASSWORD)=' "$ENVF" > "$TMP" || true
+    grep -v -E '^FPL_(MAIL_MODE|MAIL_FROM|SMTP_HOST|SMTP_PORT|SMTP_USERNAME|SMTP_PASSWORD|TG_[A-Z_]+|VK_[A-Z_]+)=' "$ENVF" > "$TMP" || true
     lines >> "$TMP"
     if ! cmp -s "$TMP" "$ENVF"; then
       install -m 0640 -o root -g fplkab "$TMP" "$ENVF"
       systemctl restart fpl-kabinet
-      echo "почта кабинета: настройки обновлены $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+      echo "почта и мессенджеры кабинета: настройки обновлены $(date -u +%Y-%m-%dT%H:%M:%SZ)"
     fi
     rm -f "$TMP" ;;
   *) echo "usage: fpl-kabinet-mail --lines | --apply"; exit 2 ;;

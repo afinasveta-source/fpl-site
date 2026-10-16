@@ -50,6 +50,17 @@ class Settings(BaseSettings):
     upload_max_mb: int = Field(default=20, ge=1, le=50)
     upload_limit: int = 60
     media_min_free_mb: int = 1024
+    # Уведомления в мессенджеры (16.10): бот лиги в Telegram и сообщество ВКонтакте. Нет токена — канал выключен.
+    # Токены вводятся на закрытой странице сервера /admin/messengers.html и попадают сюда из /etc/fpl-kabinet.env.
+    tg_token: SecretStr | None = None
+    tg_username: str | None = None           # имя бота без @ — для ссылки t.me/<имя>?start=<код>
+    tg_hook_path: SecretStr | None = None    # секретная часть адреса, на который Telegram присылает сообщения
+    tg_hook_secret: SecretStr | None = None  # заголовок X-Telegram-Bot-Api-Secret-Token
+    vk_token: SecretStr | None = None
+    vk_group_id: int | None = None
+    vk_secret: SecretStr | None = None       # секрет Callback API сообщества
+    vk_confirmation: str | None = None       # строка подтверждения адреса Callback API
+    messenger_worker: bool = True            # доставка в фоне (в тестах доставка вызывается вручную)
     # Лента данных для инструмента контента (16.10): запросов в минуту на ключ; как часто писать «последнее использование».
     feed_rate_limit: int = Field(default=120, ge=1, le=10000)
     feed_flush_seconds: int = Field(default=60, ge=0, le=3600)

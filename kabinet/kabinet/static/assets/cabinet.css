@@ -402,3 +402,8 @@ details.more.card{padding:14px 18px}
 .hdr .logo{font-size:0; color:transparent; display:inline-flex; align-items:center; gap:8px; min-height:34px; padding-left:38px;
   background:url(fpl-logo.svg) left center/auto 34px no-repeat}
 .hdr .logo small{font-size:9px; color:var(--head-muted)}
+/* Мессенджеры в настройках уведомлений (16.10) */
+.msgr{display:flex;flex-direction:column;gap:8px;padding:12px 0;border-bottom:1px solid var(--line, rgba(0,0,0,.08))}
+.msgr:last-of-type{border-bottom:0}
+.msgr .btn{align-self:flex-start}
+.msgr-wait{line-height:1.5}

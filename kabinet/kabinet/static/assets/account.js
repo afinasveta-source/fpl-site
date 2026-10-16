@@ -165,7 +165,7 @@
         '<dt>Telegram</dt><dd>' + (prefs.telegram_linked ? 'привязан' : '<span class="muted">не привязан</span>') + '</dd></dl></section>' +
         '<div class="list">' + li('Имя и публичное имя', 'Как вас видят в рейтинге и галерее', '', '/profile/name') + li('Страна и город', esc(place || 'Не указаны'), '', '/profile/place') +
         li('Публичность профиля и работ', 'Что из вашего профиля и работ видно на сайте и в соцсетях', '', '/profile/publicity') +
-        li('Вход и пароль', 'Email и пароль', '', '/profile/security') + li('Уведомления', 'Telegram, email, кабинет', '', '/profile/notifications') +
+        li('Вход и пароль', 'Email и пароль', '', '/profile/security') + li('Уведомления', 'Telegram, ВКонтакте, email', '', '/profile/notifications') +
         li('Согласия и документы', 'Что и когда вы приняли', '', '/profile/consents') + '</div><button class="btn sec" type="button" data-act="logout">Выйти</button>');
     });
   });
@@ -237,16 +237,35 @@
     return '<div class="switch"><div><b>' + title + '</b><div class="small muted">' + sub + '</div></div><input class="tg" type="checkbox" data-nodraft id="' + id + '" aria-label="' + esc(title) + '"' +
       (on ? ' checked' : '') + (extra || '') + '></div>';
   }
+  /* Уведомления (16.10): Telegram и ВКонтакте подключаются одноразовой ссылкой на бота лиги (15 минут, один раз).
+     Бот только присылает уведомления — войти в кабинет или сменить пароль через него нельзя. */
+  var MSG = { telegram: ['Telegram', 'бот лиги в Telegram'], vk: ['ВКонтакте', 'сообщения сообщества лиги'] };
+  var msgPoll = null;
+  function msgCard(k, m, prefs) {
+    var name = MSG[k][0], h = '<div class="msgr" id="msgr-' + k + '"><div class="between"><div><b>' + name + '</b><div class="small muted">' +
+      (m.linked ? 'Подключён' + (m.name ? ' · ' + esc(m.name) : '') + (m.linked_at ? ' · ' + esc(K.dateY(m.linked_at)) : '') : 'Задания, сроки, итоги туров — ' + MSG[k][1]) + '</div></div>' +
+      (m.linked ? (m.blocked ? pill('Бот заблокирован', 'warn') : pill('Подключён', 'ok')) : m.available ? '' : pill('Скоро', 'plain')) + '</div>';
+    if (m.linked && m.blocked) h += '<p class="small">Сообщения не доходят: бот заблокирован или сообщения от сообщества запрещены. Отключите и подключите заново.</p>';
+    if (m.linked && k === 'telegram') h += sw('p-tg', 'Присылать в Telegram', 'Можно временно выключить, не отвязывая', prefs.telegram);
+    if (m.linked) h += '<button class="btn ghost small" type="button" data-act="msgrUnlink" data-k="' + k + '">Отключить ' + name + '</button>';
+    else if (m.available) h += '<button class="btn small" type="button" data-act="msgrLink" data-k="' + k + '">Подключить ' + name + '</button><div class="msgr-wait small" hidden></div>';
+    return h + '</div>';
+  }
+  function drawNotifications(m, p) {
+    K.page('<h1>Уведомления</h1><section class="card stack"><h3>Мессенджеры</h3>' + msgCard('telegram', m.telegram, p) + msgCard('vk', m.vk, p) +
+      '<p class="small muted">Бот только присылает уведомления — войти в кабинет, сменить пароль или сдать работу через него нельзя. Отключить можно здесь или словом «стоп» в чате.</p>' +
+      '<p class="small muted" id="tg-warn"' + (m.telegram.linked || m.vk.linked ? ' hidden' : '') + '>Без мессенджера вы можете пропустить срок сдачи. Сроки всегда видны здесь, в кабинете.</p></section>' +
+      '<section class="card"><h3>Другие каналы</h3>' + sw('p-email', 'Email', 'Дублирование важных сроков', p.email) +
+      '<div class="switch"><div><b>Кабинет</b><div class="small muted">Колокольчик и раздел «Уведомления»</div></div><span class="pill plain always">Всегда</span></div>' +
+      '<p class="small muted">Уведомления в кабинете приходят всегда — чтобы вы ничего не пропустили.</p></section>' +
+      '<section class="card"><h3>Новости лиги</h3>' + sw('p-mkt', 'Анонсы Игр и челленджей', 'Анонсы новых событий', p.marketing) +
+      '<p class="small muted">Отказ от новостей не отключает сообщения по вашему участию.</p></section>' + backLink(), P.concat([['Уведомления']]));
+  }
+  function stopPoll() { if (msgPoll) { clearInterval(msgPoll); msgPoll = null; } }
   K.on(/^\/profile\/notifications$/, function () {
-    K.load(['/api/preferences'], function (p) {
-      K.page('<h1>Уведомления</h1><section class="card"><h3>По участию</h3>' +
-        sw('p-tg', 'Telegram', p.telegram_linked ? 'Сроки, открытие туров, итоги' : 'Сроки, открытие туров, итоги · Telegram ещё не привязан', p.telegram) +
-        '<p class="small muted" id="tg-warn"' + (p.telegram ? ' hidden' : '') + '>Без уведомлений в Telegram вы можете пропустить срок сдачи. Сроки всегда видны здесь, в кабинете.</p>' +
-        sw('p-email', 'Email', 'Дублирование важных сроков', p.email) +
-        '<div class="switch"><div><b>Кабинет</b><div class="small muted">Колокольчик и раздел «Уведомления»</div></div><span class="pill plain always">Всегда</span></div>' +
-        '<p class="small muted">Уведомления в кабинете приходят всегда — чтобы вы ничего не пропустили.</p></section>' +
-        '<section class="card"><h3>Новости лиги</h3>' + sw('p-mkt', 'Анонсы Игр и челленджей', 'Анонсы новых событий', p.marketing) +
-        '<p class="small muted">Отказ от новостей не отключает сообщения по вашему участию.</p></section>' + backLink(), P.concat([['Уведомления']]));
+    stopPoll();
+    K.load(['/api/messengers', '/api/preferences'], function (m, p) {
+      drawNotifications(m, p);
       document.getElementById('main').addEventListener('change', function (e) {
         var key = { 'p-tg': 'telegram', 'p-email': 'email', 'p-mkt': 'marketing' }[e.target.id];
         if (!key) return;
@@ -255,12 +274,45 @@
         K.api('PUT', '/api/preferences', body).then(function (r) {
           e.target.disabled = false;
           if (!r.ok) { e.target.checked = !e.target.checked; K.toast(K.errorText(r)); return; }
-          if (key === 'telegram') document.getElementById('tg-warn').hidden = r.data.telegram;
           K.toast('Сохранено');
         });
       });
     }, P.concat([['Уведомления']]));
   });
+  K.actions.msgrLink = function (b) {
+    var k = b.getAttribute('data-k'), wait = b.parentNode.querySelector('.msgr-wait');
+    var win = null;
+    try { win = window.open('', '_blank'); } catch (e) { win = null; }   // окно — сразу по нажатию, иначе браузер заблокирует
+    b.disabled = true;
+    K.api('POST', '/api/messengers/' + k + '/link', {}).then(function (r) {
+      b.disabled = false;
+      if (!r.ok) { if (win) win.close(); K.toast(r.detail === 'channel_off' ? MSG[k][0] + ' пока не подключён к кабинету.' : K.errorText(r)); return; }
+      var d = r.data;
+      if (win) { try { win.opener = null; win.location.href = d.url; } catch (e) { win = null; } }
+      wait.hidden = false;
+      wait.innerHTML = (k === 'telegram' ? 'Откроется бот — нажмите в нём «Старт» (Start).' : 'Откроется чат сообщества — нажмите «Начать» или отправьте код <b class="num">' + esc(d.code) + '</b>.') +
+        ' Ссылка действует ' + d.minutes + ' минут. <a href="' + esc(d.url) + '" target="_blank" rel="noopener">Открыть ещё раз</a>' +
+        '<br><span class="muted">Ждём подтверждения…</span>';
+      stopPoll();
+      var tries = 0;
+      msgPoll = setInterval(function () {
+        if (!document.getElementById('msgr-' + k) || ++tries > 100) { stopPoll(); return; }
+        K.api('GET', '/api/messengers').then(function (s) {
+          if (!s.ok || !s.data[k].linked) return;
+          stopPoll();
+          K.api('GET', '/api/preferences').then(function (p) { drawNotifications(s.data, p.ok ? p.data : {}); K.toast(MSG[k][0] + ' подключён'); });
+        });
+      }, 3000);
+    });
+  };
+  K.actions.msgrUnlink = function (b) {
+    var k = b.getAttribute('data-k');
+    b.disabled = true;
+    K.api('POST', '/api/messengers/' + k + '/unlink', {}).then(function (r) {
+      if (!r.ok) { b.disabled = false; K.toast(K.errorText(r)); return; }
+      K.api('GET', '/api/preferences').then(function (p) { drawNotifications(r.data, p.ok ? p.data : {}); K.toast(MSG[k][0] + ' отключён'); });
+    });
+  };
 
   /* ---------- Публичность ---------- */
   K.on(/^\/profile\/publicity$/, function () {

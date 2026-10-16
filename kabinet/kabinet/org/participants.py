@@ -13,6 +13,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator
 
+from kabinet import messengers as MS
 from kabinet.participation import game as G
 from kabinet.participation import rules as R
 from kabinet.participation import views as V
@@ -98,6 +99,7 @@ WHERE p.event_id=%s ORDER BY p.joined_at NULLS LAST, p.created_at''', (event_id,
         rounds, mains = event_structure(conn, event_id)
         scores = round_scores(conn, event_id)
         pas, subs, drafts = works_of(conn, [r['id'] for r in rows], [a['id'] for a in mains.values()])
+        msgr = MS.org_status(conn, [r['user_id'] for r in rows])     # у кого подключены Telegram / ВКонтакте (16.10)
         variants = variants_of(conn, [a['id'] for a in mains.values()])
         rules_doc = G.rules_document(conn, now)
         accepted = set()
@@ -147,7 +149,8 @@ WHERE legal_document_id=%s ORDER BY user_id, recorded_at DESC, id DESC''', (rule
                     'joined_at': iso(p['joined_at']), 'account_status': p['account_status'],
                     'rating': round(float(p['current_rating'])) if p['current_rating'] is not None else None,
                     'rating_status': p['rating_status'] or 'unrated', 'calibration': p['calibration_rounds_completed'] or 0,
-                    'rules_ok': rules_doc is None or p['user_id'] in accepted, 'rounds': cells})
+                    'rules_ok': rules_doc is None or p['user_id'] in accepted, 'rounds': cells,
+                    'messengers': msgr.get(str(p['user_id']), {})})
     if sort:
         # без рейтинга — всегда в конце списка; при равном рейтинге — как были (по записи)
         sign = -1 if sort == 'rating_desc' else 1
@@ -252,6 +255,7 @@ WHERE a.entity_type='event_participant' AND a.entity_id=%s ORDER BY a.created_at
             'joined_at': iso(ep['joined_at']), 'rules_ok': G.rules_ok(conn, ep['user_id'], now),
             'missed_round': missed['round_no'] if missed else None, 'rounds': rounds_out,
             'rating': rating_of(conn, ep['user_id'], ep['event_id']),
+            'messengers': MS.org_status(conn, [ep['user_id']]).get(str(ep['user_id']), {}),
             'log': [{'action': x['action'], 'data': x['after_data'], 'reason': x['reason'], 'at': iso(x['created_at']),
                      'by': person_name(x) if (x['full_name'] or x['display_name'] or x['email']) else 'Система'} for x in log]}
 

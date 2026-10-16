@@ -16,6 +16,12 @@ POST /api/settings/backup  (заголовок X-FPL-Key) {"bucket","pool","acce
 POST /api/settings/mail  (заголовок X-FPL-Key) {"host","port","username","password","from_name","test_to"}
   Почта кабинета (письма «новый пароль»): сохраняется (/var/lib/fpl/private/mail-smtp.json, 0600) только после того,
   как пробное письмо ушло на test_to. Дальше fpl-kabinet-mail (служба по изменению файла) включает почту в кабинете.
+POST /api/settings/telegram  (заголовок X-FPL-Key) {"token"} | {"disable": true}
+  Бот уведомлений лиги (16.10): токен проверяется (getMe), Telegram получает адрес кабинета для сообщений боту (setWebhook,
+  секретная часть адреса и заголовок). Сохраняется в /var/lib/fpl/private/messengers-telegram.json (0600).
+POST /api/settings/vk  (заголовок X-FPL-Key) {"group_id","token"} | {"finish": true} | {"disable": true}
+  Сообщество ВКонтакте: ключ проверяется, берётся строка подтверждения Callback API → файл messengers-vk.json;
+  finish (через ~20 секунд, когда кабинет перечитал настройки) — адрес кабинета добавляется в Callback API сообщества.
 """
 import json, os, re, sys, time, tempfile, urllib.parse
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -143,6 +149,150 @@ class H(BaseHTTPRequestHandler):
         os.chmod(path, 0o600)
         return self.reply(200, {'ok': True, 'from': cfg['username'], 'test_to': cfg['test_to']})
 
+    # ---------- мессенджеры (16.10) ----------
+    def _json_body(self, limit=4096):
+        n = int(self.headers.get('Content-Length') or 0)
+        if n > limit:
+            return None, self.reply(413, {'ok': False, 'error': 'too_large'})
+        try:
+            body = json.loads(self.rfile.read(n).decode('utf-8') or '{}')
+        except Exception:
+            return None, self.reply(400, {'ok': False, 'error': 'bad_json'})
+        if not KEY or self.headers.get('X-FPL-Key') != KEY:
+            time.sleep(1)
+            return None, self.reply(403, {'ok': False, 'error': 'bad_key'})
+        return (body if isinstance(body, dict) else {}), None
+
+    def _domain(self):
+        host = (os.environ.get('DOMAIN') or self.headers.get('Host') or 'facepaintingleague.com').split(':')[0].lower()
+        return host if re.match(r'^[a-z0-9.-]{3,100}$', host) else 'facepaintingleague.com'
+
+    @staticmethod
+    def _http(url, data=None, form=False, timeout=20):
+        import urllib.request, urllib.error
+        if data is None:
+            body, headers = None, {}
+        elif form:
+            body, headers = urllib.parse.urlencode(data).encode(), {'Content-Type': 'application/x-www-form-urlencoded'}
+        else:
+            body, headers = json.dumps(data).encode(), {'Content-Type': 'application/json'}
+        req = urllib.request.Request(url, data=body, headers=headers)
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                return json.loads(r.read().decode() or '{}')
+        except urllib.error.HTTPError as e:
+            try:
+                return json.loads(e.read().decode() or '{}')
+            except Exception:
+                return {'ok': False, 'description': 'http %s' % e.code}
+
+    def settings_telegram(self):
+        body, err = self._json_body()
+        if err:
+            return err
+        path = os.path.join(PRIVATE, 'messengers-telegram.json')
+        if body.get('disable'):
+            try:
+                cfg = json.load(open(path, encoding='utf-8'))
+                self._http('https://api.telegram.org/bot%s/deleteWebhook' % cfg['token'], {})
+            except Exception:
+                pass
+            if os.path.exists(path):
+                os.remove(path)
+            return self.reply(200, {'ok': True, 'disabled': True})
+        token = str(body.get('token') or '').strip()
+        if not re.match(r'^\d{5,15}:[A-Za-z0-9_-]{30,60}$', token):
+            return self.reply(400, {'ok': False, 'error': 'bad_token'})
+        api = 'https://api.telegram.org/bot%s/' % token
+        try:
+            me = self._http(api + 'getMe')
+        except Exception as e:
+            return self.reply(502, {'ok': False, 'error': 'telegram_unreachable', 'detail': type(e).__name__})
+        if not me.get('ok'):
+            return self.reply(400, {'ok': False, 'error': 'token_rejected'})
+        import secrets
+        alnum = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+        hook_path = ''.join(secrets.choice(alnum) for _ in range(40))
+        hook_secret = ''.join(secrets.choice(alnum) for _ in range(48))
+        url = 'https://%s/kabinet/api/messenger-hook/telegram/%s' % (self._domain(), hook_path)
+        cfg = {'token': token, 'username': me['result'].get('username'), 'hook_path': hook_path, 'hook_secret': hook_secret,
+               'saved_at': time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}
+        write_atomic(path, cfg)            # сначала настройки (кабинет перечитает их за секунды), потом адрес в Telegram
+        os.chmod(path, 0o600)
+        time.sleep(8)
+        r = self._http(api + 'setWebhook', {'url': url, 'secret_token': hook_secret, 'allowed_updates': ['message'],
+                                            'drop_pending_updates': True, 'max_connections': 10})
+        if not r.get('ok'):
+            return self.reply(502, {'ok': False, 'error': 'webhook_failed', 'detail': str(r.get('description', ''))[:200]})
+        return self.reply(200, {'ok': True, 'username': cfg['username']})
+
+    def _vk(self, method, token, **params):
+        params.update({'access_token': token, 'v': '5.199'})
+        r = self._http('https://api.vk.com/method/' + method, params, form=True)
+        if 'error' in r:
+            raise ValueError('%s: %s' % (r['error'].get('error_code'), r['error'].get('error_msg', '')[:150]))
+        return r.get('response')
+
+    def settings_vk(self):
+        body, err = self._json_body()
+        if err:
+            return err
+        path = os.path.join(PRIVATE, 'messengers-vk.json')
+        if body.get('disable'):
+            if os.path.exists(path):
+                os.remove(path)
+            return self.reply(200, {'ok': True, 'disabled': True})
+        if body.get('finish'):
+            try:
+                cfg = json.load(open(path, encoding='utf-8'))
+            except Exception:
+                return self.reply(409, {'ok': False, 'error': 'not_saved'})
+            url = 'https://%s/kabinet/api/messenger-hook/vk' % self._domain()
+            try:
+                servers = self._vk('groups.getCallbackServers', cfg['token'], group_id=cfg['group_id']) or {}
+                sid = next((x['id'] for x in servers.get('items', []) if x.get('url') == url), None)
+                if sid is None:
+                    sid = self._vk('groups.addCallbackServer', cfg['token'], group_id=cfg['group_id'], url=url,
+                                   title='FPL kabinet', secret_key=cfg['secret'])['server_id']
+                else:
+                    self._vk('groups.editCallbackServer', cfg['token'], group_id=cfg['group_id'], server_id=sid, url=url,
+                             title='FPL kabinet', secret_key=cfg['secret'])
+                self._vk('groups.setCallbackSettings', cfg['token'], group_id=cfg['group_id'], server_id=sid,
+                         api_version='5.199', message_new=1)
+                try:                          # кнопка «Начать» — ссылка с кодом работает в один тап
+                    self._vk('groups.setSettings', cfg['token'], group_id=cfg['group_id'], messages=1, bot_capabilities=1,
+                             bot_start_button=1)
+                except ValueError:
+                    pass
+            except ValueError as e:
+                return self.reply(502, {'ok': False, 'error': 'vk_failed', 'detail': str(e)})
+            except Exception as e:
+                return self.reply(502, {'ok': False, 'error': 'vk_unreachable', 'detail': type(e).__name__})
+            cfg['server_id'] = sid
+            write_atomic(path, cfg)
+            os.chmod(path, 0o600)
+            return self.reply(200, {'ok': True, 'name': cfg.get('name'), 'server_id': sid})
+        gid, token = str(body.get('group_id') or '').strip().lstrip('-'), str(body.get('token') or '').strip()
+        if not re.match(r'^\d{1,12}$', gid):
+            return self.reply(400, {'ok': False, 'error': 'bad_group_id'})
+        if not re.match(r'^[A-Za-z0-9._-]{40,400}$', token):
+            return self.reply(400, {'ok': False, 'error': 'bad_token'})
+        try:
+            info = self._vk('groups.getById', token, group_id=gid)
+            groups = info.get('groups') if isinstance(info, dict) else info
+            name = (groups or [{}])[0].get('name')
+            code = self._vk('groups.getCallbackConfirmationCode', token, group_id=gid)['code']
+        except ValueError as e:
+            return self.reply(400, {'ok': False, 'error': 'token_rejected', 'detail': str(e)})
+        except Exception as e:
+            return self.reply(502, {'ok': False, 'error': 'vk_unreachable', 'detail': type(e).__name__})
+        import secrets
+        cfg = {'group_id': int(gid), 'token': token, 'secret': secrets.token_hex(16), 'confirmation': code, 'name': name,
+               'saved_at': time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}
+        write_atomic(path, cfg)
+        os.chmod(path, 0o600)
+        return self.reply(200, {'ok': True, 'name': name, 'next': 'finish'})
+
     def do_POST(self):
         u = urllib.parse.urlparse(self.path)
         if u.path == '/api/settings/mail':
@@ -151,6 +301,13 @@ class H(BaseHTTPRequestHandler):
             except Exception as e:
                 print('settings_mail error: %s' % type(e).__name__, flush=True)
                 return self.reply(500, {'ok': False, 'error': 'server_error'})
+        for route, fn in (('/api/settings/telegram', self.settings_telegram), ('/api/settings/vk', self.settings_vk)):
+            if u.path == route:
+                try:
+                    return fn()
+                except Exception as e:
+                    print('%s error: %s' % (route, type(e).__name__), flush=True)
+                    return self.reply(500, {'ok': False, 'error': 'server_error'})
         if u.path == '/api/settings/backup':
             try:
                 return self.settings_backup()

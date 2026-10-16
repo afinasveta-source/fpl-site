@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>FPL · бот уведомлений</title>
+<style>
+:root{--ink:#1E1B18;--paper:#F5F1EB;--line:#DDD5CB;--accent:#F2601F;--ok:#2F7D32;--bad:#B3261E}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+main{max-width:560px;margin:0 auto;padding:32px 16px 64px}
+h1{font-size:26px;margin:0 0 8px}
+p.lead{margin:0 0 24px;color:#5E5650}
+label{display:block;font-weight:600;font-size:14px;margin:16px 0 6px}
+input,select{width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:10px;font:inherit;background:#fff}
+small{display:block;color:#7A716A;margin-top:4px;font-size:13px}
+button{margin-top:24px;width:100%;padding:14px;border:0;border-radius:999px;background:var(--accent);color:#fff;font:600 16px inherit;cursor:pointer}
+button[disabled]{opacity:.6;cursor:wait}
+#out{margin-top:20px;padding:14px 16px;border-radius:10px;display:none}
+#out.ok{display:block;background:#E8F3E8;color:var(--ok)}
+#out.bad{display:block;background:#FBE9E7;color:var(--bad)}
+section{margin-top:36px;padding-top:8px;border-top:1px solid var(--line)}
+h2{font-size:20px;margin:0 0 6px}
+ol{padding-left:20px;margin:8px 0}
+button.sec{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.out{margin-top:16px;padding:14px 16px;border-radius:10px;display:none}
+.out.ok{display:block;background:#E8F3E8;color:var(--ok)}
+.out.bad{display:block;background:#FBE9E7;color:var(--bad)}
+</style>
+</head>
+<body>
+<main>
+  <h1>Бот уведомлений лиги</h1>
+  <p class="lead">Telegram и ВКонтакте для уведомлений кабинета: задания, сроки, итоги, рассылки организатора. Токены сохраняются только на сервере — никуда их больше не пересылайте. Участницы подключают мессенджер сами: Профиль → Уведомления.</p>
+
+  <label for="ik">Ключ приёмника данных</label>
+  <input id="ik" type="password" autocomplete="off">
+  <small>Тот же, что для почты и копий, — из менеджера паролей.</small>
+
+  <section>
+    <h2>Telegram</h2>
+    <ol>
+      <li>В Telegram откройте @BotFather → /mybots → бот лиги → API Token → <b>Revoke current token</b>. Старый токен перестанет работать — SaleBot отключится от бота.</li>
+      <li>Скопируйте новый токен и вставьте сюда.</li>
+    </ol>
+    <label for="tg">Токен бота</label>
+    <input id="tg" type="password" autocomplete="off" placeholder="123456789:AA…">
+    <button id="btg" type="button">Подключить Telegram</button>
+    <div class="out" id="otg" role="status"></div>
+  </section>
+
+  <section>
+    <h2>ВКонтакте</h2>
+    <ol>
+      <li>Сообщество → Управление → Сообщения: включить; «Возможности ботов»: включить, кнопка «Начать» — да.</li>
+      <li>Управление → Работа с API → Ключи доступа → Создать ключ: отметить <b>«Управление сообществом»</b> и <b>«Сообщения сообщества»</b>.</li>
+      <li>Вставьте ключ и номер сообщества (цифры из адреса club<b>123456</b> или из «Работа с API»).</li>
+    </ol>
+    <label for="gid">Номер сообщества</label>
+    <input id="gid" inputmode="numeric" autocomplete="off" placeholder="123456789">
+    <label for="vk">Ключ доступа сообщества</label>
+    <input id="vk" type="password" autocomplete="off" placeholder="vk1.a.…">
+    <button id="bvk" type="button">Подключить ВКонтакте</button>
+    <div class="out" id="ovk" role="status"></div>
+  </section>
+
+  <section>
+    <h2>Отключить</h2>
+    <p>Кабинет перестанет отправлять сообщения в выбранный мессенджер. Привязки участниц сохранятся.</p>
+    <button class="sec" id="dtg" type="button">Отключить Telegram</button>
+    <button class="sec" id="dvk" type="button">Отключить ВКонтакте</button>
+    <div class="out" id="od" role="status"></div>
+  </section>
+</main>
+<script>
+(function(){
+  var $=function(id){return document.getElementById(id);};
+  var ERR={bad_key:'Неверный ключ приёмника.',bad_token:'Токен выглядит неправильно — скопируйте его целиком.',token_rejected:'Мессенджер не принял ключ.',
+    telegram_unreachable:'Сервер не смог связаться с Telegram (api.telegram.org). Напишите Claude — подключим через другой сервер.',
+    webhook_failed:'Telegram не принял адрес кабинета.',bad_group_id:'Номер сообщества — только цифры.',vk_failed:'ВКонтакте отказал.',
+    vk_unreachable:'Сервер не смог связаться с ВКонтакте.',not_saved:'Сначала сохраните ключ.'};
+  function show(el,ok,text){el.className='out '+(ok?'ok':'bad');el.textContent=text;}
+  function call(path,body){
+    return fetch(path,{method:'POST',headers:{'Content-Type':'application/json','X-FPL-Key':$('ik').value},body:JSON.stringify(body)})
+      .then(function(r){return r.json().catch(function(){return {ok:false,error:'http_'+r.status};});});
+  }
+  function err(j){return (ERR[j.error]||('Ошибка: '+j.error))+(j.detail?' ('+j.detail+')':'');}
+  $('btg').addEventListener('click',function(){
+    var b=this; if(!$('ik').value||!$('tg').value.trim()){show($('otg'),false,'Нужны ключ приёмника и токен.');return;}
+    b.disabled=true; show($('otg'),true,'Проверяю токен и подключаю бота — около 15 секунд…');
+    call('/api/settings/telegram',{token:$('tg').value.trim()}).then(function(j){
+      if(j.ok){$('tg').value='';show($('otg'),true,'Готово: бот @'+j.username+' подключён к кабинету. Проверьте: в кабинете Профиль → Уведомления → «Подключить Telegram».');}
+      else show($('otg'),false,err(j));
+    }).catch(function(){show($('otg'),false,'Сервер не ответил. Попробуйте ещё раз через минуту.');}).then(function(){b.disabled=false;});
+  });
+  $('bvk').addEventListener('click',function(){
+    var b=this; if(!$('ik').value||!$('vk').value.trim()||!$('gid').value.trim()){show($('ovk'),false,'Нужны ключ приёмника, номер сообщества и ключ доступа.');return;}
+    b.disabled=true; show($('ovk'),true,'Проверяю ключ…');
+    call('/api/settings/vk',{group_id:$('gid').value.trim(),token:$('vk').value.trim()}).then(function(j){
+      if(!j.ok){show($('ovk'),false,err(j));b.disabled=false;return;}
+      $('vk').value='';
+      show($('ovk'),true,'Ключ принят («'+(j.name||'сообщество')+'»). Подключаю адрес кабинета — подождите 25 секунд…');
+      setTimeout(function(){
+        call('/api/settings/vk',{finish:true}).then(function(k){
+          if(k.ok) show($('ovk'),true,'Готово: «'+(k.name||'сообщество')+'» подключено к кабинету. Проверьте: в кабинете Профиль → Уведомления → «Подключить ВКонтакте».');
+          else show($('ovk'),false,err(k)+' Нажмите кнопку ещё раз через минуту.');
+        }).catch(function(){show($('ovk'),false,'Сервер не ответил.');}).then(function(){b.disabled=false;});
+      },25000);
+    }).catch(function(){show($('ovk'),false,'Сервер не ответил.');b.disabled=false;});
+  });
+  function off(path,name){
+    if(!$('ik').value){show($('od'),false,'Нужен ключ приёмника.');return;}
+    if(!confirm('Отключить '+name+'?'))return;
+    call(path,{disable:true}).then(function(j){show($('od'),j.ok,j.ok?name+' отключён.':err(j));});
+  }
+  $('dtg').addEventListener('click',function(){off('/api/settings/telegram','Telegram');});
+  $('dvk').addEventListener('click',function(){off('/api/settings/vk','ВКонтакте');});
+})();
+</script>
+</body>
+</html>
