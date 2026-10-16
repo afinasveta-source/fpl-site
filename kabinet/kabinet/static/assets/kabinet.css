@@ -282,3 +282,4 @@ body.lb-open{overflow:hidden}
 @media (max-width:520px){.dash-feed li{grid-template-columns:auto minmax(0,1fr)}.dash-feed .dash-ago{grid-column:1 / -1}
   .dash-judges li{grid-template-columns:minmax(0,1fr) auto}.dash-judges li .jbar{grid-column:1 / -1;grid-row:2}}
 .dash-lg .jbar{background:var(--surface)}
+.dash-cols{align-items:start}
