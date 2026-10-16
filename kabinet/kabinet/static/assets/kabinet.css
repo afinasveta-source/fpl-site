@@ -255,10 +255,18 @@ body.lb-open{overflow:hidden}
 .dash{display:flex;flex-direction:column;gap:16px}
 .dash-now h2{margin:2px 0 10px}
 .dash-big{font:500 28px/1.1 var(--f-display);margin:6px 0 0}
-.dash-lgs{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin:4px 0 12px}
-.dash-lg{background:var(--sunk);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
-.dash-left{font:500 20px/1.1 var(--f-display);white-space:nowrap}
-.dash-left.soon{color:var(--accent)}
+.dash-title{font:500 28px/1.15 var(--f-display);margin:4px 0 14px}
+.dash-lgs{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin:0 0 16px}
+.dash-lg{background:var(--sunk);border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:10px;border-left:6px solid var(--line)}
+.dash-lg.lg-gold{border-left-color:#C9A227}.dash-lg.lg-silver{border-left-color:#9AA3AD}.dash-lg.lg-bronze{border-left-color:#B87333}
+.dash-lg-name{font:600 15px/1.2 var(--f-body, inherit);letter-spacing:.06em;text-transform:uppercase}
+.dash-figs{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.dash-fig{display:flex;flex-direction:column;gap:4px}
+.dash-fig b{font:500 32px/1.05 var(--f-display);white-space:nowrap}
+.dash-fig b small{font-size:20px;color:var(--muted)}
+.dash-fig b.soon{color:var(--accent)}
+.dash-fig span{font-size:14px;color:var(--muted);line-height:1.35}
+.dash-lg .jbar{height:12px;border-radius:6px}
 .dash-judging{display:flex;flex-direction:column;gap:8px;margin:4px 0 12px;padding:12px 14px;border:1px solid var(--line);border-radius:10px}
 .dash-judging .btn{align-self:flex-start}
 .dash-judges{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
@@ -273,3 +281,4 @@ body.lb-open{overflow:hidden}
 .dash-ago{white-space:nowrap}
 @media (max-width:520px){.dash-feed li{grid-template-columns:auto minmax(0,1fr)}.dash-feed .dash-ago{grid-column:1 / -1}
   .dash-judges li{grid-template-columns:minmax(0,1fr) auto}.dash-judges li .jbar{grid-column:1 / -1;grid-row:2}}
+.dash-lg .jbar{background:var(--surface)}

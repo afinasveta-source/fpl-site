@@ -191,25 +191,23 @@
         (nx && nx.opens_at ? '<p class="dash-big"><span data-until="' + esc(nx.opens_at) + '">' + left(new Date(nx.opens_at) - Date.now()) + '</span> <span class="small muted">до открытия · ' + esc(K.date(nx.opens_at)) + '</span></p>' : '') + '</section>';
     }
     rounds.forEach(function (r) {
-      h += '<section class="card dash-now"><div class="between"><div><span class="eyebrow">Сейчас · ' + esc(g.title) + '</span><h2>Тур ' + r.round_no + (r.title ? ' · ' + esc(r.title) : '') + '</h2></div>' +
+      h += '<section class="card dash-now"><div class="between"><div><span class="eyebrow">Сейчас · ' + esc(g.title) + '</span><h2 class="dash-title">Тур ' + r.round_no + (r.title ? ' · ' + esc(r.title) : '') + '</h2></div>' +
         O.st(O.PHASE, r.phase) + '</div>';
       var lgs = ['gold', 'silver', 'bronze', 'none'].filter(function (k) { return r.by_league && r.by_league[k] && (r.by_league[k].in_now || r.by_league[k].sent); });
-      if (!lgs.length && (r.phase === 'open' || r.phase === 'closed')) {   // участниц с лигой ещё нет — общий срок тура
-        var open0 = r.deadline && new Date(r.deadline) > Date.now();
-        h += '<div class="dash-lgs"><div class="dash-lg"><div class="between"><b>Все лиги</b>' + (r.deadline ? '<span class="dash-left"' + (open0 ? ' data-until="' + esc(r.deadline) + '"' : '') + '>' +
-          (open0 ? left(new Date(r.deadline) - Date.now()) : 'приём закрыт') + '</span>' : '') + '</div>' + (r.deadline ? '<span class="small muted">срок ' + esc(K.date(r.deadline)) + '</span>' : '') +
-          '<span class="small">сдали <b>' + ((r.works && r.works.sent) || 0) + '</b></span></div></div>';
+      function tile(k, dl, inDone, inAll, sent) {
+        var open = dl && new Date(dl) > Date.now(), soon = open && new Date(dl) - Date.now() < 24 * 3600e3;
+        return '<div class="dash-lg lg-' + k + '"><div class="dash-lg-name">' + (k === 'all' ? 'Все лиги' : LGNAME[k]) + '</div><div class="dash-figs">' +
+          '<div class="dash-fig"><b class="' + (soon ? 'soon' : '') + '"' + (open ? ' data-until="' + esc(dl) + '"' : '') + '>' + (dl ? (open ? left(new Date(dl) - Date.now()) : 'закрыт') : '—') + '</b>' +
+            '<span>' + (dl ? (open ? 'до конца приёма' : 'приём закрыт') + '<br>' + esc(K.date(dl)) : 'срок не задан') + '</span></div>' +
+          '<div class="dash-fig"><b>' + (inAll != null ? inDone + '<small> / ' + inAll + '</small>' : sent) + '</b><span>' + (inAll != null ? 'в конкурсе сдали' : 'сдали работ') + '</span></div></div>' +
+          (inAll != null ? bar(inDone, inAll) : '') +
+          (inAll != null && sent - inDone > 0 ? '<span class="small muted">ещё ' + (sent - inDone) + ' — вне конкурса или после срока</span>' : '') + '</div>';
       }
       if (r.phase === 'open' || r.phase === 'closed') {
-        h += '<div class="dash-lgs">' + lgs.map(function (k) {
-          var x = r.by_league[k], dl = deadlineOf(r, k), inDone = x.missing_in != null ? x.in_now - x.missing_in : null;
-          var open = dl && new Date(dl) > Date.now();
-          return '<div class="dash-lg"><div class="between"><b>' + LGNAME[k] + '</b>' +
-            (dl ? '<span class="dash-left' + (open && new Date(dl) - Date.now() < 24 * 3600e3 ? ' soon' : '') + '"' + (open ? ' data-until="' + esc(dl) + '"' : '') + '>' + (open ? left(new Date(dl) - Date.now()) : 'приём закрыт') + '</span>' : '') + '</div>' +
-            (dl ? '<span class="small muted">срок ' + esc(K.date(dl)) + '</span>' : '') +
-            (inDone != null ? bar(inDone, x.in_now) + '<span class="small">в конкурсе сдали <b>' + inDone + '</b> из ' + x.in_now + '</span>' : '<span class="small">сдали <b>' + x.sent + '</b></span>') +
-            (x.sent - (inDone || 0) > 0 && inDone != null ? '<span class="small muted">ещё ' + (x.sent - inDone) + ' — вне конкурса или после срока</span>' : '') + '</div>';
-        }).join('') + '</div>';
+        h += '<div class="dash-lgs">' + (lgs.length ? lgs.map(function (k) {
+          var x = r.by_league[k], inDone = x.missing_in != null ? x.in_now - x.missing_in : null;
+          return tile(k, deadlineOf(r, k), inDone, x.missing_in != null ? x.in_now : null, x.sent);
+        }).join('') : tile('all', r.deadline, null, null, (r.works && r.works.sent) || 0)) + '</div>';
       }
       if (r.judging) {
         var js = (pulse.judges || []).filter(function (j) { return j.round_id === r.id; });
@@ -223,7 +221,7 @@
           (js[0] && js[0].deadline ? '<p class="small muted">Оценить до ' + esc(K.date(js[0].deadline)) + ' · <span data-until="' + esc(js[0].deadline) + '">' + left(new Date(js[0].deadline) - Date.now()) + '</span></p>' : '') +
           '<button class="btn sec small" type="button" data-href="/org/rounds/' + r.id + '/judging">Открыть судейство</button></div>';
       }
-      h += '<div class="row"><button class="btn small" type="button" data-href="/org/rounds/' + r.id + '">Тур</button><button class="btn sec small" type="button" data-href="' + base + '/people">Участницы</button></div></section>';
+      h += '<div class="row"><button class="btn" type="button" data-href="/org/rounds/' + r.id + '">Открыть тур</button><button class="btn sec" type="button" data-href="' + base + '/people">Участницы и работы</button></div></section>';
     });
     return h;
   }
