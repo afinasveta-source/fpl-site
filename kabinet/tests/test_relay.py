@@ -251,12 +251,17 @@ JOIN users u ON u.id=p.user_id WHERE t.evaluation_stream_id=%s''', (st['id'],))}
         assert relay.distribute(conn, rnd_of(conn, g), h(days=1, hours=2)) == 3     # черновик из лучших
     d = ok(c.get(url + '/relay'))
     assert d['overview']['mode'] == 'top' and d['overview']['early_judging'] == 'done'
-    assert 2 <= d['overview']['sources'] <= 3                    # топ-2 (+ равные на границе)
+    # Сколько исходников ждать — по местам судейства Gold: топ-N и все равные N-му месту. Пары выпадают случайно, поэтому
+    # равных на границе бывает и двое, и трое (16.10: прежняя проверка «N или N+1» иногда падала при трёх равных).
+    places = sorted(r['place'] for r in next(s for s in ok(c.get(url + '/judging'))['streams'] if s['league'] == 'gold')['rows']
+                    if r['place'] is not None)
+    expect = lambda n: sum(1 for p in places if p <= places[n - 1])
+    assert d['overview']['sources'] == expect(2)                  # топ-2 (+ равные на границе)
     # черновик готов — число лучших ещё можно поменять, раздача пересобирается
     ok(c.put(url + '/relay', headers=ORIGIN, json=rl | {'top_n': 4}))
-    assert 4 <= ok(c.get(url + '/relay'))['overview']['sources'] <= 5
+    assert ok(c.get(url + '/relay'))['overview']['sources'] == expect(4) >= 4
     ok(c.put(url + '/relay', headers=ORIGIN, json=rl | {'top_n': 2}))
-    assert 2 <= ok(c.get(url + '/relay'))['overview']['sources'] <= 3
+    assert ok(c.get(url + '/relay'))['overview']['sources'] == expect(2) >= 2
     d = ok(c.post(url + '/relay/release', headers=ORIGIN))
     assert d['overview']['released']
     assert c.put(url + '/relay', headers=ORIGIN, json=rl | {'top_n': 5}).json()['detail'] == 'relay_released'

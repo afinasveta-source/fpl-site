@@ -181,7 +181,7 @@
     ['/reviews', 'Мои разборы'], ['/notifications', 'Уведомления'], ['/support', 'Поддержка'], ['/profile', 'Профиль и настройки']];
   /* Кабинет организатора — свой раздел /org со своим меню (этап 3). */
   var ORG = [['/org', 'Обзор'], ['/org/games', 'Игры и туры'], ['/org/people', 'Люди'], ['/org/support', 'Поддержка'],
-    ['/org/claims', 'Заявки'], ['/org/import', 'Перенос из бота'], ['/org/feedback', 'Пожелания'], ['/org/reviews', 'Разборы'], ['/org/documents', 'Документы']];
+    ['/org/claims', 'Заявки'], ['/org/import', 'Перенос из бота'], ['/org/feedback', 'Пожелания'], ['/org/reviews', 'Разборы'], ['/org/documents', 'Документы'], ['/org/feed-keys', 'Ключи для данных']];
   K.inOrg = function () { var p = K.path(); return p === '/org' || p.indexOf('/org/') === 0; };
   K.isAdmin = function () { return !!(K.state.me && K.state.me.roles && K.state.me.roles.indexOf('admin') >= 0); };
   /* Судейство (этап 4): раздел видят судьи и администраторы — организатор тоже может судить. */

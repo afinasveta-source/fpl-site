@@ -50,6 +50,9 @@ class Settings(BaseSettings):
     upload_max_mb: int = Field(default=20, ge=1, le=50)
     upload_limit: int = 60
     media_min_free_mb: int = 1024
+    # Лента данных для инструмента контента (16.10): запросов в минуту на ключ; как часто писать «последнее использование».
+    feed_rate_limit: int = Field(default=120, ge=1, le=10000)
+    feed_flush_seconds: int = Field(default=60, ge=0, le=3600)
 
     @model_validator(mode='after')
     def guard_environment(self):

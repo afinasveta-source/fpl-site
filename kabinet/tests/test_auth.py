@@ -28,7 +28,7 @@ def activation(client, app, admin_headers, user_id, email='legacy@example.com'):
 
 
 def test_ready_and_openapi(client):
-    assert client.get('/ready').json() == {'status':'ready','schema':'011'}
+    assert client.get('/ready').json() == {'status':'ready','schema':'012'}
     assert client.get('/health').status_code == 200
     assert client.get('/openapi.json').status_code == 200
 

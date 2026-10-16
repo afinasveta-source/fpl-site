@@ -674,4 +674,57 @@
       O.refreshCounts().then(function () { K.route(); });
     });
   };
+
+  /* ---------- Ключи для данных (16.10) ----------
+     Внешний инструмент контента (Codex) читает данные лиги для постов: только чтение, по ключу. Ключ виден один раз. */
+  O.on(/^\/org\/feed-keys$/, function () {
+    K.load(['/api/org/feed-keys'], function (d) { drawKeys(d.keys, null); }, [['Обзор', '/org'], ['Ключи для данных']]);
+  });
+  function drawKeys(keys, fresh) {
+    var base = location.origin + K.ROOT + '/api/feed';
+    var h = '<div class="stack" data-s="g6"><h1>Ключи для данных</h1><p class="muted">Ключ даёт внешнему инструменту (например, Codex для постов в соцсетях) ' +
+      'чтение данных лиги: Игры и туры, итоги опубликованных туров и Игр, FPL Rating, очки FPL, статистика судейства. Изменить что-либо по ключу нельзя.</p></div>' +
+      '<div class="note small">В ленте нет email, телефонов, ФИО, контактов, обращений, судей и голосов. Имя участницы — только если она согласилась на публикацию; ' +
+      'фото работы — только если она разрешила показ работ. Пока Игра идёт, баллы, места и рейтинг других не публикуются (Правила, п. 7.3) — это правило есть в самих данных.</div>';
+    if (fresh) {
+      h += '<section class="card" id="fk-new"><h2>Ключ «' + esc(fresh.item.name) + '» создан</h2>' +
+        '<div class="note warn small"><b>Скопируйте ключ сейчас — больше он показан не будет.</b> Если потеряете — отзовите и создайте новый.</div>' +
+        '<div class="copy"><label class="sr" for="fk-key">Ключ</label><input class="input" id="fk-key" readonly value="' + esc(fresh.key) + '" data-nodraft>' +
+        '<button class="btn sec small" type="button" data-act="copyText" data-for="fk-key">Скопировать</button></div>' +
+        '<p class="small muted">Передайте ключ в настройки инструмента как переменную FPL_FEED_KEY. Адрес данных: <b>' + esc(base) + '</b>. ' +
+        'Инструкция для инструмента — в файле kabinet/FEED.md репозитория.</p></section>';
+    }
+    h += '<form class="card" id="f-fk" novalidate><h2>Новый ключ</h2><div class="grid2">' +
+      O.txt('fk-name', 'Название', '', ' maxlength="100" placeholder="Codex — посты"', 'Чтобы узнать ключ в списке.') +
+      O.txt('fk-comment', 'Комментарий', '', ' maxlength="500"', 'Необязательно: кто и зачем пользуется.') + '</div>' + O.errBox +
+      '<button class="btn" type="submit">Создать ключ</button></form>';
+    var active = keys.filter(function (k) { return k.active; }), old = keys.filter(function (k) { return !k.active; });
+    var row = function (k) {
+      return '<div class="fk-row"><div class="between"><div><b>' + esc(k.name) + '</b> <span class="small muted nowrap">' + esc(k.hint) + '</span></div>' +
+        (k.active ? pill('Действует', 'ok') : pill('Отозван', 'plain')) + '</div>' +
+        (k.comment ? '<p class="small">' + esc(k.comment) + '</p>' : '') +
+        '<p class="small muted">Создан ' + esc(O.when(k.created_at)) + (k.created_by ? ' · ' + esc(k.created_by) : '') +
+        ' · ' + (k.last_used_at ? 'последний раз ' + esc(O.when(k.last_used_at)) + ' · запросов: ' + k.use_count : 'ещё не использовался') +
+        (k.revoked_at ? ' · отозван ' + esc(O.when(k.revoked_at)) : '') + '</p>' +
+        (k.active ? '<button class="btn ghost small" type="button" data-act="fkRevoke" data-id="' + k.id + '" data-n="' + esc(k.name) + '">Отозвать</button>' : '') + '</div>';
+    };
+    h += '<section class="card"><h2>Действующие · ' + active.length + '</h2>' + (active.length ? '<div class="stack">' + active.map(row).join('') + '</div>' : '<p class="muted">Ключей пока нет.</p>') +
+      '<p class="small muted">«Последний раз» и число запросов обновляются не чаще раза в минуту.</p></section>';
+    if (old.length) h += '<details class="more card"><summary>Отозванные · ' + old.length + '</summary><div class="stack">' + old.map(row).join('') + '</div></details>';
+    K.page(h, [['Обзор', '/org'], ['Ключи для данных']]);
+    var f = document.getElementById('f-fk');
+    f.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var name = f.querySelector('#fk-name').value.trim(), comment = f.querySelector('#fk-comment').value.trim();
+      if (!name) { K.formError(f, 'Введите название.'); return; }
+      O.send('POST', '/api/org/feed-keys', { name: name, comment: comment || null }, f, function (d) {
+        K.drafts.forget(f); drawKeys(d.keys, d); var n = document.getElementById('fk-new'); if (n) n.scrollIntoView({ block: 'start' });
+      });
+    });
+  }
+  K.actions.fkRevoke = function (b) {
+    O.confirm({ title: 'Отозвать ключ «' + b.getAttribute('data-n') + '»?', text: 'Инструмент с этим ключом сразу потеряет доступ к данным. Вернуть ключ нельзя — только создать новый.',
+      ok: 'Отозвать', danger: true, path: '/api/org/feed-keys/' + b.getAttribute('data-id') + '/revoke',
+      done: function (d) { K.toast('Ключ отозван'); drawKeys(d.keys, null); } });
+  };
 })();

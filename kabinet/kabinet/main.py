@@ -23,12 +23,12 @@ from kabinet.org import games as org_games, rounds as org_rounds, documents as o
 from kabinet.judging import routes as judging_routes
 from kabinet.results import routes as results_routes
 from kabinet.org import participants as org_participants, support as org_support, home as org_home, overview as org_overview
-from kabinet import reviews, claims
-from kabinet.org import bot_import as org_bot_import, bot_photos as org_bot_photos
+from kabinet import reviews, claims, feed
+from kabinet.org import bot_import as org_bot_import, bot_photos as org_bot_photos, feed_keys as org_feed_keys
 from kabinet.org import works as org_works
 
 # Версия схемы базы (server/db/schema), под которую написан кабинет. Новее — можно, старее — нельзя.
-SCHEMA_REQUIRED = 11  # 011 — эстафета с проверкой организатора (13.10)
+SCHEMA_REQUIRED = 12  # 012 — ключи для данных (лента для инструмента контента, 16.10)
 # img-src: кроме своих — фото работ из бота прямо с источника (предпросмотр «Фото работ из бота» у организатора, 14.10)
 CSP = ("default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; "
        "img-src 'self' data: blob: https://files.salebot.pro https://*.userapi.com https://*.vkuserphoto.ru; media-src 'self' blob:; "
@@ -113,7 +113,7 @@ def create_app(settings=None, mailer=None, clock=None):
     app.include_router(participant_router)
     app.include_router(account_router)
     app.include_router(gallery_router)
-    for module in (org_home, org_overview, org_games, org_rounds, org_documents, org_people, org_participants, org_support, org_bot_import, org_bot_photos, org_works):
+    for module in (org_home, org_overview, org_games, org_rounds, org_documents, org_people, org_participants, org_support, org_bot_import, org_bot_photos, org_works, org_feed_keys):
         app.include_router(module.router)
     app.include_router(org_support.public)
     app.include_router(reviews.public)
@@ -125,5 +125,6 @@ def create_app(settings=None, mailer=None, clock=None):
     app.include_router(judging_routes.org)
     app.include_router(judging_routes.judge)
     app.include_router(results_routes.router)
+    app.include_router(feed.router)   # лента для инструмента контента: только чтение, по ключу (16.10)
     app.mount('/assets', StaticFiles(directory=str(STATIC / 'assets')), name='assets')
     return app

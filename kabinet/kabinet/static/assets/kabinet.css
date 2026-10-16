@@ -249,3 +249,5 @@ audio.wide{width:100%;margin-block:8px}
 body.lb-open{overflow:hidden}
 .sort-btn{font:inherit;color:inherit;white-space:nowrap;text-decoration:none}
 .tw-mark{display:block;font-size:11px;font-weight:700;line-height:1.2;color:var(--accent-ink)}
+.fk-row{display:grid;gap:4px}.fk-row p{margin:0}.fk-row .btn{justify-self:start}
+.fk-row+.fk-row{border-top:1px solid var(--line);padding-top:12px}
