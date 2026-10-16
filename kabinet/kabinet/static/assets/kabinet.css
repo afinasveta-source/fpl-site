@@ -251,3 +251,25 @@ body.lb-open{overflow:hidden}
 .tw-mark{display:block;font-size:11px;font-weight:700;line-height:1.2;color:var(--accent-ink)}
 .fk-row{display:grid;gap:4px}.fk-row p{margin:0}.fk-row .btn{justify-self:start}
 .fk-row+.fk-row{border-top:1px solid var(--line);padding-top:12px}
+/* Обзор лиги — дашборд (17.10) */
+.dash{display:flex;flex-direction:column;gap:16px}
+.dash-now h2{margin:2px 0 10px}
+.dash-big{font:500 28px/1.1 var(--f-display);margin:6px 0 0}
+.dash-lgs{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin:4px 0 12px}
+.dash-lg{background:var(--sunk);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.dash-left{font:500 20px/1.1 var(--f-display);white-space:nowrap}
+.dash-left.soon{color:var(--accent)}
+.dash-judging{display:flex;flex-direction:column;gap:8px;margin:4px 0 12px;padding:12px 14px;border:1px solid var(--line);border-radius:10px}
+.dash-judging .btn{align-self:flex-start}
+.dash-judges{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.dash-judges li{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(60px,1fr) auto;gap:10px;align-items:center}
+.dash-kpi .stat b{font:500 22px/1.1 var(--f-display)}
+.dash-cols{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
+@media (min-width:1000px){.dash-cols{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+.dash-dates,.dash-feed{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.dash-dates li{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:baseline;padding:8px 0;border-bottom:1px solid var(--line)}
+.dash-dates li:last-child,.dash-feed li:last-child{border-bottom:0}
+.dash-feed li{display:grid;grid-template-columns:92px auto minmax(0,1fr);gap:8px;align-items:baseline;padding:7px 0;border-bottom:1px solid var(--line)}
+.dash-ago{white-space:nowrap}
+@media (max-width:520px){.dash-feed li{grid-template-columns:auto minmax(0,1fr)}.dash-feed .dash-ago{grid-column:1 / -1}
+  .dash-judges li{grid-template-columns:minmax(0,1fr) auto}.dash-judges li .jbar{grid-column:1 / -1;grid-row:2}}

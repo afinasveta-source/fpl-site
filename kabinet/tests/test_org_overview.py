@@ -233,3 +233,15 @@ def test_site_rating_switch(app, seed, clock):
     other = ok(c.post('/api/org/events', headers=ORIGIN, json={'title': 'Челлендж', 'event_type': 'challenge'}), 201)
     assert c.post(f"/api/org/events/{other['id']}/site-rating", headers=ORIGIN, json={'live': True}).json()['detail'] == 'not_ranked'
     assert login(app, seed, 'p@example.com').post(url + '/site-rating', headers=ORIGIN, json={'live': True}).status_code == 403
+
+
+def test_pulse_for_dashboard(app, seed, clock):
+    """17.10: Обзор лиги — цифры за сутки и неделю и лента последних событий."""
+    c, game, eps, people = game_with_people(app, seed)
+    d = ok(c.get('/api/org/pulse'))
+    assert d['numbers']['works_24h'] == 2 and d['numbers']['works_7d'] == 2
+    assert d['numbers']['messengers']['people'] == 4 and d['numbers']['messengers']['any'] == 0
+    works = [x for x in d['feed'] if x['kind'] == 'work']
+    assert {x['name'] for x in works} == {'Анна Тестова', 'Вера Тестова'}
+    assert all(x['href'].startswith('/org/participants/') for x in works) and d['judges'] == []
+    assert login(app, seed, 'zoe@example.com').get('/api/org/pulse').status_code == 403
