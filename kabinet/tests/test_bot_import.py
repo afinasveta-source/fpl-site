@@ -328,3 +328,39 @@ def test_two_claims_same_person_merge_login_into_bot_record(app, seed, clock):
         olga = str(conn.execute("SELECT id FROM users WHERE email='olga@example.com'").fetchone()['id'])
     assert c.post('/api/org/claims/merge', headers=ORIGIN,
                   json={'from_user_id': olga, 'into_user_id': bot}).json()['detail'] == 'merge_into_logged_in'
+
+
+def test_org_marks_top_work_of_round_1_and_reimport_keeps_it(app, seed, clock):
+    """16.10: в таблице не было TOP WORK тура 1 — организатор отмечает в карточке; очки и галерея берут отметку,
+    повторный перенос таблицы её не затирает."""
+    clock.set(h())
+    with app.state.db.transaction() as conn:
+        add_docs(conn)
+    c = org(app, seed)
+    _, res = do_import(c)
+    eid = res['event_id']
+    with app.state.db.transaction() as conn:
+        ep = conn.execute('''SELECT p.id FROM event_participants p JOIN users u ON u.id=p.user_id
+WHERE p.event_id=%s AND u.full_name=%s''', (eid, 'Петрова Мария Ивановна')).fetchone()['id']
+        r1 = conn.execute('SELECT id FROM rounds WHERE event_id=%s AND round_no=1', (eid,)).fetchone()['id']
+        r3 = conn.execute('SELECT id FROM rounds WHERE event_id=%s AND round_no=3', (eid,)).fetchone()['id']
+    card = ok(c.get(f'/api/org/participants/{ep}'))
+    row = next(r for r in card['rounds'] if r['round_no'] == 1)
+    assert row['can_top_work'] and not row['result']['top_work']
+    url = f'/api/org/participants/{ep}/rounds/{r1}/top_work'
+    assert c.post(url, headers=ORIGIN, json={'top_work': True, 'reason': '  '}).json()['detail'] == 'reason_required'
+    assert c.post(f'/api/org/participants/{ep}/rounds/{r3}/top_work', headers=ORIGIN,
+                  json={'top_work': True, 'reason': 'x'}).status_code == 404       # у тура 3 итога нет
+    d = ok(c.post(url, headers=ORIGIN, json={'top_work': True, 'reason': 'TOP WORK тура 1 по судейству в боте'}))
+    assert next(r for r in d['rounds'] if r['round_no'] == 1)['result']['top_work']
+    assert d['log'][0]['action'] == 'org_top_work'
+    ok(c.post(url, headers=ORIGIN, json={'top_work': True, 'reason': 'повтор'}))          # повтор — без второй записи
+    rows = {r['name']: r for r in ok(c.get(f'/api/org/events/{eid}/results'))['rows']}
+    assert rows['Петрова Мария Ивановна']['top_works'] == 1 and rows['Петрова Мария Ивановна']['points']['top_work'] == 1
+    do_import(c)                                                                         # повторный перенос не затирает
+    with app.state.db.transaction() as conn:
+        assert conn.execute('''SELECT top_work FROM round_results WHERE round_id=%s AND event_participant_id=%s AND is_current''',
+                            (r1, ep)).fetchone()['top_work']
+        assert conn.execute("SELECT count(*) AS n FROM audit_log WHERE entity_id=%s AND action='org_top_work'", (ep,)).fetchone()['n'] == 1
+    d = ok(c.post(url, headers=ORIGIN, json={'top_work': False, 'reason': 'ошибка'}))
+    assert not next(r for r in d['rounds'] if r['round_no'] == 1)['result']['top_work']

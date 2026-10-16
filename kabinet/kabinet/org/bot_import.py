@@ -416,8 +416,10 @@ current_league=EXCLUDED.current_league''', (self.season['id'], uid, row['league'
 advanced,competition_status_after,league,top_work,top_work_rule_version,calculation_snapshot,published_at)
 VALUES (%s,%s,%s,1,true,'published',%s,%s,%s,%s,%s,%s,%s,%s)
 ON CONFLICT (round_id, event_participant_id, version_no) DO UPDATE SET display_score=EXCLUDED.display_score, advanced=EXCLUDED.advanced,
-competition_status_after=EXCLUDED.competition_status_after, league=EXCLUDED.league, top_work=EXCLUDED.top_work,
-top_work_rule_version=EXCLUDED.top_work_rule_version, calculation_snapshot=EXCLUDED.calculation_snapshot RETURNING id''',
+competition_status_after=EXCLUDED.competition_status_after, league=EXCLUDED.league,
+top_work=CASE WHEN round_results.top_work_rule_version='FPL_TOPWORK_MANUAL' THEN round_results.top_work ELSE EXCLUDED.top_work END,
+top_work_rule_version=CASE WHEN round_results.top_work_rule_version='FPL_TOPWORK_MANUAL' THEN round_results.top_work_rule_version
+  ELSE EXCLUDED.top_work_rule_version END, calculation_snapshot=EXCLUDED.calculation_snapshot RETURNING id''',
                        (self.event['id'], rnd['id'], ep['id'], round(score, 2), advanced, after, row['league'], top,
                         'FPL_TOPWORK_V1' if top else None, Jsonb(snap), BOT_ROUNDS[no]['published']))
         self.remember('bot_csv_round_result', f"{MARATHON}:{no}:{row['cid']}", 'round_results', out['id'])

@@ -395,7 +395,7 @@
   });
   var LOG = { org_outside: 'Переведена вне конкурса', org_return: 'Возвращена в конкурс', org_withdraw: 'Выведена из Игры', org_restore: 'Участие возвращено',
     org_disqualify: 'Дисквалифицирована', org_undisqualify: 'Дисквалификация отменена', league_set: 'Лига изменена', deadline_extended: 'Продлён срок', deadline_reset: 'Личный срок снят',
-    registered: 'Записалась', org_work_uploaded: 'Работа загружена организатором', chose_outside: 'Сама выбрала «вне конкурса»', late_to_outside: 'Пропущен срок — вне конкурса', withdrew: 'Сама вышла из Игры' };
+    registered: 'Записалась', org_work_uploaded: 'Работа загружена организатором', org_top_work: 'TOP WORK', chose_outside: 'Сама выбрала «вне конкурса»', late_to_outside: 'Пропущен срок — вне конкурса', withdrew: 'Сама вышла из Игры' };
   /* FPL Rating (17.10): текущий, калибровка и изменение за каждый тур этой Игры. Это не очки FPL — очки копятся отдельно
      (за итог Игры и TOP WORK) и на рейтинг не влияют. */
   O.ratingLabel = function (rating, status, calibration) {
@@ -458,6 +458,7 @@
           (s.is_on_time ? '' : ' · после срока') + (s.version_no > 1 ? ' · версия ' + s.version_no : '')) +
           (s.link ? ' · <a href="' + esc(s.link) + '" target="_blank" rel="noopener nofollow">ссылка</a>' : '') + '</p>' : '') +
         (live && r.opened && !s && !r.from_bot ? '<button class="btn sec small" type="button" data-act="partDeadline" data-r="' + r.round_id + '">' + (r.personal ? 'Изменить личный срок' : 'Продлить срок') + '</button>' : '') +
+        (r.can_top_work ? '<button class="btn ghost small" type="button" data-act="partTopWork" data-r="' + r.round_id + '">' + (r.result.top_work ? 'Снять TOP WORK' : 'Отметить TOP WORK') + '</button>' : '') +
         (r.can_upload ? '<button class="btn sec small" type="button" data-act="partWork" data-r="' + r.round_id + '">' + (s ? 'Заменить работу за участницу' : 'Загрузить работу за участницу') + '</button>' : '') + '</div>';
     }).join('') : '<p class="muted">Туры ещё не опубликованы.</p>') + '</section>';
     h += '<section class="card"><h2>Журнал</h2>' + (x.log.length ? '<ul class="log">' + x.log.map(function (l) {
@@ -540,6 +541,31 @@
             K.toast('Работа тура ' + r.round_no + ' загружена' + (d.uploaded && d.uploaded.restored ? ' — участница снова в конкурсе' : ''));
             drawParticipant(d);
           });
+      });
+    });
+  };
+
+  /* TOP WORK тура вручную (16.10): в переносе тура 1 из таблицы отметок не было. Пока итоги Игры не опубликованы. */
+  O.addText({ results_published: 'Итоги Игры уже опубликованы — отметку не поменять.', no_result: 'У тура нет опубликованного итога.' });
+  K.actions.partTopWork = function (b) {
+    var x = O.part, r = x.rounds.filter(function (y) { return y.round_id === b.getAttribute('data-r'); })[0], on = !(r.result && r.result.top_work);
+    K.showModal('<h2 id="mT">' + (on ? 'Отметить' : 'Снять') + ' TOP WORK · тур ' + r.round_no + '</h2><p class="small muted">' + esc(x.person.name || 'Участница') +
+      '. ' + (on ? 'Отметка появится в галерее и в итогах, +1 очко FPL при итогах Игры.' : 'Отметка и очко за неё уйдут.') + '</p>' +
+      '<form id="f-tw" class="stack" novalidate><div class="field"><label for="tw-reason">Причина (видна в журнале)</label><textarea class="input" id="tw-reason" maxlength="500">' +
+      (on ? 'TOP WORK тура ' + r.round_no + ' по итогам судейства в боте' : '') + '</textarea></div>' +
+      O.errBox + '<div class="row"><button class="btn" type="submit">' + (on ? 'Отметить' : 'Снять') + '</button><button class="btn sec" type="button" data-act="closeModal">Отмена</button></div></form>');
+    var f = document.getElementById('f-tw');
+    f.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var reason = f.querySelector('#tw-reason').value.trim();
+      if (!reason) { K.formError(f, 'Укажите причину.'); return; }
+      K.formError(f, ''); K.busy(f, true);
+      K.api('POST', '/api/org/participants/' + x.id + '/rounds/' + r.round_id + '/top_work', { top_work: on, reason: reason }).then(function (res) {
+        K.busy(f, false);
+        if (!res.ok) { K.formError(f, O.err(res)); return; }
+        f.closest('.modal').remove(); K.onEscape = null;
+        K.toast(on ? 'TOP WORK отмечен' : 'TOP WORK снят');
+        drawParticipant(res.data);
       });
     });
   };

@@ -181,3 +181,44 @@ VALUES (%s,'event_participant',%s,'org_work_uploaded',%s,%s)''',
                 'route': 'task', 'event_id': str(ep['event_id']), 'assignment_id': str(a['id'])}, ep['event_id'], rnd['id'])
         return participant_detail(conn, load_ep(conn, ep_id), request, now) | {'uploaded': {'round_no': rnd['round_no'],
                                                                                             'restored': restored, 'at': iso(now)}}
+
+
+class TopWorkIn(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    top_work: bool
+    reason: str = Field(min_length=1, max_length=500)
+
+
+MANUAL_TOPWORK = 'FPL_TOPWORK_MANUAL'
+
+
+@router.post('/participants/{ep_id}/rounds/{round_id}/top_work', dependencies=WRITE)
+def set_top_work(ep_id: UUID, round_id: UUID, body: TopWorkIn, request: Request, user=Depends(org_user)):
+    """Отметка TOP WORK у опубликованного итога тура (16.10): в переносе из таблицы не было колонки TOP WORK тура 1 —
+    организатор отмечает вручную. Только пока итоги Игры не опубликованы (очки TOP WORK считаются из этой отметки).
+    Повторный перенос из таблицы ручную отметку не затирает (rule_version FPL_TOPWORK_MANUAL)."""
+    from kabinet.results import service as RS
+    now = now_of(request)
+    reason = clean_text(body.reason)
+    if not reason:
+        raise problem('reason_required')
+    with db(request).transaction() as conn:
+        locked_admin(conn, user)
+        ep = load_ep(conn, ep_id, lock=True)
+        e = load_event(conn, ep['event_id'])
+        guard_event(e)
+        if RS.published(e):
+            raise problem('results_published', 409)
+        rr = conn.execute('''SELECT rr.*, r.round_no FROM round_results rr JOIN rounds r ON r.id=rr.round_id
+WHERE rr.round_id=%s AND rr.event_participant_id=%s AND rr.is_current AND rr.status='published' FOR UPDATE OF rr''',
+                          (round_id, ep_id)).fetchone()
+        if rr is None:
+            raise problem('no_result', 404)
+        if bool(rr['top_work']) != body.top_work:
+            conn.execute('UPDATE round_results SET top_work=%s, top_work_rule_version=%s WHERE id=%s',
+                         (body.top_work, MANUAL_TOPWORK if body.top_work else None, rr['id']))
+            conn.execute('''INSERT INTO audit_log(actor_user_id,entity_type,entity_id,action,before_data,after_data,reason)
+VALUES (%s,'event_participant',%s,'org_top_work',%s,%s,%s)''',
+                         (user['id'], ep['id'], Jsonb({'top_work': bool(rr['top_work']), 'rule': rr['top_work_rule_version']}),
+                          Jsonb({'round_no': rr['round_no'], 'top_work': body.top_work, 'league': rr['league']}), reason))
+        return participant_detail(conn, load_ep(conn, ep_id), request, now)

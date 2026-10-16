@@ -211,6 +211,8 @@ def participant_detail(conn, ep, request, now):
     root = request.app.state.settings.root_path
     rounds_out = []
     scores = round_scores(conn, ep['event_id'], [ep['id']])
+    from kabinet.results import service as RS
+    tw_open = e['status'] not in ('finished', 'archived', 'draft') and not RS.published(e)
     for r in game.rounds:
         items = game.assignments.get(r['id'], [])
         a = items[0] if items else None
@@ -232,6 +234,8 @@ def participant_detail(conn, ep, request, now):
             'from_bot': (r['settings'] or {}).get('source') == 'bot',
             # загрузить работу за участницу (org/works.py): тур открыт, итоги не опубликованы, судейство её лиги не идёт
             'can_upload': upload_allowed(conn, game, r, ep, now),
+            # отметить / снять TOP WORK у опубликованного итога тура (org/works.py set_top_work)
+            'can_top_work': tw_open and (str(ep['id']), str(r['id'])) in scores,
             'submitted': V.version_view(game, latest, root) | {'is_on_time': sub['is_on_time'],
                                                                'first_submitted_at': iso(sub['first_submitted_at'])}
             if latest else None})
