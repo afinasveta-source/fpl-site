@@ -425,6 +425,10 @@ class MergeIn(BaseModel):
     model_config = ConfigDict(extra='forbid')
     from_user_id: UUID
     into_user_id: UUID
+    # 17.10: в основную запись уже входили (например, с опечаткой в email), а человек завёл новый аккаунт с верным email.
+    # Организатор явно подтверждает замену входа основной записи — старый email и пароль перестают работать.
+    replace_login: bool = False
+    reason: str | None = Field(default=None, max_length=500)
 
 
 def move_support(conn, from_id, to_id):
@@ -459,9 +463,18 @@ def merge(body: MergeIn, request: Request, user=Depends(org_user)):
             raise problem('account_not_linkable', 409)
         if has_works(conn, a['id']):
             raise problem('merge_from_has_works', 409)
+        logged_in = conn.execute('SELECT 1 FROM auth_sessions WHERE user_id=%s LIMIT 1', (b['id'],)).fetchone() is not None
+        reason = (body.reason or '').strip() or None
+        if logged_in and not body.replace_login:
+            raise problem('merge_into_logged_in', 409)    # в основную уже входили — без явного подтверждения её вход не трогаем
+        if logged_in and not reason:
+            raise problem('reason_required')
+        if conn.execute("SELECT 1 FROM user_roles WHERE user_id=%s AND role<>'participant'", (b['id'],)).fetchone():
+            raise problem('account_not_linkable', 409)    # вход судьи или организатора так не заменить
         moved_support = move_support(conn, a['id'], b['id'])
-        if conn.execute('SELECT 1 FROM auth_sessions WHERE user_id=%s LIMIT 1', (b['id'],)).fetchone():
-            raise problem('merge_into_logged_in', 409)    # в основную уже входили — её вход не трогаем
+        if logged_in:                                     # старый вход основной записи закрывается везде
+            conn.execute('UPDATE auth_sessions SET revoked_at=%s WHERE user_id=%s AND revoked_at IS NULL', (now, b['id']))
+            conn.execute('UPDATE auth_tokens SET used_at=%s WHERE user_id=%s AND used_at IS NULL', (now, b['id']))
         # участие лишней записи: убрать (заданий без работ — тоже); не выходит — снять с Игры
         removed, cancelled = [], []
         for ep in conn.execute('SELECT * FROM event_participants WHERE user_id=%s', (a['id'],)).fetchall():
@@ -491,5 +504,6 @@ SELECT %s, event_id, consent_type, accepted, status, document_version, legal_doc
 FROM consents WHERE user_id=%s ON CONFLICT (idempotency_key) DO NOTHING''', (b['id'], str(a['id']), a['id']))
         audit(conn, user['id'], 'user', b['id'], 'accounts_merged',
               {'from_user': str(a['id']), 'from_name': a['full_name'], 'old_email_dropped': b['email'],
-               'removed_from_games': removed, 'cancelled_in_games': cancelled, 'support_threads_moved': moved_support})
+               'removed_from_games': removed, 'cancelled_in_games': cancelled, 'support_threads_moved': moved_support,
+               'replaced_login': logged_in, 'reason': reason})
         return {'user_id': str(b['id']), 'full_name': b['full_name'], 'removed': removed, 'cancelled': cancelled}

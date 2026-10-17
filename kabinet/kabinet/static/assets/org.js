@@ -131,7 +131,10 @@
     if (bad) { err.textContent = bad; err.hidden = false; return; }
     b.disabled = true;
     K.api(opt.method || 'POST', opt.path, opt.body ? opt.body(reason) : undefined).then(function (res) {
-      if (!res.ok) { b.disabled = false; err.textContent = O.err(res); err.hidden = false; return; }
+      if (!res.ok) {
+        if (opt.fail && opt.fail(res)) return;     // своя обработка ошибки (например, следующий шаг подтверждения)
+        b.disabled = false; err.textContent = O.err(res); err.hidden = false; return;
+      }
       var m = b.closest('.modal'); if (m) m.remove(); K.onEscape = null;
       if (opt.done) opt.done(res.data); else K.route();
     });

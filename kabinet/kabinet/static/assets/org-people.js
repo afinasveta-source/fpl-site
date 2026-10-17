@@ -196,7 +196,7 @@
         var list = r.data.people.filter(function (x) { return x.id !== p.id; });
         box.innerHTML = list.length ? list.map(function (x) {
           return '<div class="between"><span>' + esc(x.full_name || x.name || '—') + ' <span class="small muted">· ' + esc(x.email || 'без входа') + ' · Игр: ' + x.games + '</span></span>' +
-            '<button class="btn small" type="button" data-act="dupMerge" data-to="' + x.id + '" data-n="' + esc(x.full_name || x.name || '') + '">Перенести вход сюда</button></div>';
+            '<button class="btn small" type="button" data-act="dupMerge" data-to="' + x.id + '" data-n="' + esc(x.full_name || x.name || '') + '" data-e="' + esc(x.email || '') + '">Перенести вход сюда</button></div>';
         }).join('') : '<p class="small muted">Никого не нашлось.</p>';
       });
     });
@@ -210,11 +210,22 @@
     });
   }
   K.actions.dupMerge = function (b) {
-    var p = O.person, to = b.getAttribute('data-to');
-    O.confirm({ title: 'Перенести вход на «' + b.getAttribute('data-n') + '»?',
+    var p = O.person, to = b.getAttribute('data-to'), name = b.getAttribute('data-n'), old = b.getAttribute('data-e');
+    var done = function () { K.toast('Вход перенесён'); K.go('/org/people/' + to); };
+    O.confirm({ title: 'Перенести вход на «' + name + '»?',
       text: 'Человек будет входить в ту запись тем же email ' + (p.email || '') + ' и паролем. Эта запись закроется, её участие в Игре уберётся. Отменить — только через поддержку.',
-      ok: 'Перенести', path: '/api/org/claims/merge', body: function () { return { from_user_id: p.id, into_user_id: to }; },
-      done: function () { K.toast('Вход перенесён'); K.go('/org/people/' + to); } });
+      ok: 'Перенести', path: '/api/org/claims/merge', body: function () { return { from_user_id: p.id, into_user_id: to }; }, done: done,
+      // 17.10: в основную уже входили (например, email с опечаткой) — второй шаг: явно заменить её вход
+      fail: function (res) {
+        if (res.detail !== 'merge_into_logged_in') return false;
+        var m = document.querySelector('.modal'); if (m) m.remove(); K.onEscape = null;
+        O.confirm({ title: 'В «' + name + '» уже входили', danger: true, reason: true, ok: 'Заменить вход',
+          text: 'Сейчас эта запись входит по email ' + (old || '(другому)') + '. После замены вход будет по ' + (p.email || '') +
+            ' и паролю от этой записи, а старый email и пароль перестанут работать на всех устройствах. Делайте так, только если это точно один человек.',
+          path: '/api/org/claims/merge', body: function (reason) { return { from_user_id: p.id, into_user_id: to, replace_login: true, reason: reason }; },
+          done: done });
+        return true;
+      } });
   };
   K.actions.makeLink = function (b) {
     var p = O.person, kind = b.getAttribute('data-k');

@@ -328,6 +328,19 @@ def test_two_claims_same_person_merge_login_into_bot_record(app, seed, clock):
         olga = str(conn.execute("SELECT id FROM users WHERE email='olga@example.com'").fetchone()['id'])
     assert c.post('/api/org/claims/merge', headers=ORIGIN,
                   json={'from_user_id': olga, 'into_user_id': bot}).json()['detail'] == 'merge_into_logged_in'
+    # 17.10: организатор явно заменяет вход основной записи (опечатка в email, человек завёл новый аккаунт) — с причиной
+    assert c.post('/api/org/claims/merge', headers=ORIGIN, json={'from_user_id': olga, 'into_user_id': bot,
+                                                                  'replace_login': True}).json()['detail'] == 'reason_required'
+    ok(c.post('/api/org/claims/merge', headers=ORIGIN, json={'from_user_id': olga, 'into_user_id': bot, 'replace_login': True,
+                                                             'reason': 'Опечатка в email, завела новый аккаунт'}))
+    assert q.get(f'/api/games/{eid}').status_code == 401                                    # старый вход закрыт везде
+    assert TestClient(app).post('/web-auth/login', headers=ORIGIN, json={'email': 'real@example.com', 'password': PASSWORD}).status_code == 401
+    r = TestClient(app)
+    ok(r.post('/web-auth/login', headers=ORIGIN, json={'email': 'olga@example.com', 'password': PASSWORD}))
+    assert ok(r.get(f'/api/games/{eid}'))['me']['league'] == 'gold'
+    with app.state.db.transaction() as conn:
+        log = conn.execute("SELECT after_data FROM audit_log WHERE action='accounts_merged' ORDER BY created_at DESC, id DESC LIMIT 1").fetchone()
+        assert log['after_data']['replaced_login'] and log['after_data']['old_email_dropped'] == 'real@example.com'
 
 
 def test_org_marks_top_work_of_round_1_and_reimport_keeps_it(app, seed, clock):
