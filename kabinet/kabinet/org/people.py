@@ -245,6 +245,46 @@ def change_person(user_id: UUID, body: PersonIn, request: Request, user=Depends(
         return person_detail(conn, u, now_of(request), user['id'])
 
 
+class EmailIn(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    email: EmailStr
+    reason: str | None = Field(default=None, max_length=500)
+
+
+@router.post('/people/{user_id}/email', dependencies=WRITE)
+def change_email(user_id: UUID, body: EmailIn, request: Request, user=Depends(org_user)):
+    """Организатор меняет email (логин) активного аккаунта (17.10: опечатка в email). Пароль остаётся прежним.
+    Если этот email занят другой записью того же человека (завела второй аккаунт), та закрывается — только если в ней
+    нет работ и итогов и она не судья и не организатор; её обращения в поддержку переходят сюда."""
+    from kabinet.claims import close_account, has_works, move_support
+    now = now_of(request)
+    email = str(body.email).strip().lower()
+    with db(request).transaction() as conn:
+        locked_admin(conn, user)
+        u = load_person(conn, user_id, lock=True)
+        if u['account_status'] != 'active':
+            raise problem('not_active', 409)
+        if (u['email'] or '').lower() == email:
+            raise problem('nothing_to_change')
+        other = conn.execute('SELECT * FROM users WHERE lower(email)=%s AND id<>%s AND deleted_at IS NULL FOR UPDATE',
+                             (email, user_id)).fetchone()
+        closed = None
+        if other:
+            if conn.execute("SELECT 1 FROM user_roles WHERE user_id=%s AND role<>'participant'", (other['id'],)).fetchone():
+                raise problem('email_taken', 409)
+            if has_works(conn, other['id']):
+                raise problem('email_taken_with_works', 409)
+            move_support(conn, other['id'], user_id)
+            removed, cancelled = close_account(conn, other, now)
+            closed = {'user_id': str(other['id']), 'name': other['full_name'], 'removed_from_games': removed}
+        old_email = u['email']
+        conn.execute('UPDATE auth_tokens SET used_at=%s WHERE user_id=%s AND used_at IS NULL', (now, user_id))
+        u = conn.execute('UPDATE users SET email=%s, email_verified_at=%s WHERE id=%s RETURNING *', (email, now, user_id)).fetchone()
+        audit(conn, user['id'], 'user', user_id, 'email_changed', {'old': old_email, 'new': email, 'closed_duplicate': closed,
+                                                                   'reason': (body.reason or '').strip() or None})
+        return person_detail(conn, u, now, user['id']) | {'closed_duplicate': closed}
+
+
 def make_link(conn, settings, user_id, kind, target_email, minutes):
     raw = new_token()
     conn.execute('UPDATE auth_tokens SET used_at=now() WHERE user_id=%s AND token_type=%s AND used_at IS NULL', (user_id, kind))

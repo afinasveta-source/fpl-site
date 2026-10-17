@@ -377,3 +377,33 @@ WHERE p.event_id=%s AND u.full_name=%s''', (eid, 'Петрова Мария Ив
         assert conn.execute("SELECT count(*) AS n FROM audit_log WHERE entity_id=%s AND action='org_top_work'", (ep,)).fetchone()['n'] == 1
     d = ok(c.post(url, headers=ORIGIN, json={'top_work': False, 'reason': 'ошибка'}))
     assert not next(r for r in d['rounds'] if r['round_no'] == 1)['result']['top_work']
+
+
+def test_org_changes_email_and_closes_second_account(app, seed, clock):
+    """17.10: email с опечаткой — организатор меняет логин основной записи; второй аккаунт с верным email закрывается."""
+    clock.set(h())
+    with app.state.db.transaction() as conn:
+        add_docs(conn)
+    c = org(app, seed)
+    _, res = do_import(c)
+    eid = res['event_id']
+    no1 = ok(claim(app, full_name='Петрова Мария', email='typo@exmaple.com'), 201)['claim_no']
+    bot = ok(c.get('/api/org/claims'))['items'][0]['suggestions'][0]['user_id']
+    ok(c.post(f'/api/org/claims/{no1}/approve', headers=ORIGIN, json={'user_id': bot}))
+    TestClient(app).post('/web-auth/login', headers=ORIGIN, json={'email': 'typo@exmaple.com', 'password': PASSWORD})
+    no2 = ok(claim(app, full_name='Петрова Мария', email='real@example.com'), 201)['claim_no']
+    ok(c.post(f'/api/org/claims/{no2}/add-outside', headers=ORIGIN, json={}))
+    with app.state.db.transaction() as conn:
+        dup = str(conn.execute("SELECT id FROM users WHERE email='real@example.com'").fetchone()['id'])
+    url = f'/api/org/people/{bot}/email'
+    assert c.post(url, headers=ORIGIN, json={'email': 'typo@exmaple.com'}).json()['detail'] == 'nothing_to_change'
+    assert c.post(url, headers=ORIGIN, json={'email': 'org@example.com'}).json()['detail'] == 'email_taken'   # чужой организатор
+    d = ok(c.post(url, headers=ORIGIN, json={'email': 'Real@Example.com', 'reason': 'опечатка'}))
+    assert d['email'] == 'real@example.com' and d['closed_duplicate']['user_id'] == dup
+    assert TestClient(app).post('/web-auth/login', headers=ORIGIN, json={'email': 'typo@exmaple.com', 'password': PASSWORD}).status_code == 401
+    p = TestClient(app)
+    ok(p.post('/web-auth/login', headers=ORIGIN, json={'email': 'real@example.com', 'password': PASSWORD}))
+    assert ok(p.get(f'/api/games/{eid}'))['me']['league'] == 'gold'
+    with app.state.db.transaction() as conn:
+        assert conn.execute('SELECT account_status FROM users WHERE id=%s', (dup,)).fetchone()['account_status'] == 'deleted'
+        assert conn.execute('SELECT count(*) AS n FROM event_participants WHERE user_id=%s', (dup,)).fetchone()['n'] == 0

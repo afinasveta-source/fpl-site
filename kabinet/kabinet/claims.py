@@ -446,6 +446,29 @@ def has_works(conn, user_id):
   OR EXISTS (SELECT 1 FROM round_results r WHERE r.event_participant_id=p.id)) LIMIT 1''', (user_id,)).fetchone() is not None
 
 
+def close_account(conn, a, now):
+    """Лишняя запись человека закрывается: участие убирается (заданий без работ — тоже; не выходит — снимается с Игры),
+    вход закрывается, запись становится «удалённой». Работ и итогов в ней быть не должно (проверяется до вызова)."""
+    removed, cancelled = [], []
+    for ep in conn.execute('SELECT * FROM event_participants WHERE user_id=%s', (a['id'],)).fetchall():
+        conn.execute('SAVEPOINT merge_ep')
+        try:
+            conn.execute('DELETE FROM participant_assignments WHERE event_participant_id=%s', (ep['id'],))
+            conn.execute('DELETE FROM event_participants WHERE id=%s', (ep['id'],))
+            conn.execute('RELEASE SAVEPOINT merge_ep')
+            removed.append(str(ep['event_id']))
+        except psycopg.errors.IntegrityError:
+            conn.execute('ROLLBACK TO SAVEPOINT merge_ep')
+            conn.execute("UPDATE event_participants SET registration_status='cancelled' WHERE id=%s", (ep['id'],))
+            cancelled.append(str(ep['event_id']))
+    conn.execute('UPDATE auth_sessions SET revoked_at=%s WHERE user_id=%s AND revoked_at IS NULL', (now, a['id']))
+    conn.execute('''UPDATE users SET email=NULL, password_hash=NULL, telegram_id=NULL, account_status='deleted', deleted_at=%s,
+public_profile=false, public_city=false, public_contacts=false, public_works=false, public_rating=false, public_social=false
+WHERE id=%s''', (now, a['id']))
+    conn.execute('DELETE FROM user_roles WHERE user_id=%s', (a['id'],))
+    return removed, cancelled
+
+
 @org.post('/merge', dependencies=WRITE)
 def merge(body: MergeIn, request: Request, user=Depends(org_user)):
     now = now_of(request)
@@ -475,24 +498,7 @@ def merge(body: MergeIn, request: Request, user=Depends(org_user)):
         if logged_in:                                     # старый вход основной записи закрывается везде
             conn.execute('UPDATE auth_sessions SET revoked_at=%s WHERE user_id=%s AND revoked_at IS NULL', (now, b['id']))
             conn.execute('UPDATE auth_tokens SET used_at=%s WHERE user_id=%s AND used_at IS NULL', (now, b['id']))
-        # участие лишней записи: убрать (заданий без работ — тоже); не выходит — снять с Игры
-        removed, cancelled = [], []
-        for ep in conn.execute('SELECT * FROM event_participants WHERE user_id=%s', (a['id'],)).fetchall():
-            conn.execute('SAVEPOINT merge_ep')
-            try:
-                conn.execute('DELETE FROM participant_assignments WHERE event_participant_id=%s', (ep['id'],))
-                conn.execute('DELETE FROM event_participants WHERE id=%s', (ep['id'],))
-                conn.execute('RELEASE SAVEPOINT merge_ep')
-                removed.append(str(ep['event_id']))
-            except psycopg.errors.IntegrityError:
-                conn.execute('ROLLBACK TO SAVEPOINT merge_ep')
-                conn.execute("UPDATE event_participants SET registration_status='cancelled' WHERE id=%s", (ep['id'],))
-                cancelled.append(str(ep['event_id']))
-        conn.execute('UPDATE auth_sessions SET revoked_at=%s WHERE user_id=%s AND revoked_at IS NULL', (now, a['id']))
-        conn.execute('''UPDATE users SET email=NULL, password_hash=NULL, telegram_id=NULL, account_status='deleted', deleted_at=%s,
-public_profile=false, public_city=false, public_contacts=false, public_works=false, public_rating=false, public_social=false
-WHERE id=%s''', (now, a['id']))
-        conn.execute('DELETE FROM user_roles WHERE user_id=%s', (a['id'],))
+        removed, cancelled = close_account(conn, a, now)
         conn.execute('''UPDATE users SET email=%s, password_hash=%s, email_verified_at=coalesce(%s, %s), account_status='active',
 telegram_id=coalesce(telegram_id, %s), country_code=coalesce(%s, country_code), city=coalesce(%s, city) WHERE id=%s''',
                      (a['email'], a['password_hash'], a['email_verified_at'], now, a['telegram_id'], a['country_code'], a['city'], b['id']))

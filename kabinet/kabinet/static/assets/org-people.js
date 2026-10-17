@@ -138,7 +138,8 @@
     } else if (p.account_status === 'active') {
       h += '<dl class="kv"><dt>Email (логин)</dt><dd>' + esc(p.email || '—') + '</dd><dt>Последний вход</dt><dd>' + esc(p.last_login ? O.when(p.last_login) : '—') + '</dd></dl>' +
         '<p class="small muted">Забыл пароль? Человек может сам запросить сброс на странице входа. Если письмо не доходит — создайте ссылку для нового пароля и перешлите её: она действует сутки.</p>' +
-        '<div id="link-box"></div><button class="btn sec" type="button" data-act="makeLink" data-k="reset">Ссылка для нового пароля</button>';
+        '<div id="link-box"></div><div class="row"><button class="btn sec" type="button" data-act="makeLink" data-k="reset">Ссылка для нового пароля</button>' +
+        '<button class="btn ghost" type="button" data-act="changeEmail">Сменить email</button></div>';
     } else if (p.account_status === 'suspended') {
       h += '<div class="note bad small">Аккаунт приостановлен: войти нельзя, ссылки не работают.</div>';
     }
@@ -226,6 +227,20 @@
           done: done });
         return true;
       } });
+  };
+  /* 17.10: опечатка в email — организатор меняет логин сам. Если такой email уже у второй записи этого человека
+     (завела новый аккаунт), та закрывается: её обращения переходят сюда. Пароль остаётся прежним. */
+  O.addText({ email_taken: 'Этот email у другого аккаунта (судьи или организатора) — так не поменять.',
+    email_taken_with_works: 'Этот email у другой записи, где уже есть работы. Напишите Claude — перенесём вручную.', not_active: 'Аккаунт не активен.' });
+  K.actions.changeEmail = function () {
+    var p = O.person;
+    O.confirm({ title: 'Новый email для входа', ok: 'Сменить',
+      html: '<p class="small muted">Сейчас: ' + esc(p.email || '—') + '. Пароль останется прежним. Если этот email уже у второго аккаунта этого человека — тот закроется, обращения в поддержку перейдут сюда.</p>' +
+        '<div class="field"><label for="ce-email">Email</label><input class="input" id="ce-email" type="email" maxlength="254" autocomplete="off"></div>',
+      validate: function () { var v = document.getElementById('ce-email').value.trim(); return /^\S+@\S+\.\S+$/.test(v) ? null : 'Укажите email.'; },
+      path: '/api/org/people/' + p.id + '/email', body: function () { return { email: document.getElementById('ce-email').value.trim() }; },
+      done: function (d) { K.toast(d.closed_duplicate ? 'Email изменён, второй аккаунт закрыт' : 'Email изменён'); drawPerson(d); } });
+    setTimeout(function () { var i = document.getElementById('ce-email'); if (i) i.focus(); }, 50);
   };
   K.actions.makeLink = function (b) {
     var p = O.person, kind = b.getAttribute('data-k');
